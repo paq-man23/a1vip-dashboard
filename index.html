@@ -95,6 +95,33 @@
     .cta{border:none;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer}
     .cta-primary{background:#22d3ee;color:#0b1220}.cta-primary:hover{filter:brightness(1.1)}
     .cta-secondary{background:#facc15;color:#0b1220}.cta-secondary:hover{filter:brightness(1.05)}
+
+    /* ===== Add-Link modal ===== */
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.5);
+      display:flex; align-items:center; justify-content:center; z-index:1400;
+    }
+    .modal{
+      width:min(520px, 92vw);
+      background:#0f172a; color:#e5e7eb; border:1px solid var(--border);
+      border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.4);
+    }
+    .modal h3{ margin:0 0 10px; color:#facc15 }
+    .form-row{ display:grid; gap:6px; margin:10px 0 }
+    .form-row input, .form-row select{
+      background:#111827; color:#e5e7eb; border:1px solid var(--border);
+      padding:10px; border-radius:10px; font-size:1rem;
+    }
+    .modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:12px }
+
+    /* custom button wrapper + delete chip */
+    .custom-wrap{ position:relative }
+    .custom-del{
+      position:absolute; top:6px; right:6px; width:26px; height:26px; line-height:26px;
+      border-radius:999px; border:1px solid var(--border); background:#111827; color:#e5e7eb;
+      cursor:pointer; font-weight:900; text-align:center;
+    }
+    .custom-del:hover{ background:#ef4444; color:#fff; border-color:#ef4444 }
   </style>
 </head>
 <body>
@@ -120,7 +147,7 @@
   </nav>
 
   <main>
-   <!-- MAIN LINKS (A–Z) -->
+     <!-- MAIN LINKS (A–Z) -->
     <div id="main" class="section">
       <h3>Main Links</h3>
       <div class="grid">
@@ -159,21 +186,21 @@
       </div>
     </div>
 
-  <!-- Luxury Suites (A–Z) -->
-    <div id="luxury" class="section" style="display:none;">
+    <!-- ===== LUXURY SUITES ===== -->
+    <section id="luxury" class="section" style="display:none;">
       <h3>Luxury Suites</h3>
-      <div class="grid">  
+      <div class="grid">
             <button class="btn" onclick="openPopup('https://www.suiteexperiencegroup.com/')">Suite Experience</button>
             <button class="btn" onclick="openPopup('https://suitehop.com/')">Suite Hop</button>
             <button class="btn" onclick="openPopup('https://www.msg.com/madison-square-garden/luxury-suites');">MSG Premium Hospitality</button>
             <button class="btn" onclick="openPopup('https://lsaus.com/')">LSA Suites</button>
             <button class="btn" onclick="openPopup('https://www.thesphere.com/premium-suites')">The Sphere Suites</button>
             <button class="btn" onclick="openPopup('https://accessvipsports.com/about-us/')">Access Sports</button>
-          </div>
-        </div>
+      </div>
+    </section>
 
-    <!-- TICKET ACCOUNTS (A–Z) -->
-    <div id="accounts" class="section" style="display:none;">
+    <!-- ===== TICKET ACCOUNTS ===== -->
+    <section id="accounts" class="section" style="display:none;">
       <h3>Ticket Accounts</h3>
       <div class="grid">
         <button class="btn" onclick="openPopup('https://am.ticketmaster.com/dolphins/my-events')">Dolphins</button>
@@ -183,12 +210,10 @@
         <button class="btn" onclick="openPopup('https://am.ticketmaster.com/allvols/my-events')">Vols</button>
         <button class="btn" onclick="openPopup('https://am.ticketmaster.com/nyyreg/my-events')">Yankees</button>
       </div>
-    </div>
+    </section>
 
-  
-
-    <!-- TRAVEL (A–Z) -->
-    <div id="travel" class="section" style="display:none;">
+    <!-- ===== TRAVEL ===== -->
+    <section id="travel" class="section" style="display:none;">
       <h3>Travel</h3>
       <div class="grid">
         <button class="btn" onclick="openPopup('https://www2.arccorp.com/#')">ARCCORP</button>
@@ -201,21 +226,19 @@
         <button class="btn" onclick="openPopup('https://www.burgessyachts.com/en/charter-a-yacht/yachts-for-charter/aquila-00005340')">Yachts</button>
       </div>
 
-      <!-- Private Jet (A–Z) -->
       <details>
         <summary>Private Jet</summary>
         <div class="inner">
           <div class="grid">
             <button class="btn" onclick="openPopup('https://flyxo.com/')">Fly XO</button>
             <button class="btn" onclick="openPopup('https://www.flyte.travel/rebrand')">Flyte</button>
-            <button class="btn" onclick="alert('Add contract link URL and I\\'ll wire this up.');">Private Jet Contracts</button>
             <button class="btn" onclick="openPopup('https://flyusa.com/book-private-flights/')">Private Jet Fly USA</button>
             <button class="btn" onclick="openPopup('https://wheelsup.com/')">Wheels Up</button>
+            <button class="btn" onclick="alert('Add your contract link URL and I\\'ll wire it up.');">Private Jet Contracts</button>
           </div>
         </div>
       </details>
 
-      <!-- Luxury Homes (A–Z) -->
       <details>
         <summary>Luxury Homes</summary>
         <div class="inner">
@@ -225,42 +248,44 @@
           </div>
         </div>
       </details>
-    </div>
+    </section>
 
-    <!-- SOCIAL (A–Z) -->
-    <div id="social" class="section" style="display:none;">
+    <!-- ===== SOCIAL ===== -->
+    <section id="social" class="section" style="display:none;">
       <h3>Social</h3>
       <div class="grid">
-        <button class="btn" onclick="openPopup('https://www.facebook.com/')">Facebook</button>
+         <button class="btn" onclick="openPopup('https://www.facebook.com/')">Facebook</button>
         <button class="btn" onclick="openPopup('https://www.instagram.com/')">Instagram</button>
         <button class="btn" onclick="openPopup('https://www.linkedin.com/')">LinkedIn</button>
         <button class="btn" onclick="openPopup('https://mailchimp.com/')">Mailchimp</button>
         <button class="btn" onclick="openPopup('https://tiktok.com/')">Tiktok</button>
         <button class="btn" onclick="openPopup('https://www.youtube.com/')">YouTube</button>
       </div>
-    </div>
+    </section>
 
-    <!-- ADMIN (A–Z) -->
-    <div id="admin" class="section" style="display:none;">
+    <!-- ===== ADMIN ===== -->
+    <section id="admin" class="section" style="display:none;">
       <h3>Admin</h3>
       <div class="grid">
         <button class="btn" onclick="showSection('domains')">A1 Domains & Emails</button>
         <button class="btn" onclick="openPopup('https://a1vipevents.com/')">A1VIP</button>
         <button class="btn" onclick="openPopup('https://a1vipevents.com/wp-login.php?redirect_to=https%3A%2F%2Fa1vipevents.com%2Fwp-admin%2F&reauth=1')">BackEnd</button>
         <button class="btn" onclick="showSection('upload')">UPLOAD</button>
-      </div>
-    </div>
 
-    <!-- A1 DOMAINS & EMAILS (A–Z) -->
-    <div id="domains" class="section" style="display:none;">
+        <!-- Add Custom Link launcher -->
+        <button class="btn" onclick="openAddLink()">Add Custom Link</button>
+      </div>
+    </section>
+
+    <!-- ===== DOMAINS ===== -->
+    <section id="domains" class="section" style="display:none;">
       <h3>A1 Domains & Emails</h3>
       <div class="grid">
         <button class="btn" onclick="openPopup('https://1drv.ms/x/c/f3acac4cab808f86/EQsA5-xNQvBApOR3XhRkD1EBNC3MT3eW0wlrza-6wpYNPQ?e=fbawZI')">A1 Timesheets</button>
         <button class="btn" onclick="openPopup('https://domainpal.com/')">Domain Pal</button>
         <button class="btn" onclick="openPopup('https://www.godaddy.com/')">GoDaddy</button>
       </div>
-    </div>
-
+    </section>
 
     <!-- ===== UPLOAD HELPER ===== -->
     <section id="upload" class="section" style="display:none;">
@@ -295,6 +320,38 @@
       </div>
     </section>
   </main>
+
+  <!-- ===== Add-Link Modal ===== -->
+  <div id="addLinkBackdrop" class="modal-backdrop" style="display:none">
+    <div class="modal">
+      <h3>Add Custom Link</h3>
+      <div class="form-row">
+        <label>Button Label</label>
+        <input id="clabel" type="text" placeholder="e.g., Team Portal" />
+      </div>
+      <div class="form-row">
+        <label>URL (include https://)</label>
+        <input id="curl" type="url" placeholder="https://example.com" />
+      </div>
+      <div class="form-row">
+        <label>Add to Section</label>
+        <select id="csection">
+          <option value="main">Main Links</option>
+          <option value="luxury">Luxury Suites</option>
+          <option value="accounts">Ticket Accounts</option>
+          <option value="travel">Travel</option>
+          <option value="social">Social</option>
+          <option value="admin">Admin</option>
+          <option value="domains">A1 Domains & Emails</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="cta cta-secondary" onclick="closeAddLink()">Cancel</button>
+        <button class="cta cta-primary" onclick="saveAddLink()">Add Link</button>
+      </div>
+      <p class="note">Custom links are saved on this device (localStorage). Remove any custom button with the × in its corner.</p>
+    </div>
+  </div>
 
   <script>
     function showSection(id){
@@ -331,7 +388,96 @@
       if(!wins[0]) alert('Your browser blocked popups. Allow popups for this page.');
     }
 
-    /* PWA install pill */
+    /* ===== Custom Links (localStorage) ===== */
+    const CUSTOM_KEY = 'a1vip_custom_links_v1';
+    const CUSTOM_SECTIONS = ['main','luxury','accounts','travel','social','admin','domains'];
+
+    function openAddLink(){
+      document.getElementById('clabel').value = '';
+      document.getElementById('curl').value = '';
+      document.getElementById('csection').value = 'main';
+      document.getElementById('addLinkBackdrop').style.display = 'flex';
+    }
+    function closeAddLink(){ document.getElementById('addLinkBackdrop').style.display = 'none'; }
+
+    function loadCustomMap(){
+      try { return JSON.parse(localStorage.getItem(CUSTOM_KEY)) || {}; }
+      catch(e){ return {}; }
+    }
+    function saveCustomMap(map){ localStorage.setItem(CUSTOM_KEY, JSON.stringify(map)); }
+
+    function renderCustomLinks(){
+      const map = loadCustomMap();
+      CUSTOM_SECTIONS.forEach(secId => {
+        const sec = document.getElementById(secId);
+        if(!sec) return;
+        const grid = sec.querySelector('.grid');
+        if(!grid) return;
+
+        // remove previously rendered custom items
+        grid.querySelectorAll('.custom-wrap').forEach(el => el.remove());
+
+        const list = map[secId] || [];
+        list.forEach((item, idx) => {
+          const wrap = document.createElement('div');
+          wrap.className = 'custom-wrap';
+          wrap.dataset.section = secId;
+          wrap.dataset.index = idx;
+
+          const btn = document.createElement('button');
+          btn.className = 'btn';
+          btn.textContent = item.label;
+          btn.onclick = () => openPopup(item.url);
+
+          const del = document.createElement('button');
+          del.className = 'custom-del';
+          del.title = 'Remove';
+          del.textContent = '×';
+          del.onclick = (ev) => {
+            ev.stopPropagation();
+            removeCustomLink(secId, idx);
+          };
+
+          wrap.appendChild(btn);
+          wrap.appendChild(del);
+          grid.appendChild(wrap);
+        });
+      });
+    }
+
+    function saveAddLink(){
+      const label = (document.getElementById('clabel').value || '').trim();
+      const url = (document.getElementById('curl').value || '').trim();
+      const section = document.getElementById('csection').value;
+
+      if(!label){ alert('Please enter a button label.'); return; }
+      if(!/^https?:\/\//i.test(url)){ alert('URL must start with http:// or https://'); return; }
+      if(!CUSTOM_SECTIONS.includes(section)){ alert('Pick a valid section.'); return; }
+
+      const map = loadCustomMap();
+      if(!Array.isArray(map[section])) map[section] = [];
+
+      const exists = map[section].some(x => x.label === label && x.url === url);
+      if(exists){ alert('This link already exists in that section.'); return; }
+
+      map[section].push({ label, url });
+      saveCustomMap(map);
+      closeAddLink();
+      renderCustomLinks();
+      showSection(section);
+    }
+
+    function removeCustomLink(section, index){
+      const map = loadCustomMap();
+      if(!Array.isArray(map[section])) return;
+      map[section].splice(index, 1);
+      saveCustomMap(map);
+      renderCustomLinks();
+    }
+
+    document.addEventListener('DOMContentLoaded', renderCustomLinks);
+
+    /* ===== PWA install pill ===== */
     let deferredPrompt=null;
     const installBtn=document.getElementById('installBtn');
     window.addEventListener('beforeinstallprompt',e=>{
@@ -345,7 +491,7 @@
     const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone;
     if(isIOS&&!isStandalone){ installBtn.style.display='inline-block'; }
 
-    /* PWA service worker registration (safe to keep) */
+    /* ===== PWA service worker registration (safe to keep) ===== */
     if('serviceWorker' in navigator){
       window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));
     }
