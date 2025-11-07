@@ -46,6 +46,28 @@
     details .inner{padding:12px}
     .note{color:#9ca3af;font-size:.9rem}
 
+    /* Lock the top bar in place */
+header{
+  position: sticky;      /* keeps it locked at the top */
+  top: 0;
+  z-index: 1000;         /* stays above the scrolling content */
+  padding-top: env(safe-area-inset-top); /* iPhone notch-safe */
+}
+
+/* Ensure the main area scrolls */
+main{
+  overflow: auto;
+  -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
+}
+
+/* Prevent top buttons from getting cut off on small screens */
+.toolbar{
+  flex-wrap: wrap;       /* allows a second row if needed */
+  gap: 10px;
+}
+.toolbar button{ flex: 0 0 auto; } /* don’t squish buttons */
+
+
     /* Upload helper styles (unchanged) */
     .upload-card{background:#0f172a;border:1px solid var(--border);border-radius:14px;padding:16px;display:grid;gap:14px}
     .upload-grid{display:grid;grid-template-columns:1fr;gap:14px}
