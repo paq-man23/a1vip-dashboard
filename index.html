@@ -237,8 +237,9 @@
   <script>
     /* ===== Config ===== */
     const CONFIG_URLS = [
-      'https://paq-man23.github.io/a1vip-dashboard/buttons.json',
       'https://raw.githubusercontent.com/paq-man23/a1vip-dashboard/main/buttons.json'
+      'https://paq-man23.github.io/a1vip-dashboard/buttons.json',
+     
     ];
     const SYNC_ENDPOINT = 'https://a1vip-sync.jviphone.workers.dev';
     const SHARED_SECRET = 'a1vip-2025-sync-9fK2sX';
@@ -412,17 +413,19 @@
       return btn;
     }
 
-    async function fetchRemoteConfig(){
-      try{
-        const res = await fetch(`${CONFIG_URLS[0]}?v=${Date.now()}`, { cache: 'no-store' });
-        if(!res.ok) throw new Error('HTTP '+res.status);
+ async function fetchRemoteConfig() {
+  for (const base of CONFIG_URLS) {
+    try {
+      const res = await fetch(`${base}?v=${Date.now()}`, { cache: 'no-store' });
+      if (res.ok) {
         const json = await res.json();
-        return json && typeof json==='object' ? json : {added:{}, removed:{}};
-      }catch(e){
-        console.warn('No remote buttons.json yet or failed to fetch:', e);
-        return { added:{}, removed:{} };
+        return (json && typeof json === 'object') ? json : { added:{}, removed:{} };
       }
-    }
+    } catch (_) {}
+  }
+  return { added:{}, removed:{} };
+}
+
 
     function mergeStates(base, remote){
       const merged = JSON.parse(JSON.stringify(base));
@@ -464,6 +467,48 @@
         });
       });
     }
+const bc = 'BroadcastChannel' in window ? new BroadcastChannel('a1vip-sync') : null;
+function broadcastRefresh(){ bc && bc.postMessage({ type:'REFRESH_REMOTE' }); }
+bc && bc.addEventListener('message', async (ev) => {
+  if (ev.data?.type === 'REFRESH_REMOTE') {
+    const remote = await fetchRemoteConfig();
+    const merged = mergeStates(loadState(), remote);
+    saveState(merged);
+    applyState(merged);
+  }
+});
+let lastRemoteSig = null;
+
+async function refreshFromRemoteIfChanged(){
+  try {
+    const remote = await fetchRemoteConfig();
+    const sig = await fingerprint(remote); // hash of JSON
+    if (sig !== lastRemoteSig) {
+      lastRemoteSig = sig;
+      const merged = mergeStates(loadState(), remote);
+      saveState(merged);
+      applyState(merged);
+    }
+  } catch {}
+}
+
+async function fingerprint(obj){
+  const txt = JSON.stringify(obj);
+  const buf = new TextEncoder().encode(txt);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// on load:
+window.addEventListener('DOMContentLoaded', async () => {
+  const remote = await fetchRemoteConfig();
+  lastRemoteSig = await fingerprint(remote);
+  const merged = mergeStates(loadState(), remote);
+  saveState(merged);
+  applyState(merged);
+  // start polling
+  setInterval(refreshFromRemoteIfChanged, 30000);
+});
 
     async function init(){
       seedDOM(); // load base
@@ -508,27 +553,37 @@
         list.appendChild(opt);
       });
     }
-
-    async function syncRemote(state){
-      if(!SYNC_ENDPOINT){
-        console.warn('SYNC_ENDPOINT is not configured. Skipping remote write.');
-        return;
-      }
-      try{
-        await fetch(SYNC_ENDPOINT, {
-          method: 'POST',
-          headers: { 
-            'Content-Type':'application/json',
-          'X-A1VIP-Secret': 'a1vip-2025-sync-9fK2sX'
-          },
-          body: JSON.stringify(state)
-        });
-      }catch(e){
-        console.warn('Remote sync failed:', e);
-      }
+async function syncRemote(state){
+  if(!SYNC_ENDPOINT) return;
+  try{
+    const res = await fetch(SYNC_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-A1VIP-Secret': SHARED_SECRET },
+      body: JSON.stringify(state)
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      console.error('Sync failed', res.status, text);
+      alert(`Sync failed: ${res.status}\n${text}`);
+      return;
     }
+    // ✅ Give GitHub a moment to serve the new blob, then pull it back and apply everywhere
+    setTimeout(async () => {
+      const remote = await fetchRemoteConfig();
+      const merged = mergeStates(loadState(), remote);
+      saveState(merged);
+      applyState(merged);
+      // (optional) ping other tabs on same device
+      broadcastRefresh();
+    }, 1200);
+  } catch(e) {
+    console.warn('Remote sync error:', e);
+    alert('Remote sync error: ' + e.message);
+  }
+}
+navigator.serviceWorker.register('./sw.v4.js');
 
-    async function confirmAdd(){
+   async function confirmAdd(){
       const sec = document.getElementById('addSection').value;
       const label = document.getElementById('addLabel').value.trim();
       const url = document.getElementById('addUrl').value.trim();
@@ -595,6 +650,7 @@
 
     window.addEventListener('DOMContentLoaded', init);
   </script>
+  
   <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
