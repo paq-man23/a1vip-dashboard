@@ -1,7 +1,13 @@
 {
   "added": {
     "main": [],
-    "accounts": []
+    "accounts": [],
+    "luxury": [
+      {
+        "label": "TEST",
+        "url": "test"
+      }
+    ]
   },
   "removed": {
     "main": [
