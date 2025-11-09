@@ -3,7 +3,12 @@
     "main": [],
     "accounts": [],
     "luxury": [],
-    "travel": []
+    "social": [
+      {
+        "label": "SNAP",
+        "url": "snapchat"
+      }
+    ]
   },
   "removed": {
     "main": [
@@ -18,9 +23,6 @@
     ],
     "luxury": [
       "test"
-    ],
-    "travel": [
-      "JETBLUE"
     ]
   }
 }
