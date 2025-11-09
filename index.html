@@ -381,6 +381,10 @@
       { id:'luxhomes', label:'Luxury Homes (within Travel)' },
     ];
 
+     // expose to helpers
+     window.manageableSections = manageableSections;
+
+    
     function loadState(){
       try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { added:{}, removed:{} }; }
       catch{ return { added:{}, removed:{} }; }
@@ -457,15 +461,22 @@
           if (toRemove.has(normLabel(b.textContent))) b.remove();
         });
       });
-
+     
       Object.entries(state.added || {}).forEach(([sec, arr])=>{
         const grid = sectionGrid(sec);
         if (!grid) return;
-        const existing = new Set([...grid.querySelectorAll('.btn')].map(b=>normLabel(b.textContent)));
-        (arr||[]).forEach(({label,url})=>{
-          if (!existing.has(normLabel(label))) grid.appendChild(createBtn(label,url,true));
-        });
-      });
+        const existing = new Set([...grid.querySelectorAll('.btn')]
+        .map(b => normLabel(b.textContent)));
+    // ensure the array itself is sorted for consistency
+        const sorted = [...(arr || [])].sort((a,b)=> compareLabels(a.label, b.label));
+        sorted.forEach(({label, url})=>{
+        if (!existing.has(normLabel(label))) {
+        insertButtonSorted(grid, createBtn(label, url, true));
+        existing.add(normLabel(label));
+    }
+  });
+});
+
     }
 
     const bc = 'BroadcastChannel' in window ? new BroadcastChannel('a1vip-sync') : null;
@@ -537,31 +548,90 @@
       }
     }
 
-    async function confirmAdd(){
-      const sec = document.getElementById('addSection').value;
-      const label = document.getElementById('addLabel').value.trim();
-      const url = document.getElementById('addUrl').value.trim();
-      if(!sec || !label || !url){ alert('Please complete all fields.'); return; }
-      const grid = sectionGrid(sec);
-      if(!grid){ alert('Section not found.'); return; }
+// Helpers (single copy)
+function compareLabels(a, b){
+  return normLabel(a).localeCompare(normLabel(b));
+}
+function insertButtonSorted(grid, btn){
+  const target = normLabel(btn.textContent);
+  const buttons = [...grid.querySelectorAll('.btn')];
+  const idx = buttons.findIndex(b => compareLabels(b.textContent, target) > 0);
+  if (idx === -1) grid.appendChild(btn);
+  else grid.insertBefore(btn, buttons[idx]);
+}
 
-      grid.appendChild(createBtn(label, url, true));
+// Alphabetical add + state sort
+async function confirmAdd(){
+  const sec   = document.getElementById('addSection').value;
+  const label = document.getElementById('addLabel').value.trim();
+  const url   = document.getElementById('addUrl').value.trim();
+  if(!sec || !label || !url){ alert('Please complete all fields.'); return; }
 
-      const state = loadState();
-      if(!state.added[sec]) state.added[sec]=[];
-      const idx = state.added[sec].findIndex(x=>normLabel(x.label)===normLabel(label));
-      if(idx>=0){ state.added[sec][idx].url=url; } else { state.added[sec].push({label,url}); }
+  const grid = sectionGrid(sec);
+  if(!grid){ alert('Section not found.'); return; }
 
-      if(state.removed[sec]) state.removed[sec] = state.removed[sec].filter(l=>normLabel(l)!==normLabel(label));
+  // Insert alphabetically in the DOM
+  const newBtn = createBtn(label, url, true);
+  insertButtonSorted(grid, newBtn);
 
-      saveState(state);
-      closeModal('addModal');
-      alert('Button added.');
+  // Update local state (sorted)
+  const state = loadState();
+  if(!state.added[sec]) state.added[sec] = [];
+  const n = normLabel(label);
+  const idx = state.added[sec].findIndex(x => normLabel(x.label) === n);
+  if (idx >= 0) state.added[sec][idx].url = url;
+  else state.added[sec].push({ label, url });
+  state.added[sec].sort((a,b)=> compareLabels(a.label, b.label));
 
-      const remote = await fetchRemoteConfig();
-      const merged = mergeStates(state, remote);
-      await syncRemote(merged);
-    }
+  // Clear pending removal if it existed
+  if (state.removed[sec]) {
+    state.removed[sec] = state.removed[sec].filter(l => normLabel(l) !== n);
+  }
+
+  saveState(state);
+  closeModal('addModal');
+  alert('Button added.');
+
+  // Sync remote then re-apply
+  const remote = await fetchRemoteConfig();
+  const merged = mergeStates(state, remote);
+  await syncRemote(merged);
+}
+
+// ---- Modals / selects ----
+function openAddModal(){
+  fillSelect('addSection');
+  const l = document.getElementById('addLabel'); if(l) l.value = '';
+  const u = document.getElementById('addUrl');   if(u) u.value = '';
+  showModal('addModal');
+}
+function openRemoveModal(){
+  fillSelect('removeSection');
+  populateRemoveList();
+  showModal('removeModal');
+}
+function fillSelect(selectId){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  sel.innerHTML = '';
+  const list = (typeof manageableSections !== 'undefined' && Array.isArray(manageableSections))
+    ? manageableSections
+    : (window.manageableSections || []);
+  list.forEach(s=>{
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.label;
+    sel.appendChild(opt);
+  });
+}
+function showModal(id){
+  const m = document.getElementById(id);
+  if(m) m.style.display='flex';
+}
+function closeModal(id){
+  const m = document.getElementById(id);
+  if(m) m.style.display='none';
+}
 
     async function confirmRemove(){
       const sec = document.getElementById('removeSection').value;
@@ -596,41 +666,8 @@
       const merged = mergeStates(state, remote);
       await syncRemote(merged);
     }
-  
-  // Boot the app
-  window.addEventListener('DOMContentLoaded', init);
-
-  // ---- Modals / selects ----
-  function openAddModal(){
-    fillSelect('addSection');
-    var l=document.getElementById('addLabel'); if(l) l.value='';
-    var u=document.getElementById('addUrl'); if(u) u.value='';
-    showModal('addModal');
-  }
-  function openRemoveModal(){
-    fillSelect('removeSection');
-    populateRemoveList();
-    showModal('removeModal');
-  }
-  function fillSelect(selectId){
-    const sel = document.getElementById(selectId);
-    if(!sel) return;
-    sel.innerHTML = '';
-    (window.manageableSections || []).forEach(s=>{
-      const opt = document.createElement('option');
-      opt.value = s.id; opt.textContent = s.label;
-      sel.appendChild(opt);
-    });
-  }
-  function showModal(id){
-    const m = document.getElementById(id);
-    if(m) m.style.display='flex';
-  }
-  function closeModal(id){
-    const m = document.getElementById(id);
-    if(m) m.style.display='none';
-  }
-</script>
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
