@@ -380,6 +380,8 @@
       { id:'privatejet', label:'Private Jet (within Travel)' },
       { id:'luxhomes', label:'Luxury Homes (within Travel)' },
     ];
+    // Expose to helpers
+    window.manageableSections = manageableSections;
 
     function loadState(){
       try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { added:{}, removed:{} }; }
@@ -613,13 +615,17 @@
     showModal('removeModal');
   }
   function fillSelect(selectId){
-    const sel = document.getElementById(selectId);
-    if(!sel) return;
-    sel.innerHTML = '';
-    (window.manageableSections || []).forEach(s=>{
-      const opt = document.createElement('option');
-      opt.value = s.id; opt.textContent = s.label;
-      sel.appendChild(opt);
+      const sel = document.getElementById(selectId);
+      if(!sel) return;
+      sel.innerHTML = '';
+      const list = (typeof manageableSections !== 'undefined' && Array.isArray(manageableSections))
+        ? manageableSections
+        : (window.manageableSections || []);
+      list.forEach(s=>{
+        const opt = document.createElement('option');
+        opt.value = s.id; opt.textContent = s.label;
+        sel.appendChild(opt);
+      });
     });
   }
   function showModal(id){
