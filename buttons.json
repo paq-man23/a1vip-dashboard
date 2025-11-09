@@ -2,12 +2,7 @@
   "added": {
     "main": [],
     "accounts": [],
-    "luxury": [
-      {
-        "label": "TEST",
-        "url": "test"
-      }
-    ]
+    "luxury": []
   },
   "removed": {
     "main": [
@@ -19,6 +14,9 @@
     ],
     "accounts": [
       "ny jets"
+    ],
+    "luxury": [
+      "TEST"
     ]
   }
 }
