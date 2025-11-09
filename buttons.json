@@ -1,6 +1,11 @@
 {
   "added": {
-    "main": [],
+    "main": [
+      {
+        "label": "ZEBRA",
+        "url": "NA"
+      }
+    ],
     "accounts": []
   },
   "removed": {
