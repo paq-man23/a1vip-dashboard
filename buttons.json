@@ -1,4 +1,11 @@
 {
-  "added": {},
+  "added": {
+    "main": [
+      {
+        "label": "Test via Worker",
+        "url": "https://example.com"
+      }
+    ]
+  },
   "removed": {}
 }
