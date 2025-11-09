@@ -598,45 +598,7 @@
       const merged = mergeStates(state, remote);
       await syncRemote(merged);
     }
-  
-  // Boot the app
-  window.addEventListener('DOMContentLoaded', init);
-
-  // ---- Modals / selects ----
-  function openAddModal(){
-    fillSelect('addSection');
-    var l=document.getElementById('addLabel'); if(l) l.value='';
-    var u=document.getElementById('addUrl'); if(u) u.value='';
-    showModal('addModal');
-  }
-  function openRemoveModal(){
-    fillSelect('removeSection');
-    populateRemoveList();
-    showModal('removeModal');
-  }
-  function fillSelect(selectId){
-      const sel = document.getElementById(selectId);
-      if(!sel) return;
-      sel.innerHTML = '';
-      const list = (typeof manageableSections !== 'undefined' && Array.isArray(manageableSections))
-        ? manageableSections
-        : (window.manageableSections || []);
-      list.forEach(s=>{
-        const opt = document.createElement('option');
-        opt.value = s.id; opt.textContent = s.label;
-        sel.appendChild(opt);
-      });
-    });
-  }
-  function showModal(id){
-    const m = document.getElementById(id);
-    if(m) m.style.display='flex';
-  }
-  function closeModal(id){
-    const m = document.getElementById(id);
-    if(m) m.style.display='none';
-  }
-</script>
+  </script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
