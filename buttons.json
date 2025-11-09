@@ -4,12 +4,7 @@
     "accounts": [],
     "luxury": [],
     "travel": [],
-    "social": [
-      {
-        "label": "X",
-        "url": "twitter"
-      }
-    ]
+    "social": []
   },
   "removed": {
     "main": [
@@ -26,10 +21,11 @@
       "test"
     ],
     "travel": [
-      "JETBLUE"
+      "jetblue"
     ],
     "social": [
-      "snap"
+      "snap",
+      "x"
     ]
   }
 }
