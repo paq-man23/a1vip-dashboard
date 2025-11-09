@@ -1,38 +1,40 @@
-// sw.js
-const STATIC_CACHE = 'a1vip-static-v1';
+// sw.js (A1VIP) — network-first for HTML and buttons.json, cache-first for other static
+const STATIC_CACHE = 'a1vip-static-v2';
+
+// Helper: resolve relative to SW scope (works on GitHub Pages subpath)
+const REL = (p) => new URL(p, self.registration.scope).pathname;
 
 // Immediately take control on install/activate
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(caches.open(STATIC_CACHE).then((c) =>
     c.addAll([
-      '/',            // if your app is at the origin root; otherwise add /index.html path
-      '/index.html',  // include the correct path for your hosted HTML
-      '/manifest.json',
-      // add icons/css/js that are truly static (logo, styles) if any
+      REL('./'),            // app root within GH Pages scope
+      REL('./index.html'),
+      REL('./manifest.json'),
+      // add icons/css/js that are truly static if desired
     ])
   ));
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // clean old caches if you version them later
     const keys = await caches.keys();
     await Promise.all(keys.map((k) => (k !== STATIC_CACHE ? caches.delete(k) : Promise.resolve())));
     await self.clients.claim();
   })());
 });
 
-// Network-first for buttons.json, app shell network-first for HTML, cache-first for static
+// Network-first for buttons.json, network-first for documents, cache-first for others
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Always go to network for buttons.json (bypass any cached copy)
+  // Always go network for buttons.json to pick up new buttons immediately
   if (url.pathname.endsWith('/buttons.json')) {
     event.respondWith((async () => {
       try {
-        // Force fresh
-        const req = new Request(url.toString() + `?v=${Date.now()}`, {
+        const bust = `${url.toString()}${url.search ? '&' : '?'}v=${Date.now()}`;
+        const req = new Request(bust, {
           headers: event.request.headers,
           method: 'GET',
           cache: 'reload',
@@ -42,15 +44,14 @@ self.addEventListener('fetch', (event) => {
         const net = await fetch(req);
         return net;
       } catch {
-        // fallback to cache if you choose (or just error)
         const cached = await caches.match(event.request);
-        return cached || new Response(JSON.stringify({ added:{}, removed:{} }), { headers: { 'Content-Type': 'application/json' }});
+        return cached || new Response(JSON.stringify({ added: {}, removed: {} }), { headers: { 'Content-Type': 'application/json' }});
       }
     })());
     return;
   }
 
-  // Network-first for HTML documents to pick up new code
+  // Network-first for HTML documents (ensures app updates quickly)
   if (event.request.destination === 'document') {
     event.respondWith((async () => {
       try {
@@ -79,10 +80,13 @@ self.addEventListener('fetch', (event) => {
   })());
 });
 
-// Optional: allow the page to tell the SW to clear caches
+// Messages from page (optional)
 self.addEventListener('message', async (event) => {
-  if (event.data && event.data.type === 'BUST_CACHE') {
+  if (!event.data) return;
+  if (event.data.type === 'BUST_CACHE') {
     const keys = await caches.keys();
     await Promise.all(keys.map((k) => caches.delete(k)));
+  } else if (event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });
