@@ -1,11 +1,16 @@
 {
   "added": {
-    "main": [
+    "main": [],
+    "accounts": [
       {
-        "label": "Test via Worker",
-        "url": "https://example.com"
+        "label": "NY Jets",
+        "url": "https://am.ticketmaster.com/nyjets/my-events"
       }
     ]
   },
-  "removed": {}
+  "removed": {
+    "main": [
+      "eBay"
+    ]
+  }
 }
