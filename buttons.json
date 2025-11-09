@@ -15,10 +15,11 @@
   "removed": {
     "main": [
       "ebay",
-      "tes"
+      "tes",
+      "test2"
     ],
     "accounts": [
-      "NY Jets"
+      "ny jets"
     ]
   }
 }
