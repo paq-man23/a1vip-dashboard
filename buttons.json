@@ -3,7 +3,12 @@
     "main": [],
     "accounts": [],
     "luxury": [],
-    "social": [],
+    "social": [
+      {
+        "label": "Rolex",
+        "url": "https://www.rolex.com/"
+      }
+    ],
     "travel": []
   },
   "removed": {
@@ -12,7 +17,8 @@
       "tes",
       "test2",
       "zebra",
-      "x"
+      "x",
+      "espn"
     ],
     "accounts": [
       "ny jets"
