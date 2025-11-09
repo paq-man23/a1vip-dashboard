@@ -597,30 +597,58 @@
       await syncRemote(merged);
     }
 
-    // Single SW registration pointing to your latest network-first SW
-    if('serviceWorker' in navigator){
-      window.addEventListener('load', async () => {
-        try {
-          const reg = await navigator.serviceWorker.register('./sw.v4.js');
-          reg.addEventListener('updatefound', () => {
-            const newSW = reg.installing;
-            if (!newSW) return;
-            newSW.addEventListener('statechange', () => {
-              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-                setTimeout(()=>window.location.reload(), 600);
-              }
-            });
-          });
-          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
-        } catch (e) {
-          console.error('SW registration failed', e);
-        }
-      });
-    }
+    <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('./sw.v4.js');
 
-    window.addEventListener('DOMContentLoaded', init);
+      function showUpdatePrompt(waitingSW) {
+        // Create a lightweight banner
+        const bar = document.createElement('div');
+        bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;padding:12px 16px;background:#111827;color:#fff;display:flex;gap:12px;align-items:center;justify-content:center;z-index:9999;border-top:1px solid rgba(148,163,184,.22)';
+        bar.innerHTML = `
+          <span>New update available.</span>
+          <button id="a1vip-update" style="background:#22d3ee;border:none;color:#0b1220;font-weight:800;border-radius:10px;padding:8px 12px;cursor:pointer;">Update</button>
+          <button id="a1vip-dismiss" style="background:transparent;border:1px solid rgba(148,163,184,.22);color:#e5e7eb;border-radius:10px;padding:8px 12px;cursor:pointer;">Later</button>
+        `;
+        document.body.appendChild(bar);
+
+        document.getElementById('a1vip-dismiss').onclick = () => bar.remove();
+        document.getElementById('a1vip-update').onclick = () => {
+          waitingSW.postMessage({ type: 'SKIP_WAITING' });
+        };
+
+        // When controller changes, the new SW is active → reload to pick up fresh files
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          // debounce to avoid double reloads
+          setTimeout(() => window.location.reload(), 100);
+        });
+      }
+
+      // If a new SW is already waiting (e.g., returning to the page)
+      if (reg.waiting) showUpdatePrompt(reg.waiting);
+
+      // Detect new SW installs while the page is open
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        if (!newSW) return;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && reg.waiting) {
+            showUpdatePrompt(reg.waiting);
+          }
+        });
+      });
+
+      // Optional: check for updates on an interval (e.g., every 30 min)
+      setInterval(() => reg.update().catch(()=>{}), 30 * 60 * 1000);
+    } catch (e) {
+      console.error('SW registration failed', e);
+    }
+  });
+}
+</script>
+
   </script>
 </body>
 </html>
