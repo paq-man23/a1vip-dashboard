@@ -3,15 +3,14 @@
     "main": [],
     "accounts": [],
     "luxury": [],
-    "travel": [],
-    "social": []
+    "social": [],
+    "travel": []
   },
   "removed": {
     "main": [
       "ebay",
       "tes",
       "test2",
-      "espn",
       "zebra",
       "x"
     ],
@@ -21,12 +20,12 @@
     "luxury": [
       "test"
     ],
-    "travel": [
-      "jetblue"
-    ],
     "social": [
       "snap",
       "x"
+    ],
+    "travel": [
+      "jetblue"
     ]
   }
 }
