@@ -1,6 +1,11 @@
 {
   "added": {
-    "main": [],
+    "main": [
+      {
+        "label": "X",
+        "url": "X"
+      }
+    ],
     "accounts": [],
     "luxury": [],
     "travel": [],
