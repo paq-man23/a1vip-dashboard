@@ -2,7 +2,13 @@
   "added": {
     "main": [],
     "accounts": [],
-    "luxury": []
+    "luxury": [],
+    "travel": [
+      {
+        "label": "JETBLUE",
+        "url": "jetblue"
+      }
+    ]
   },
   "removed": {
     "main": [
@@ -16,7 +22,7 @@
       "ny jets"
     ],
     "luxury": [
-      "TEST"
+      "test"
     ]
   }
 }
