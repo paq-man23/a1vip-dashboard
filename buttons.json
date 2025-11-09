@@ -2,10 +2,6 @@
   "added": {
     "main": [
       {
-        "label": "ESPN",
-        "url": "https://www.espn.com"
-      },
-      {
         "label": "TES",
         "url": "TEST"
       },
@@ -20,7 +16,8 @@
     "main": [
       "ebay",
       "tes",
-      "test2"
+      "test2",
+      "espn"
     ],
     "accounts": [
       "ny jets"
