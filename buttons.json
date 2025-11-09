@@ -1,14 +1,11 @@
 {
   "added": {
-    "main": [],
-    "accounts": []
-  },
-  "removed": {
     "main": [
-      "eBay"
-    ],
-    "accounts": [
-      "NY Jets"
+      {
+        "label": "TES",
+        "url": "TEST"
+      }
     ]
-  }
+  },
+  "removed": {}
 }
