@@ -3,22 +3,17 @@
     "main": [],
     "accounts": [],
     "luxury": [],
-    "social": [
-      {
-        "label": "Rolex",
-        "url": "https://www.rolex.com/"
-      }
-    ],
-    "travel": []
+    "travel": [],
+    "social": []
   },
   "removed": {
     "main": [
       "ebay",
       "tes",
       "test2",
+      "espn",
       "zebra",
-      "x",
-      "espn"
+      "x"
     ],
     "accounts": [
       "ny jets"
@@ -26,12 +21,13 @@
     "luxury": [
       "test"
     ],
-    "social": [
-      "snap",
-      "x"
-    ],
     "travel": [
       "jetblue"
+    ],
+    "social": [
+      "snap",
+      "x",
+      "rolex"
     ]
   }
 }
