@@ -435,10 +435,10 @@
     }
 
  function mergeStates(base, remote){
-  // Start with deep clone of base
+  // Deep clone base
   const merged = JSON.parse(JSON.stringify(base || { added:{}, removed:{} }));
 
-  // 1) Merge ADDED (union by normalized label, prefer remote URL on conflicts)
+  // ---- 1) Merge ADDED (union by normalized label; prefer remote URL on conflict)
   for (const [sec, arr] of Object.entries((remote && remote.added) || {})) {
     merged.added[sec] = merged.added[sec] || [];
     const seen = new Map(merged.added[sec].map(x => [normLabel(x.label), x]));
@@ -456,7 +456,7 @@
     merged.added[sec] = Array.from(seen.values());
   }
 
-  // 2) Merge REMOVED (union of normalized strings)
+  // ---- 2) Merge REMOVED (union of normalized strings)
   for (const [sec, labels] of Object.entries((remote && remote.removed) || {})) {
     const prev = new Set((merged.removed?.[sec] || []).map(normLabel));
     const next = new Set((labels || []).map(normLabel));
@@ -464,14 +464,23 @@
     merged.removed[sec] = Array.from(new Set([...prev, ...next]));
   }
 
-  // 3) Reconcile: anything in removed MUST NOT be in added
-  for (const sec of new Set([...Object.keys(merged.added || {}), ...Object.keys(merged.removed || {})])) {
-    const remSet = new Set((merged.removed?.[sec] || []).map(normLabel));
-    if (!merged.added[sec]) continue;
-    merged.added[sec] = merged.added[sec].filter(x => !remSet.has(normLabel(x.label)));
+  // ---- 3) Reconcile: if a label is in ADDED, it must NOT remain in REMOVED
+  const allSecs = new Set([
+    ...Object.keys(merged.added || {}),
+    ...Object.keys(merged.removed || {})
+  ]);
+
+  for (const sec of allSecs) {
+    const addedSet = new Set((merged.added?.[sec] || []).map(x => normLabel(x.label)));
+    const remArr  = (merged.removed?.[sec] || []);
+    if (remArr.length) {
+      merged.removed[sec] = remArr.filter(l => !addedSet.has(normLabel(l)));
+    }
   }
 
   return merged;
+}
+
 }
 function applyState(state){
   // 1) reset + seed from SEED
