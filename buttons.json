@@ -1,16 +1,14 @@
 {
   "added": {
     "main": [],
-    "accounts": [
-      {
-        "label": "NY Jets",
-        "url": "https://am.ticketmaster.com/nyjets/my-events"
-      }
-    ]
+    "accounts": []
   },
   "removed": {
     "main": [
       "eBay"
+    ],
+    "accounts": [
+      "NY Jets"
     ]
   }
 }
