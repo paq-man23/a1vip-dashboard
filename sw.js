@@ -24,6 +24,23 @@ self.addEventListener('activate', (event) => {
     await self.clients.claim();
   })());
 });
+// Match any path that ends with buttons.json (works on subpaths, custom domains, etc.)
+if (url.pathname.endsWith('buttons.json')) {
+  event.respondWith((async () => {
+    try {
+      const bust = `${url.toString()}${url.search ? '&' : '?'}v=${Date.now()}`;
+      const net = await fetch(new Request(bust, { cache: 'reload' }));
+      return net;
+    } catch {
+      // only if you want a fallback:
+      const cached = await caches.match(event.request);
+      return cached || new Response(JSON.stringify({ added:{}, removed:{} }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  })());
+  return;
+}
 
 // Network-first for buttons.json, network-first for documents, cache-first for others
 self.addEventListener('fetch', (event) => {
