@@ -237,7 +237,7 @@
   <script>
     /* ===== Config ===== */
     const CONFIG_URL = 'buttons.json';               // Must exist in the repo (GitHub Pages will serve it)
-    const SYNC_ENDPOINT = '';                        // Set to your serverless function URL (Cloudflare/Netlify/Vercel)
+    const SYNC_ENDPOINT = 'https://a1vip-sync.jviphone.workers.dev'; // Set to your serverless function URL (Cloudflare/Netlify/Vercel)
     const STORAGE_KEY = 'a1vip-button-manager-v2';   // Local cache + offline
 
     /* ===== Base content (seed) from your current HTML ===== */
@@ -513,7 +513,10 @@
       try{
         await fetch(SYNC_ENDPOINT, {
           method: 'POST',
-          headers: { 'Content-Type':'application/json' },
+          headers: { 
+            'Content-Type':'application/json',
+          'X-A1VIP-Secret': 'a1vip-2025-sync-9fK2sX'
+          },
           body: JSON.stringify(state)
         });
       }catch(e){
