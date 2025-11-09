@@ -414,7 +414,7 @@
 
     async function fetchRemoteConfig(){
       try{
-        const res = await fetch(CONFIG_URL, {cache:'no-store'});
+        const res = await fetch(`${CONFIG_URL}?v=${Date.now()}`, { cache: 'no-store' });
         if(!res.ok) throw new Error('HTTP '+res.status);
         const json = await res.json();
         return json && typeof json==='object' ? json : {added:{}, removed:{}};
