@@ -1,6 +1,11 @@
 {
   "added": {
-    "main": [],
+    "main": [
+      {
+        "label": "ZEBRA",
+        "url": "NA"
+      }
+    ],
     "accounts": []
   },
   "removed": {
@@ -8,8 +13,7 @@
       "ebay",
       "tes",
       "test2",
-      "espn",
-      "zebra"
+      "espn"
     ],
     "accounts": [
       "ny jets"
