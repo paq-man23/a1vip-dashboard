@@ -426,6 +426,99 @@
   return { added:{}, removed:{} };
 }
 
+function normLabel(s) {
+  return (s || "")
+    .normalize("NFKC")       // unicode normalize (emoji/accents)
+    .replace(/\s+/g, " ")    // collapse internal whitespace
+    .trim()
+    .toLowerCase();
+}
+function populateRemoveList() {
+  const sec = document.getElementById('removeSection').value;
+  const grid = sectionGrid(sec);
+  const list = document.getElementById('removeButton');
+  list.innerHTML = '';
+  if (!grid) return;
+
+  [...grid.querySelectorAll('.btn')].forEach(b => {
+    const raw = b.textContent.trim();
+    const o = document.createElement('option');
+    o.value = normLabel(raw);     // <-- normalized
+    o.textContent = raw;          // show the pretty label
+    o.setAttribute('data-raw', raw);
+    list.appendChild(o);
+  });
+}
+async function confirmRemove() {
+  const sec = document.getElementById('removeSection').value;
+  const sel = document.getElementById('removeButton');
+  if (!sec || !sel.value) { alert('Pick a button to remove.'); return; }
+
+  // raw (pretty) label the user saw
+  const rawLabel = sel.options[sel.selectedIndex].getAttribute('data-raw');
+  const nLabel   = normLabel(rawLabel);
+
+  const grid = sectionGrid(sec);
+  if (!grid) { alert('Section not found.'); return; }
+
+  // Remove any button whose normalized text matches
+  [...grid.querySelectorAll('.btn')].forEach(b => {
+    if (normLabel(b.textContent) === nLabel) b.remove();
+  });
+
+  const state = loadState();
+
+  // Remove from "added" if present (normalize compare)
+  if (state.added[sec]) {
+    state.added[sec] = state.added[sec].filter(x => normLabel(x.label) !== nLabel);
+  }
+
+  // Push to "removed" (store the raw label for readability; dedupe by normalized)
+  state.removed[sec] = state.removed[sec] || [];
+  const already = new Set(state.removed[sec].map(l => normLabel(l)));
+  if (!already.has(nLabel)) state.removed[sec].push(rawLabel);
+
+  saveState(state);
+  closeModal('removeModal');
+  alert('Button removed.');
+
+  // Re-fetch remote, merge, sync, then re-apply for all devices
+  const remote = await fetchRemoteConfig();
+  const merged = mergeStates(state, remote);
+  await syncRemote(merged);
+  // optional immediate refresh after GitHub updates:
+  setTimeout(async () => {
+    const fresh = await fetchRemoteConfig();
+    const final = mergeStates(loadState(), fresh);
+    saveState(final);
+    applyState(final);
+    broadcastRefresh && broadcastRefresh();
+  }, 1200);
+}
+function applyState(state) {
+  document.querySelectorAll('.grid[data-section]').forEach(g => g.innerHTML = '');
+  seedDOM();
+
+  // Remove seeded buttons by normalized label
+  Object.entries(state.removed || {}).forEach(([sec, labels]) => {
+    const grid = sectionGrid(sec);
+    if (!grid) return;
+    const toRemove = new Set((labels || []).map(normLabel));
+    [...grid.querySelectorAll('.btn')].forEach(b => {
+      if (toRemove.has(normLabel(b.textContent))) b.remove();
+    });
+  });
+
+  // Add custom buttons (avoid dupes by normalized label)
+  Object.entries(state.added || {}).forEach(([sec, arr]) => {
+    const grid = sectionGrid(sec);
+    if (!grid) return;
+    const existing = new Set([...grid.querySelectorAll('.btn')].map(b => normLabel(b.textContent)));
+    (arr || []).forEach(({ label, url }) => {
+      if (!existing.has(normLabel(label))) grid.appendChild(createBtn(label, url, true));
+    });
+  });
+}
 
     function mergeStates(base, remote){
       const merged = JSON.parse(JSON.stringify(base));
