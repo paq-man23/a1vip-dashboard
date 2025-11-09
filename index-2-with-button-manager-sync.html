@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>A1 VIP Ticket Dashboard</title>
+
+  <!-- PWA hooks (keep if you use GitHub Pages as a PWA) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="A1VIP">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <style>
+    :root { --bg:#0b1220; --text:#e5e7eb; --border:rgba(148,163,184,.22);
+            --gold:#facc15; --blue:#3b82f6; --pink:#ec4899; --red:#ef4444; --black:#000; }
+    html,body{margin:0;padding:0;height:100%}
+    body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+    header{position:sticky;top:0;z-index:1000;padding:10px 16px;padding-top:calc(env(safe-area-inset-top) + 8px);background:#111827;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+    header img{height:150px}
+    .title{font-size:2.1rem;line-height:1.05;font-weight:900;letter-spacing:.2px}
+
+    #installBtn{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:8px;z-index:1200;display:none;background:#16a34a;color:#fff;border:none;padding:8px 10px;border-radius:10px;font-weight:800;cursor:pointer}
+
+    .top-tabs{padding:12px 16px 6px;background:linear-gradient(180deg,#0b1220 0%,rgba(11,18,32,.7) 100%)}
+    .tabs-scroller{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory}
+    .tabs-scroller::-webkit-scrollbar{display:none}
+    .tab{flex:0 0 auto;scroll-snap-align:start;border:none;padding:10px 16px;border-radius:12px;cursor:pointer;font-weight:800;color:#fff;user-select:none;box-shadow:0 0 0 1px rgba(148,163,184,.22) inset;transition:.2s}
+    .tab-main{background:var(--gold);color:#000}.tab-main:hover{background:#ffe44d}
+    .tab-luxury{background:var(--blue)}.tab-luxury:hover{background:#60a5fa}
+    .tab-accounts{background:var(--pink)}.tab-accounts:hover{background:#f472b6}
+    .tab-travel{background:var(--red)}.tab-travel:hover{background:#f87171}
+    .tab-social{background:#000}.tab-social:hover{background:#1f2937}
+    .tab-admin{background:#fff;color:#000}.tab-admin:hover{background:#e5e7eb}
+
+    main{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 28px}
+    .section{margin-bottom:30px}
+    h3{color:#facc15;font-size:1.3rem;margin:10px 4px 14px}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+    .btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;border-radius:16px;background:#1e293b;color:#fff;font-weight:800;border:1px solid var(--border);transition:.25s;text-align:center}
+    .btn:hover{background:#facc15;color:#000;box-shadow:0 0 15px #facc15}
+
+    details{background:#0f172a;border:1px solid var(--border);border-radius:12px;margin:10px 0}
+    summary{cursor:pointer;font-weight:800;padding:10px 14px;color:#e5e7eb}
+    details .inner{padding:12px}
+    .note{color:#9ca3af;font-size:.9rem}
+
+    .upload-card{background:#0f172a;border:1px solid var(--border);border-radius:14px;padding:16px;display:grid;gap:14px}
+    .upload-grid{display:grid;grid-template-columns:1fr;gap:14px}
+    .upload-grid label{font-weight:700}
+    .upload-grid textarea{width:100%;min-height:120px;border-radius:10px;border:1px solid var(--border);background:#111827;color:#e5e7eb;padding:10px}
+    .upload-grid input[type=file]{border:1px dashed var(--border);padding:12px;border-radius:10px;background:#0b1220;color:#e5e7eb}
+    .targets{display:flex;flex-wrap:wrap;gap:10px}
+    .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);padding:8px 12px;border-radius:999px;background:#111827}
+    .upload-actions{display:flex;flex-wrap:wrap;gap:12px}
+    .cta{border:none;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer}
+    .cta-primary{background:#22d3ee;color:#0b1220}.cta-primary:hover{filter:brightness(1.1)}
+    .cta-secondary{background:#facc15;color:#0b1220}.cta-secondary:hover{filter:brightness(1.05)}
+
+    .manager-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
+    .btn-add{background:#16a34a}.btn-add:hover{filter:brightness(1.05)}
+    .btn-remove{background:#ef4444}.btn-remove:hover{filter:brightness(1.05)}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:2000}
+    .modal-card{width:min(560px,92vw);background:#0f172a;border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+    .modal h4{margin:0 0 12px;color:#facc15}
+    .form-grid{display:grid;gap:12px}
+    .form-grid label{font-weight:700}
+    .form-grid select,.form-grid input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:#111827;color:#e5e7eb}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+    .ghost{background:transparent;border:1px solid var(--border);color:#e5e7eb}
+  </style>
+</head>
+<body>
+  <header>
+    <img src="A1VIP_LOGO_VERT_for _Black_backgrounds.png" alt="Logo">
+    <div class="title">A1 VIP<br/>Ticket<br/>Dashboard</div>
+  </header>
+
+  <button id="installBtn">Install App</button>
+
+  <nav class="top-tabs">
+    <div class="tabs-scroller">
+      <button class="tab tab-main" onclick="showSection('main')">Main Links</button>
+      <button class="tab tab-luxury" onclick="showSection('luxury')">Luxury Suites</button>
+      <button class="tab tab-accounts" onclick="showSection('accounts')">Ticket Accounts</button>
+      <button class="tab tab-travel" onclick="showSection('travel')">Travel</button>
+      <button class="tab tab-social" onclick="showSection('social')">Social</button>
+      <button class="tab tab-admin" onclick="showSection('admin')">Admin</button>
+    </div>
+  </nav>
+
+  <main>
+    <div id="main" class="section">
+      <h3>Main Links</h3>
+      <div class="grid" data-section="main">
+        <!-- Original buttons preserved in HTML; dynamic changes applied on load -->
+      </div>
+    </div>
+
+    <div id="luxury" class="section" style="display:none;">
+      <h3>Luxury Suites</h3>
+      <div class="grid" data-section="luxury"></div>
+    </div>
+
+    <div id="accounts" class="section" style="display:none;">
+      <h3>Ticket Accounts</h3>
+      <div class="grid" data-section="accounts"></div>
+    </div>
+
+    <div id="travel" class="section" style="display:none;">
+      <h3>Travel</h3>
+      <div class="grid" data-section="travel"></div>
+
+      <details>
+        <summary>Private Jet</summary>
+        <div class="inner">
+          <div class="grid" data-section="privatejet"></div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Luxury Homes</summary>
+        <div class="inner">
+          <div class="grid" data-section="luxhomes"></div>
+        </div>
+      </details>
+    </div>
+
+    <div id="social" class="section" style="display:none;">
+      <h3>Social</h3>
+      <div class="grid" data-section="social"></div>
+    </div>
+
+    <div id="admin" class="section" style="display:none;">
+      <h3>Admin</h3>
+      <div class="grid">
+        <button class="btn" onclick="showSection('domains')">A1 Domains & Emails</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/')">A1VIP</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/wp-login.php?redirect_to=https%3A%2F%2Fa1vipevents.com%2Fwp-admin%2F&reauth=1')">BackEnd</button>
+        <button class="btn" onclick="showSection('upload')">UPLOAD</button>
+        <button class="btn" onclick="showSection('buttonManager')">Button Manager</button>
+      </div>
+    </div>
+
+    <div id="domains" class="section" style="display:none;">
+      <h3>A1 Domains & Emails</h3>
+      <div class="grid" data-section="domains"></div>
+    </div>
+
+    <section id="upload" class="section" style="display:none;">
+      <h3>UPLOAD</h3>
+      <div class="upload-card">
+        <div class="upload-grid">
+          <div>
+            <label for="uploadDesc">Post Description</label>
+            <textarea id="uploadDesc" placeholder="Write the caption / description you want on your posts..."></textarea>
+            <div class="note">We’ll copy this to your clipboard so you can paste it on each site.</div>
+          </div>
+          <div>
+            <label for="uploadFile">Video File</label>
+            <input id="uploadFile" type="file" accept="video/*" />
+            <div class="note">A single HTML file can’t upload to multiple sites without APIs/OAuth. The buttons below open each site’s upload page.</div>
+          </div>
+          <div>
+            <label>Targets</label>
+            <div class="targets">
+              <label class="chip"><input type="checkbox" id="tYouTube" checked> YouTube</label>
+              <label class="chip"><input type="checkbox" id="tFacebook" checked> Facebook</label>
+              <label class="chip"><input type="checkbox" id="tInstagram" checked> Instagram</label>
+              <label class="chip"><input type="checkbox" id="tTikTok" checked> TikTok</label>
+            </div>
+          </div>
+        </div>
+        <div class="upload-actions">
+          <button class="cta cta-secondary" onclick="copyDescription()">Copy Description</button>
+          <button class="cta cta-primary" onclick="openUploadPages()">Open Upload Pages</button>
+          <div class="note">If only one window opens, your browser is blocking multiple popups. Allow popups for this page or open sites one by one.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="buttonManager" class="section" style="display:none;">
+      <h3>Button Manager</h3>
+      <div class="manager-row">
+        <button class="btn btn-add" onclick="openAddModal()">➕ Add Button</button>
+        <button class="btn btn-remove" onclick="openRemoveModal()">➖ Remove Button</button>
+      </div>
+      <div class="note" style="margin-top:8px">
+        Changes sync from <code>buttons.json</code>. Writes use a serverless endpoint (configure <code>SYNC_ENDPOINT</code>).
+      </div>
+    </section>
+  </main>
+
+  <div id="addModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <div class="modal-card">
+      <h4 id="addTitle">Add a New Button</h4>
+      <div class="form-grid">
+        <label>Section
+          <select id="addSection"></select>
+        </label>
+        <label>Button Label
+          <input id="addLabel" type="text" placeholder="e.g., Team Store">
+        </label>
+        <label>Button URL
+          <input id="addUrl" type="url" placeholder="https://example.com">
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="cta ghost" onclick="closeModal('addModal')">Cancel</button>
+        <button class="cta cta-primary" onclick="confirmAdd()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="removeModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="removeTitle">
+    <div class="modal-card">
+      <h4 id="removeTitle">Remove a Button</h4>
+      <div class="form-grid">
+        <label>Section
+          <select id="removeSection" onchange="populateRemoveList()"></select>
+        </label>
+        <label>Pick Button to Remove
+          <select id="removeButton"></select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="cta ghost" onclick="closeModal('removeModal')">Cancel</button>
+        <button class="cta cta-secondary" onclick="confirmRemove()">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===== Config ===== */
+    const CONFIG_URL = 'buttons.json';               // Must exist in the repo (GitHub Pages will serve it)
+    const SYNC_ENDPOINT = '';                        // Set to your serverless function URL (Cloudflare/Netlify/Vercel)
+    const STORAGE_KEY = 'a1vip-button-manager-v2';   // Local cache + offline
+
+    /* ===== Base content (seed) from your current HTML ===== */
+    const SEED = {
+      main: [
+        ["Audience Rewards","https://www.audiencerewards.com/"],
+        ["AXS","https://www.axs.com/"],
+        ["Braintree","https://www.braintreegateway.com/login"],
+        ["Broadway Box Discounts","https://www.broadwaybox.com/"],
+        ["Broadwaydirect","https://tickets.broadwaydirect.com/shop/account/login?returnUrl=https://tickets.broadwaydirect.com/Account/Orders"],
+        ["Charity buzz","https://www.charitybuzz.com/"],
+        ["Chase Gets You In Lounge","https://chasegetsyoucloser.com/login/?msg=200"],
+        ["ChatGPT","https://chatgpt.com/"],
+        ["Clover Go A1","https://www.clover.com/login?webRedirectUrl=%2Fdashboard"],
+        ["Core Ticketevolution","https://core.ticketevolution.com"],
+        ["FedEx","https://www.fedex.com/secure-login/en-us/#/credentials"],
+        ["Gametime Portal","https://portal.gametime.co/login"],
+        ["Mailchimp","https://login.mailchimp.com/login/unified-login"],
+        ["M&T Rewards","https://rewards.mtb.com/welcome.htm"],
+        ["MLB.com","https://www.mlb.com/login?redirectUri=/apps/ballpark"],
+        ["MyTicketmaster","https://www.ticketmaster.com"],
+        ["Pollstar","https://www.pollstar.com/login"],
+        ["Presale","https://www.presalepasswordinfo.com/members/checkuser.php"],
+        ["Quint","https://quint.co/"],
+        ["Rate Your Seats","https://www.rateyourseats.com"],
+        ["Ryder Cup","https://onlocationexp.com/golf/ryder-cup-tickets"],
+        ["SeatGeek","https://seatgeek.com/"],
+        ["Seatgeek Portal","https://sellers.seatgeek.com/orders?status=all&selectedTab=all"],
+        ["Skybox","https://skybox.vividseats.com/inventory?groupBy=event&sortedBy=event_date&sortDir=asc&limit=100&pageNumber=1&sortedByB=quantity&sortDirB=asc"],
+        ["StubHub","https://www.stubhub.com/"],
+        ["TAO Suite","https://www.suitesixteenlounge.com/"],
+        ["TicketFlipping","https://ticketflipping.com/ticketflipping-toolbox/"],
+        ["Ticket Utils","https://app.ticketutils.com/POS/DashBoard"],
+        ["Ticketnetwork POS NEXT","https://posnext.ticketnetwork.com/#inventory"],
+        ["Trade Desk","https://tradedesk.ticketmaster.com"],
+        ["Victory Live","https://www.victorylive.com"],
+        ["Vista Print","https://www.vistaprint.com/my-account/design/projects?xnav=accountMenu"]
+      ],
+      luxury: [
+        ["Suite Experience","https://www.suiteexperiencegroup.com/"],
+        ["Suite Hop","https://suitehop.com/"],
+        ["MSG Premium Hospitality","https://www.msg.com/madison-square-garden/luxury-suites"],
+        ["LSA Suites","https://lsaus.com/"],
+        ["The Sphere Suites","https://www.thesphere.com/premium-suites"],
+        ["Access Sports","https://accessvipsports.com/about-us/"]
+      ],
+      accounts: [
+        ["Dolphins","https://am.ticketmaster.com/dolphins/my-events"],
+        ["NY Islanders","https://am.ticketmaster.com/newyorkislanders/my-events#/17998"],
+        ["Predators","https://am.ticketmaster.com/predators/my-events"],
+        ["Vanderbilt","https://vucommodores.evenue.net/signin"],
+        ["Vols","https://am.ticketmaster.com/allvols/my-events"],
+        ["Yankees","https://am.ticketmaster.com/nyyreg/my-events"]
+      ],
+      travel: [
+        ["ARCCORP","https://www2.arccorp.com/#"],
+        ["Delta","https://www.delta.com/"],
+        ["Expedia","https://www.expedia.com/Hotels?v=b"],
+        ["EZ-PASS","https://www.e-zpassny.com/vector/account/transactions/transactionlist.do"],
+        ["Jetset","https://jetsetjansen.com/versace-mansion-miami/"],
+        ["JSX","https://www.jsx.com/home/search"],
+        ["Universal","https://www.universalpartnercommunity.com/s/login/SelfRegister?language=en_US"],
+        ["Yachts","https://www.burgessyachts.com/en/charter-a-yacht/yachts-for-charter/aquila-00005340"]
+      ],
+      privatejet: [
+        ["Fly XO","https://flyxo.com/"],
+        ["Flyte","https://www.flyte.travel/rebrand"],
+        ["Private Jet Contracts","javascript:alert('Add contract link URL and I\\'ll wire this up.')"],
+        ["Private Jet Fly USA","https://flyusa.com/book-private-flights/"],
+        ["Wheels Up","https://wheelsup.com/"]
+      ],
+      luxhomes: [
+        ["Airbnb","https://www.airbnb.com/"],
+        ["VRBO","https://www.vrbo.com/"]
+      ],
+      social: [
+        ["Facebook","https://www.facebook.com/"],
+        ["Instagram","https://www.instagram.com/"],
+        ["LinkedIn","https://www.linkedin.com/"],
+        ["Mailchimp","https://mailchimp.com/"],
+        ["Tiktok","https://tiktok.com/"],
+        ["YouTube","https://www.youtube.com/"]
+      ],
+      domains: [
+        ["A1 Timesheets","https://1drv.ms/x/c/f3acac4cab808f86/EQsA5-xNQvBApOR3XhRkD1EBNC3MT3eW0wlrza-6wpYNPQ?e=fbawZI"],
+        ["Domain Pal","https://domainpal.com/"],
+        ["GoDaddy","https://www.godaddy.com/"]
+      ]
+    };
+
+    function seedDOM(){
+      Object.entries(SEED).forEach(([sec, items])=>{
+        const grid = sectionGrid(sec);
+        if(!grid) return;
+        items.forEach(([label,url])=> grid.appendChild(createBtn(label,url,false)));
+      });
+    }
+
+    function showSection(id){
+      document.querySelectorAll('.section').forEach(s=>s.style.display='none');
+      const el = document.getElementById(id);
+      if(el) el.style.display='block';
+    }
+
+    function openPopup(url){
+      if(url && url.startsWith('javascript:')){
+        // eslint-disable-next-line no-new-func
+        new Function(url.slice('javascript:'.length))();
+      } else {
+        window.open(url, '_blank', 'popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=1200,height=800');
+      }
+    }
+
+    function copyDescription(){
+      const txt = document.getElementById('uploadDesc')?.value || '';
+      if(navigator.clipboard?.writeText){
+        navigator.clipboard.writeText(txt)
+          .then(()=>alert('Description copied to clipboard.'))
+          .catch(()=>alert('Clipboard blocked. Copy manually.'));
+      } else {
+        alert('Clipboard not available. Copy manually.');
+      }
+    }
+
+    function openUploadPages(){
+      const urls = [];
+      if(document.getElementById('tYouTube')?.checked)  urls.push('https://www.youtube.com/upload');
+      if(document.getElementById('tFacebook')?.checked) urls.push('https://www.facebook.com/creatorstudio');
+      if(document.getElementById('tInstagram')?.checked) urls.push('https://www.instagram.com/');
+      if(document.getElementById('tTikTok')?.checked)    urls.push('https://www.tiktok.com/upload?lang=en');
+      if(!urls.length){ alert('Select at least one target.'); return; }
+      const features = 'popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=1200,height=800';
+      const wins = urls.map(()=>window.open('about:blank','_blank',features));
+      wins.forEach((w,i)=>{ try{ if(w) w.location = urls[i]; }catch(e){} });
+      if(!wins[0]) alert('Your browser blocked popups. Allow popups for this page.');
+    }
+
+    /* -------- Button Manager logic with remote sync -------- */
+    const manageableSections = [
+      { id:'main', label:'Main Links' },
+      { id:'luxury', label:'Luxury Suites' },
+      { id:'accounts', label:'Ticket Accounts' },
+      { id:'travel', label:'Travel' },
+      { id:'social', label:'Social' },
+      { id:'domains', label:'A1 Domains & Emails' },
+      { id:'privatejet', label:'Private Jet (within Travel)' },
+      { id:'luxhomes', label:'Luxury Homes (within Travel)' },
+    ];
+
+    function loadState(){
+      try{
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { added:{}, removed:{} };
+      }catch{ return { added:{}, removed:{} }; }
+    }
+    function saveState(state){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function sectionGrid(id){ return document.querySelector(`.grid[data-section="${id}"]`); }
+
+    function createBtn(label, url, isCustom=true){
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = label;
+      btn.setAttribute('data-label', label);
+      if(isCustom) btn.setAttribute('data-custom','1');
+      btn.addEventListener('click', ()=>openPopup(url));
+      return btn;
+    }
+
+    async function fetchRemoteConfig(){
+      try{
+        const res = await fetch(CONFIG_URL, {cache:'no-store'});
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const json = await res.json();
+        return json && typeof json==='object' ? json : {added:{}, removed:{}};
+      }catch(e){
+        console.warn('No remote buttons.json yet or failed to fetch:', e);
+        return { added:{}, removed:{} };
+      }
+    }
+
+    function mergeStates(base, remote){
+      const merged = JSON.parse(JSON.stringify(base));
+      // merge added
+      for(const [sec, arr] of Object.entries(remote.added||{})){
+        merged.added[sec] = merged.added[sec] || [];
+        const existingLabels = new Set(merged.added[sec].map(x=>x.label));
+        (arr||[]).forEach(it=>{ if(!existingLabels.has(it.label)) merged.added[sec].push(it); });
+      }
+      // merge removed
+      for(const [sec, labels] of Object.entries(remote.removed||{})){
+        merged.removed[sec] = Array.from(new Set([...(merged.removed[sec]||[]), ...(labels||[])]));
+      }
+      return merged;
+    }
+
+    function applyState(state){
+      // Start from seed HTML
+      document.querySelectorAll('.grid[data-section]').forEach(grid=>grid.innerHTML='');
+      seedDOM();
+
+      // remove by label for each section
+      Object.entries(state.removed).forEach(([sec, labels])=>{
+        const grid = sectionGrid(sec);
+        if(!grid) return;
+        labels.forEach(lbl=>{
+          const cand = Array.from(grid.querySelectorAll('.btn')).find(b=>b.textContent.trim()===lbl);
+          if(cand) cand.remove();
+        });
+      });
+
+      // add custom buttons
+      Object.entries(state.added).forEach(([sec, arr])=>{
+        const grid = sectionGrid(sec);
+        if(!grid) return;
+        arr.forEach(({label,url})=>{
+          const exists = Array.from(grid.querySelectorAll('.btn')).some(b=>b.textContent.trim()===label);
+          if(!exists){ grid.appendChild(createBtn(label, url, true)); }
+        });
+      });
+    }
+
+    async function init(){
+      seedDOM(); // load base
+      const localState = loadState();
+      const remote = await fetchRemoteConfig();
+      const merged = mergeStates(localState, remote);
+      saveState(merged);
+      applyState(merged);
+    }
+
+    // ---- Modals ----
+    function openAddModal(){
+      fillSelect('addSection');
+      document.getElementById('addLabel').value='';
+      document.getElementById('addUrl').value='';
+      showModal('addModal');
+    }
+    function openRemoveModal(){
+      fillSelect('removeSection');
+      populateRemoveList();
+      showModal('removeModal');
+    }
+    function fillSelect(selectId){
+      const sel = document.getElementById(selectId);
+      sel.innerHTML = '';
+      manageableSections.forEach(s=>{
+        const opt = document.createElement('option');
+        opt.value = s.id; opt.textContent = s.label;
+        sel.appendChild(opt);
+      });
+    }
+    function populateRemoveList(){
+      const sec = document.getElementById('removeSection').value;
+      const grid = sectionGrid(sec);
+      const list = document.getElementById('removeButton');
+      list.innerHTML='';
+      if(!grid) return;
+      Array.from(grid.querySelectorAll('.btn')).forEach(b=>{
+        const opt = document.createElement('option');
+        opt.value = b.textContent.trim();
+        opt.textContent = b.textContent.trim();
+        list.appendChild(opt);
+      });
+    }
+
+    async function syncRemote(state){
+      if(!SYNC_ENDPOINT){
+        console.warn('SYNC_ENDPOINT is not configured. Skipping remote write.');
+        return;
+      }
+      try{
+        await fetch(SYNC_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify(state)
+        });
+      }catch(e){
+        console.warn('Remote sync failed:', e);
+      }
+    }
+
+    async function confirmAdd(){
+      const sec = document.getElementById('addSection').value;
+      const label = document.getElementById('addLabel').value.trim();
+      const url = document.getElementById('addUrl').value.trim();
+      if(!sec || !label || !url){ alert('Please complete all fields.'); return; }
+      const grid = sectionGrid(sec);
+      if(!grid){ alert('Section not found.'); return; }
+      // Add to DOM
+      grid.appendChild(createBtn(label, url, true));
+      // Persist
+      const state = loadState();
+      if(!state.added[sec]) state.added[sec]=[];
+      const idx = state.added[sec].findIndex(x=>x.label===label);
+      if(idx>=0){ state.added[sec][idx].url=url; } else { state.added[sec].push({label,url}); }
+      // If previously removed, undo removal
+      if(state.removed[sec]) state.removed[sec] = state.removed[sec].filter(l=>l!==label);
+      saveState(state);
+      closeModal('addModal');
+      alert('Button added.');
+      // Sync to remote
+      const remote = await fetchRemoteConfig();
+      const merged = mergeStates(state, remote); // prefer local on conflicts
+      await syncRemote(merged);
+    }
+
+    async function confirmRemove(){
+      const sec = document.getElementById('removeSection').value;
+      const label = document.getElementById('removeButton').value;
+      const grid = sectionGrid(sec);
+      if(!grid || !label){ alert('Pick a button to remove.'); return; }
+      const target = Array.from(grid.querySelectorAll('.btn')).find(b=>b.textContent.trim()===label);
+      if(target) target.remove();
+      const state = loadState();
+      if(state.added[sec]) state.added[sec] = state.added[sec].filter(x=>x.label!==label);
+      if(!state.removed[sec]) state.removed[sec]=[];
+      if(!state.removed[sec].includes(label)) state.removed[sec].push(label);
+      saveState(state);
+      closeModal('removeModal');
+      alert('Button removed.');
+      // Sync to remote
+      const remote = await fetchRemoteConfig();
+      const merged = mergeStates(state, remote);
+      await syncRemote(merged);
+    }
+
+    function showModal(id){ const m = document.getElementById(id); if(m){ m.style.display='flex'; } }
+    function closeModal(id){ const m = document.getElementById(id); if(m){ m.style.display='none'; } }
+    window.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeModal('addModal'); closeModal('removeModal'); } });
+
+    /* PWA install pill */
+    let deferredPrompt=null;
+    const installBtn=document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredPrompt=e; installBtn.style.display='inline-block'; });
+    installBtn.addEventListener('click',async()=>{
+      if(deferredPrompt){ deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null; installBtn.style.display='none'; }
+      else { alert("On iPhone/iPad:\n1) Tap the Share icon in Safari\n2) Choose 'Add to Home Screen'\n3) Tap 'Add'"); }
+    });
+    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone;
+    if(isIOS&&!isStandalone){ installBtn.style.display='inline-block'; }
+
+    if('serviceWorker' in navigator){
+      window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
