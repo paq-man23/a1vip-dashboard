@@ -5,11 +5,16 @@
         "label": "TES",
         "url": "TEST"
       }
-    ]
+    ],
+    "accounts": []
   },
   "removed": {
     "main": [
-      "TES"
+      "ebay",
+      "tes"
+    ],
+    "accounts": [
+      "NY Jets"
     ]
   }
 }
