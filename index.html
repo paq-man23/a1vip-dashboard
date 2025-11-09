@@ -417,7 +417,20 @@
     function normLabel(s){
       return (s || "").normalize("NFKC").replace(/\s+/g," ").trim().toLowerCase();
     }
-
+async function checkForUpdatesNow(){
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+    await reg.update(); // ask SW to fetch latest
+    // Optional: nudge the waiting worker to show the banner immediately if already installed
+    if (reg.waiting) {
+      // your page logic will display the "New update available" banner
+      // (no-op here since your registration code handles reg.waiting)
+    }
+  } catch(e) {
+    console.warn('Update check failed', e);
+  }
+}
     function populateRemoveList(){
       const sec  = document.getElementById('removeSection').value;
       const grid = sectionGrid(sec);
