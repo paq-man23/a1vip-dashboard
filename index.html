@@ -434,7 +434,7 @@
       });
     }
 
- function mergeStates(base, remote){
+function mergeStates(base, remote){
   // Deep clone base
   const merged = JSON.parse(JSON.stringify(base || { added:{}, removed:{} }));
 
@@ -464,22 +464,22 @@
     merged.removed[sec] = Array.from(new Set([...prev, ...next]));
   }
 
-  // ---- 3) Reconcile: if a label is in ADDED, it must NOT remain in REMOVED
+  // ---- 3) Reconcile: if a label is in REMOVED, it must NOT remain in ADDED (removal wins)
   const allSecs = new Set([
     ...Object.keys(merged.added || {}),
     ...Object.keys(merged.removed || {})
   ]);
 
   for (const sec of allSecs) {
-    const addedSet = new Set((merged.added?.[sec] || []).map(x => normLabel(x.label)));
-    const remArr  = (merged.removed?.[sec] || []);
-    if (remArr.length) {
-      merged.removed[sec] = remArr.filter(l => !addedSet.has(normLabel(l)));
+    const remSet = new Set((merged.removed?.[sec] || []).map(normLabel));
+    if (merged.added && merged.added[sec]) {
+      merged.added[sec] = merged.added[sec].filter(x => !remSet.has(normLabel(x.label)));
     }
   }
 
   return merged;
 }
+
 function applyState(state){
   // 1) reset + seed from SEED
   document.querySelectorAll('.grid[data-section]').forEach(g => g.innerHTML = '');
