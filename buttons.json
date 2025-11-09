@@ -3,12 +3,7 @@
     "main": [],
     "accounts": [],
     "luxury": [],
-    "travel": [
-      {
-        "label": "JETBLUE",
-        "url": "jetblue"
-      }
-    ]
+    "travel": []
   },
   "removed": {
     "main": [
@@ -23,6 +18,9 @@
     ],
     "luxury": [
       "test"
+    ],
+    "travel": [
+      "JETBLUE"
     ]
   }
 }
