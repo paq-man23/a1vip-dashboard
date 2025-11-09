@@ -434,50 +434,83 @@
       });
     }
 
-    function mergeStates(base, remote){
-      const merged = JSON.parse(JSON.stringify(base));
-      for(const [sec, arr] of Object.entries(remote.added||{})){
-        merged.added[sec] = merged.added[sec] || [];
-        const existing = new Set(merged.added[sec].map(x=>normLabel(x.label)));
-        (arr||[]).forEach(it=>{ if(!existing.has(normLabel(it.label))) merged.added[sec].push(it); });
-      }
-      for(const [sec, labels] of Object.entries(remote.removed||{})){
-        const prev = new Set((merged.removed[sec]||[]).map(normLabel));
-        const next = new Set([...(labels||[])].map(normLabel));
-        merged.removed[sec] = Array.from(new Set([...prev, ...next])).map(x=>x);
-      }
-      return merged;
-    }
+ function mergeStates(base, remote){
+  // Start with deep clone of base
+  const merged = JSON.parse(JSON.stringify(base || { added:{}, removed:{} }));
 
-    function applyState(state){
-      document.querySelectorAll('.grid[data-section]').forEach(g => g.innerHTML='');
-      seedDOM();
+  // 1) Merge ADDED (union by normalized label, prefer remote URL on conflicts)
+  for (const [sec, arr] of Object.entries((remote && remote.added) || {})) {
+    merged.added[sec] = merged.added[sec] || [];
+    const seen = new Map(merged.added[sec].map(x => [normLabel(x.label), x]));
+    (arr || []).forEach(item => {
+      const nl = normLabel(item.label);
+      if (!seen.has(nl)) {
+        seen.set(nl, { label: item.label, url: item.url });
+      } else {
+        const prev = seen.get(nl);
+        if (item.url && item.url !== prev.url) {
+          seen.set(nl, { label: prev.label, url: item.url });
+        }
+      }
+    });
+    merged.added[sec] = Array.from(seen.values());
+  }
 
-      Object.entries(state.removed || {}).forEach(([sec, labels])=>{
-        const grid = sectionGrid(sec);
-        if (!grid) return;
-        const toRemove = new Set((labels||[]).map(normLabel));
-        [...grid.querySelectorAll('.btn')].forEach(b=>{
-          if (toRemove.has(normLabel(b.textContent))) b.remove();
-        });
-      });
-     
-      Object.entries(state.added || {}).forEach(([sec, arr])=>{
-        const grid = sectionGrid(sec);
-        if (!grid) return;
-        const existing = new Set([...grid.querySelectorAll('.btn')]
-        .map(b => normLabel(b.textContent)));
-    // ensure the array itself is sorted for consistency
-        const sorted = [...(arr || [])].sort((a,b)=> compareLabels(a.label, b.label));
-        sorted.forEach(({label, url})=>{
-        if (!existing.has(normLabel(label))) {
-        insertButtonSorted(grid, createBtn(label, url, true));
-        existing.add(normLabel(label));
-    }
+  // 2) Merge REMOVED (union of normalized strings)
+  for (const [sec, labels] of Object.entries((remote && remote.removed) || {})) {
+    const prev = new Set((merged.removed?.[sec] || []).map(normLabel));
+    const next = new Set((labels || []).map(normLabel));
+    merged.removed = merged.removed || {};
+    merged.removed[sec] = Array.from(new Set([...prev, ...next]));
+  }
+
+  // 3) Reconcile: anything in removed MUST NOT be in added
+  for (const sec of new Set([...Object.keys(merged.added || {}), ...Object.keys(merged.removed || {})])) {
+    const remSet = new Set((merged.removed?.[sec] || []).map(normLabel));
+    if (!merged.added[sec]) continue;
+    merged.added[sec] = merged.added[sec].filter(x => !remSet.has(normLabel(x.label)));
+  }
+
+  return merged;
+}
+function applyState(state){
+  // 1) reset + seed from SEED
+  document.querySelectorAll('.grid[data-section]').forEach(g => g.innerHTML = '');
+  seedDOM();
+
+  // 2) apply removals (and build lookup for adds)
+  const removedMap = {};
+  Object.entries(state.removed || {}).forEach(([sec, labels]) => {
+    const grid = sectionGrid(sec);
+    if (!grid) return;
+    const set = new Set((labels || []).map(normLabel));
+    removedMap[sec] = set;
+
+    // remove from DOM
+    [...grid.querySelectorAll('.btn')].forEach(b => {
+      if (set.has(normLabel(b.textContent))) b.remove();
+    });
   });
-});
 
-    }
+  // 3) apply additions BUT SKIP anything present in removedMap
+  Object.entries(state.added || {}).forEach(([sec, arr]) => {
+    const grid = sectionGrid(sec);
+    if (!grid) return;
+
+    const removedSet = removedMap[sec] || new Set();
+    const existing = new Set([...grid.querySelectorAll('.btn')].map(b => normLabel(b.textContent)));
+
+    const sorted = [...(arr || [])].sort((a, b) => compareLabels(a.label, b.label));
+    sorted.forEach(({ label, url }) => {
+      const nl = normLabel(label);
+      if (removedSet.has(nl)) return;   // <-- key line: do not re-add if removed
+      if (existing.has(nl))  return;    // already present
+      insertButtonSorted(grid, createBtn(label, url, true));
+      existing.add(nl);
+    });
+  });
+}
+
 
     const bc = 'BroadcastChannel' in window ? new BroadcastChannel('a1vip-sync') : null;
     function broadcastRefresh(){ bc && bc.postMessage({ type:'REFRESH_REMOTE' }); }
