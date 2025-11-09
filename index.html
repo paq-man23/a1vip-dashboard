@@ -236,9 +236,13 @@
 
   <script>
     /* ===== Config ===== */
-    const CONFIG_URL = 'buttons.json';               // Must exist in the repo (GitHub Pages will serve it)
-    const SYNC_ENDPOINT = 'https://a1vip-sync.jviphone.workers.dev'; // Set to your serverless function URL (Cloudflare/Netlify/Vercel)
-    const STORAGE_KEY = 'a1vip-button-manager-v2';   // Local cache + offline
+    const CONFIG_URLS = [
+      'https://paq-man23.github.io/a1vip-dashboard/buttons.json',
+      'https://raw.githubusercontent.com/paq-man23/a1vip-dashboard/main/buttons.json'
+    ];
+    const SYNC_ENDPOINT = 'https://a1vip-sync.jviphone.workers.dev';
+    const SHARED_SECRET = 'a1vip-2025-sync-9fK2sX';
+    const STORAGE_KEY = 'a1vip-button-manager-v2';
 
     /* ===== Base content (seed) from your current HTML ===== */
     const SEED = {
