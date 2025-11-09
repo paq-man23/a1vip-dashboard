@@ -4,15 +4,7 @@
     "accounts": []
   },
   "removed": {
-    "main": [
-      "ebay",
-      "tes",
-      "test2",
-      "espn",
-      "zebra"
-    ],
-    "accounts": [
-      "ny jets"
-    ]
+    "main": []
+    "accounts": []
   }
 }
