@@ -2,12 +2,12 @@
   "added": {
     "main": [
       {
-        "label": "TES",
-        "url": "TEST"
-      },
-      {
         "label": "TEST2",
         "url": "WWW.ESPN.COM"
+      },
+      {
+        "label": "TES",
+        "url": "TEST"
       }
     ],
     "accounts": []
