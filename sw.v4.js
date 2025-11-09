@@ -2,7 +2,8 @@
 // Update style: show "New update available" banner in the page; activate on user click.
 // If you need to force all installs to fetch this worker, bump CACHE_NAME.
 
-const CACHE_NAME = 'a1vip-static-v4';
+const CACHE_NAME = 'a1vip-static-v5'; // bump this once
+
 
 // Resolve relative to worker scope (safe for GitHub Pages subpaths)
 const REL = (p) => new URL(p, self.registration.scope).pathname;
