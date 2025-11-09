@@ -1,11 +1,6 @@
 {
   "added": {
-    "main": [
-      {
-        "label": "X",
-        "url": "X"
-      }
-    ],
+    "main": [],
     "accounts": [],
     "luxury": [],
     "travel": [],
@@ -17,7 +12,8 @@
       "tes",
       "test2",
       "espn",
-      "zebra"
+      "zebra",
+      "x"
     ],
     "accounts": [
       "ny jets"
