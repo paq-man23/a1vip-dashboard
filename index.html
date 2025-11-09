@@ -595,5 +595,41 @@
 
     window.addEventListener('DOMContentLoaded', init);
   </script>
+  <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('./sw.js');
+
+      // Auto-activate updated SWs
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        if (!newSW) return;
+        newSW.addEventListener('statechange', async () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            // Ask the new worker to take over immediately
+            if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            // Reload to get latest HTML/JS
+            window.location.reload();
+          }
+        });
+      });
+
+      // If there's already a waiting SW (e.g., when user opens the app)
+      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+
+      // Claim clients from within SW on activate; we also do it here as belt-and-suspenders
+      if (navigator.serviceWorker.controller) {
+        // No-op, controller exists
+      } else {
+        // First load after install
+        navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+      }
+    } catch (e) {
+      console.error('SW registration failed', e);
+    }
+  });
+}
+</script>
 </body>
 </html>
