@@ -623,7 +623,7 @@ async function confirmAdd(){
   else state.added[sec].push({ label, url });
   state.added[sec].sort((a,b)=> compareLabels(a.label, b.label));
 
-  // Clear pending removal if it existed
+  // Clear pending removal locally
   if (state.removed[sec]) {
     state.removed[sec] = state.removed[sec].filter(l => normLabel(l) !== n);
   }
@@ -632,11 +632,18 @@ async function confirmAdd(){
   closeModal('addModal');
   alert('Button added.');
 
-  // Sync remote then re-apply
+  // <-- KEY CHANGE: merge with remote, then scrub the label from merged.removed before syncing
   const remote = await fetchRemoteConfig();
   const merged = mergeStates(state, remote);
+
+  // Scrub this label from the merged removed set so the server file doesn’t keep deleting it
+  if (!merged.removed) merged.removed = {};
+  if (!merged.removed[sec]) merged.removed[sec] = [];
+  merged.removed[sec] = merged.removed[sec].filter(l => normLabel(l) !== n);
+
   await syncRemote(merged);
 }
+
 
 // ---- Modals / selects ----
 function openAddModal(){
