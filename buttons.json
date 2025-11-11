@@ -1,17 +1,20 @@
 {
   "added": {
+    "accounts": [],
     "main": [
       {
         "label": "ChatGPT",
         "url": "https://chatgpt.com/"
       }
     ],
-    "accounts": [],
     "luxury": [],
     "travel": [],
     "social": []
   },
   "removed": {
+    "accounts": [
+      "ny jets"
+    ],
     "main": [
       "ebay",
       "tes",
@@ -19,11 +22,7 @@
       "espn",
       "zebra",
       "x",
-      "mailchimp",
-      "test"
-    ],
-    "accounts": [
-      "ny jets"
+      "mailchimp"
     ],
     "luxury": [
       "test"
