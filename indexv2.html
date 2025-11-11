@@ -186,17 +186,16 @@
       <div class="manager-row">
         <button class="btn btn-add" onclick="openAddModal()">➕ Add Button</button>
         <button class="btn btn-remove" onclick="openRemoveModal()">➖ Remove Button</button>
-      </div>
+          <!-- Admin actions (add near your other manager buttons) -->
+<div class="admin-row" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+  <button class="btn" style="background:#3182ce" onclick="openMoveModal()">Move Button</button>
+  <button class="btn" style="background:#6b46c1" onclick="openCreateSectionModal()">Create Section</button>
+</div>
       <div class="note" style="margin-top:8px">
         Changes sync from <code>buttons.json</code>. Writes use a serverless endpoint (configure <code>SYNC_ENDPOINT</code>).
       </div>
     </section>
   </main>
-  <!-- Admin actions (add near your other manager buttons) -->
-<div class="admin-row" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
-  <button class="btn" style="background:#3182ce" onclick="openMoveModal()">Move Button</button>
-  <button class="btn" style="background:#6b46c1" onclick="openCreateSectionModal()">Create Section</button>
-</div>
 
   <!-- Move Button Modal -->
 <div id="moveModal" class="modal" style="display:none;">
@@ -880,27 +879,7 @@ function showModal(id){
 function closeModal(id){
   const m = document.getElementById(id);
   if(m) m.style.display='none';
-}
-function openMoveModal(){
-  fillSectionSelect('moveFrom');
-  fillSectionSelect('moveTo');
-  populateMoveButtons(); // fills button list for initial "from" section
-  showModal('moveModal');
-}
 
-function openCreateSectionModal(){
-  const t = document.getElementById('newSectionTitle');
-  const i = document.getElementById('newSectionId');
-  if (t) t.value = '';
-  if (i) i.value = '';
-  showModal('createSectionModal');
-}
-
-// Fill a section <select> using current known sections
-function fillSectionSelect(selectId){
-  const sel = document.getElementById(selectId);
-  if (!sel) return;
-  sel.innerHTML = '';
   // base list from manageableSections (default + any custom we stored)
   const list = (typeof manageableSections !== 'undefined' && Array.isArray(manageableSections))
     ? manageableSections
@@ -920,24 +899,6 @@ function fillSectionSelect(selectId){
     opt.value = s.id;
     opt.textContent = s.label;
     sel.appendChild(opt);
-  });
-}
-
-function populateMoveButtons(){
-  const fromId = document.getElementById('moveFrom')?.value;
-  const target = document.getElementById('moveButton');
-  if (!fromId || !target) return;
-  target.innerHTML = '';
-  const grid = sectionGrid(fromId);
-  if (!grid) return;
-  [...grid.querySelectorAll('.btn')].forEach(b=>{
-    const o = document.createElement('option');
-    const raw = b.textContent.trim();
-    o.value = raw;
-    o.textContent = raw;
-    o.dataset.url = b.dataset.url || '';
-    o.dataset.custom = b.hasAttribute('data-custom') ? '1' : '0';
-    target.appendChild(o);
   });
 }
     async function confirmRemove(){
