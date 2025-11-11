@@ -12,7 +12,12 @@
     ],
     "accounts": [],
     "luxury": [],
-    "travel": [],
+    "travel": [
+      {
+        "label": "Test",
+        "url": "google.com"
+      }
+    ],
     "social": []
   },
   "removed": {
