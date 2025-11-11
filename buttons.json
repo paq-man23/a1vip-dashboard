@@ -1,7 +1,7 @@
 {
   "added": {
-    "accounts": [],
     "main": [],
+    "accounts": [],
     "luxury": [],
     "travel": [],
     "social": [
@@ -12,17 +12,16 @@
     ]
   },
   "removed": {
-    "accounts": [
-      "ny jets"
-    ],
     "main": [
       "ebay",
       "tes",
       "test2",
-      "espn",
       "zebra",
       "x",
       "mailchimp"
+    ],
+    "accounts": [
+      "ny jets"
     ],
     "luxury": [
       "test"
