@@ -4,10 +4,6 @@
       {
         "label": "ChatGPT",
         "url": "https://chatgpt.com/"
-      },
-      {
-        "label": "Test",
-        "url": "google.com"
       }
     ],
     "accounts": [],
@@ -28,7 +24,8 @@
       "espn",
       "zebra",
       "x",
-      "mailchimp"
+      "mailchimp",
+      "test"
     ],
     "accounts": [
       "ny jets"
