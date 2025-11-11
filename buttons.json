@@ -8,12 +8,7 @@
     ],
     "accounts": [],
     "luxury": [],
-    "travel": [
-      {
-        "label": "Test",
-        "url": "google.com"
-      }
-    ],
+    "travel": [],
     "social": []
   },
   "removed": {
@@ -34,7 +29,8 @@
       "test"
     ],
     "travel": [
-      "jetblue"
+      "jetblue",
+      "test"
     ],
     "social": [
       "snap",
