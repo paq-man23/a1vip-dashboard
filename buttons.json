@@ -9,12 +9,7 @@
     ],
     "luxury": [],
     "travel": [],
-    "social": [
-      {
-        "label": "ChatGPT",
-        "url": "https://chatgpt.com/"
-      }
-    ]
+    "social": []
   },
   "removed": {
     "accounts": [
@@ -39,7 +34,8 @@
       "snap",
       "x",
       "rolex",
-      "mailchimp"
+      "mailchimp",
+      "chatgpt"
     ]
   }
 }
