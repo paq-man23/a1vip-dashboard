@@ -1,22 +1,28 @@
 {
   "added": {
-    "main": [],
     "accounts": [],
+    "main": [],
     "luxury": [],
     "travel": [],
-    "social": []
+    "social": [
+      {
+        "label": "Mailchimp",
+        "url": "https://login.mailchimp.com/login/unified-login"
+      }
+    ]
   },
   "removed": {
+    "accounts": [
+      "ny jets"
+    ],
     "main": [
       "ebay",
       "tes",
       "test2",
       "espn",
       "zebra",
-      "x"
-    ],
-    "accounts": [
-      "ny jets"
+      "x",
+      "mailchimp"
     ],
     "luxury": [
       "test"
