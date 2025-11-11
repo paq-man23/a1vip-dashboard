@@ -18,11 +18,11 @@
     "main": [
       "ebay",
       "tes",
-      "test2",
       "espn",
       "zebra",
       "x",
-      "mailchimp"
+      "mailchimp",
+      "test"
     ],
     "luxury": [
       "test"
