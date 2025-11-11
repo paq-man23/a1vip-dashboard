@@ -1,7 +1,12 @@
 {
   "added": {
     "accounts": [],
-    "main": [],
+    "main": [
+      {
+        "label": "ChatGPT",
+        "url": "https://chatgpt.com/"
+      }
+    ],
     "luxury": [],
     "travel": [],
     "social": [
