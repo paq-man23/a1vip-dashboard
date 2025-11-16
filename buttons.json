@@ -1,7 +1,16 @@
 {
-  "added": {},
-  "removed": {
+  "added": {
+    "main": [],
     "social": [
+      {
+        "label": "Mailchimp",
+        "url": "https://login.mailchimp.com/login/unified-login"
+      }
+    ]
+  },
+  "removed": {
+    "social": [],
+    "main": [
       "Mailchimp"
     ]
   }
