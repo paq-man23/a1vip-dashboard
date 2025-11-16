@@ -5,10 +5,6 @@
       {
         "label": "ChatGPT",
         "url": "https://chatgpt.com/"
-      },
-      {
-        "label": "Rename Test",
-        "url": "test4"
       }
     ],
     "luxury": [
@@ -34,7 +30,8 @@
       "mailchimp",
       "test",
       "tao suite",
-      "test3"
+      "test3",
+      "rename test"
     ],
     "luxury": [
       "test"
