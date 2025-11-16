@@ -10,10 +10,6 @@
       {
         "label": "ChatGPT",
         "url": "https://chatgpt.com/"
-      },
-      {
-        "label": "Google",
-        "url": "https://google.com"
       }
     ],
     "luxury": [
@@ -41,7 +37,8 @@
       "tao suite",
       "test3",
       "rename test",
-      "mlb.com"
+      "mlb.com",
+      "google"
     ],
     "luxury": [
       "test"
