@@ -1,6 +1,11 @@
 {
   "added": {
-    "accounts": [],
+    "accounts": [
+      {
+        "label": "MLB.com",
+        "url": "https://www.mlb.com/login?redirectUri=/apps/ballpark"
+      }
+    ],
     "main": [
       {
         "label": "ChatGPT",
@@ -31,7 +36,8 @@
       "test",
       "tao suite",
       "test3",
-      "rename test"
+      "rename test",
+      "mlb.com"
     ],
     "luxury": [
       "test"
