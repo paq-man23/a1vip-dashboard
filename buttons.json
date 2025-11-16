@@ -1,6 +1,11 @@
 {
   "added": {
-    "main": [],
+    "main": [
+      {
+        "label": "Test",
+        "url": "Test"
+      }
+    ],
     "social": [
       {
         "label": "Mailchimp",
