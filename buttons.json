@@ -1,10 +1,14 @@
 {
   "added": {
-    "main": [],
-    "social": [
+    "accounts": [],
+    "main": [
       {
-        "label": "Mailchimp",
-        "url": "https://login.mailchimp.com/login/unified-login"
+        "label": "ChatGPT",
+        "url": "https://chatgpt.com/"
+      },
+      {
+        "label": "Test4",
+        "url": "test4"
       }
     ],
     "luxury": [
@@ -12,16 +16,39 @@
         "label": "TAO Suite",
         "url": "https://www.suitesixteenlounge.com/"
       }
-    ]
+    ],
+    "travel": [],
+    "social": []
   },
   "removed": {
-    "social": [],
+    "accounts": [
+      "ny jets"
+    ],
     "main": [
+      "ebay",
+      "tes",
+      "espn",
+      "zebra",
+      "x",
+      "test2",
       "mailchimp",
       "test",
       "tao suite",
       "test3"
     ],
-    "luxury": []
+    "luxury": [
+      "test"
+    ],
+    "travel": [
+      "jetblue",
+      "test"
+    ],
+    "social": [
+      "snap",
+      "x",
+      "rolex",
+      "mailchimp",
+      "chatgpt"
+    ]
   }
 }
