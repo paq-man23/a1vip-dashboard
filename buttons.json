@@ -1,11 +1,6 @@
 {
   "added": {
-    "main": [
-      {
-        "label": "Test3",
-        "url": "Test3"
-      }
-    ],
+    "main": [],
     "social": [
       {
         "label": "Mailchimp",
@@ -24,7 +19,8 @@
     "main": [
       "mailchimp",
       "test",
-      "tao suite"
+      "tao suite",
+      "test3"
     ],
     "luxury": []
   }
