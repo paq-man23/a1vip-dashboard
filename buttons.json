@@ -6,13 +6,21 @@
         "label": "Mailchimp",
         "url": "https://login.mailchimp.com/login/unified-login"
       }
+    ],
+    "luxury": [
+      {
+        "label": "TAO Suite",
+        "url": "https://www.suitesixteenlounge.com/"
+      }
     ]
   },
   "removed": {
     "social": [],
     "main": [
       "mailchimp",
-      "test"
-    ]
+      "test",
+      "tao suite"
+    ],
+    "luxury": []
   }
 }
