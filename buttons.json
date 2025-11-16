@@ -1,14 +1,15 @@
 {
   "added": {
-    "main": [],
+    "main": [
+      {
+        "label": "Test",
+        "url": "Test"
+      }
+    ],
     "social": [
       {
         "label": "Mailchimp",
         "url": "https://login.mailchimp.com/login/unified-login"
-      },
-      {
-        "label": "Test",
-        "url": "Test"
       }
     ]
   },
