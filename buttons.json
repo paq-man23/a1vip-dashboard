@@ -4,10 +4,6 @@
       {
         "label": "ChatGPT",
         "url": "https://chatgpt.com/"
-      },
-      {
-        "label": "Mailchimp",
-        "url": "https://login.mailchimp.com/"
       }
     ],
     "accounts": [],
@@ -39,8 +35,8 @@
       "snap",
       "x",
       "rolex",
-      "mailchimp",
-      "chatgpt"
+      "chatgpt",
+      "mailchimp"
     ]
   }
 }
