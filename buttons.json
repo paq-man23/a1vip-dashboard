@@ -1,46 +1,4 @@
 {
-  "added": {
-    "main": [
-      {
-        "label": "ChatGPT",
-        "url": "https://chatgpt.com/"
-      },
-      {
-        "label": "Mailchimp",
-        "url": "https://login.mailchimp.com/"
-      }
-    ],
-    "accounts": [],
-    "luxury": [],
-    "travel": [],
-    "social": []
-  },
-  "removed": {
-    "main": [
-      "ebay",
-      "tes",
-      "test2",
-      "espn",
-      "zebra",
-      "x",
-      "test"
-    ],
-    "accounts": [
-      "ny jets"
-    ],
-    "luxury": [
-      "test"
-    ],
-    "travel": [
-      "jetblue",
-      "test"
-    ],
-    "social": [
-      "snap",
-      "x",
-      "rolex",
-      "chatgpt",
-      "mailchimp"
-    ]
-  }
+  "added": {},
+  "removed": {}
 }
