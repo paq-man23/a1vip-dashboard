@@ -18,13 +18,13 @@
         "url": "https://www.suitesixteenlounge.com/"
       }
     ],
-    "travel": [
+    "travel": [],
+    "social": [
       {
         "label": "tester",
         "url": "test"
       }
-    ],
-    "social": []
+    ]
   },
   "removed": {
     "accounts": [
