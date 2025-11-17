@@ -8,12 +8,16 @@
     ],
     "main": [
       {
+        "label": "ChatGPT",
+        "url": "https://chatgpt.com/"
+      },
+      {
         "label": "auth.ticketmaster.com",
         "url": "https://auth.ticketmaster.com/as/authorization.oauth2?redirect_uri=https%3A%2F%2Fam.ticketmaster.com%2Fnms%2Fam-sso%3Fdeeplink%3DL25tcy9pbnZvaWNlLzMyMjkyLzExOQ%3D%3D&response_type=code&lang=en-us&integratorId=NAM&placementId=homepage&visualPresets=nms&hideLeftPanel=true&client_id=6b746a204aee.web.nms-nms.us&scope=openid%20profile%20phone%20email%20tm"
       },
       {
-        "label": "ChatGPT",
-        "url": "https://chatgpt.com/"
+        "label": "pollstar.com",
+        "url": "https://www.pollstar.com/login"
       },
       {
         "label": "connect.appetizeapp.com",
@@ -22,10 +26,6 @@
       {
         "label": "login.mailchimp.com",
         "url": "https://login.mailchimp.com/?gclid=Cj0KCQjw753rBRCVARIsANe3o46ThzCwy2ZV-kCo-qjdl6-8q8E3W9-3hxC7Bj6mAowu0s0EOZ9RVC4aAv7YEALw_wcB&gclsrc=aw.ds"
-      },
-      {
-        "label": "pollstar.com",
-        "url": "https://www.pollstar.com/login"
       }
     ],
     "luxury": [
@@ -71,5 +71,6 @@
       "chatgpt",
       "tester1"
     ]
-  }
+  },
+  "themeColor": "#991a36"
 }
