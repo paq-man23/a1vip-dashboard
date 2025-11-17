@@ -1,23 +1,13 @@
 {
   "added": {
-    "accounts": [
-      {
-        "label": "MLB.com",
-        "url": "https://www.mlb.com/login?redirectUri=/apps/ballpark"
-      }
-    ],
     "main": [
-      {
-        "label": "ChatGPT",
-        "url": "https://chatgpt.com/"
-      },
       {
         "label": "auth.ticketmaster.com",
         "url": "https://auth.ticketmaster.com/as/authorization.oauth2?redirect_uri=https%3A%2F%2Fam.ticketmaster.com%2Fnms%2Fam-sso%3Fdeeplink%3DL25tcy9pbnZvaWNlLzMyMjkyLzExOQ%3D%3D&response_type=code&lang=en-us&integratorId=NAM&placementId=homepage&visualPresets=nms&hideLeftPanel=true&client_id=6b746a204aee.web.nms-nms.us&scope=openid%20profile%20phone%20email%20tm"
       },
       {
-        "label": "pollstar.com",
-        "url": "https://www.pollstar.com/login"
+        "label": "ChatGPT",
+        "url": "https://chatgpt.com/"
       },
       {
         "label": "connect.appetizeapp.com",
@@ -26,43 +16,28 @@
       {
         "label": "login.mailchimp.com",
         "url": "https://login.mailchimp.com/?gclid=Cj0KCQjw753rBRCVARIsANe3o46ThzCwy2ZV-kCo-qjdl6-8q8E3W9-3hxC7Bj6mAowu0s0EOZ9RVC4aAv7YEALw_wcB&gclsrc=aw.ds"
+      },
+      {
+        "label": "pollstar.com",
+        "url": "https://www.pollstar.com/login"
       }
     ],
+    "social": [],
     "luxury": [
       {
         "label": "TAO Suite",
         "url": "https://www.suitesixteenlounge.com/"
       }
     ],
-    "travel": [],
-    "social": []
+    "accounts": [
+      {
+        "label": "MLB.com",
+        "url": "https://www.mlb.com/login?redirectUri=/apps/ballpark"
+      }
+    ],
+    "travel": []
   },
   "removed": {
-    "accounts": [
-      "ny jets"
-    ],
-    "main": [
-      "ebay",
-      "tes",
-      "espn",
-      "zebra",
-      "x",
-      "test2",
-      "mailchimp",
-      "test",
-      "tao suite",
-      "test3",
-      "rename test",
-      "mlb.com",
-      "google"
-    ],
-    "luxury": [
-      "test"
-    ],
-    "travel": [
-      "jetblue",
-      "test"
-    ],
     "social": [
       "snap",
       "x",
@@ -70,7 +45,30 @@
       "mailchimp",
       "chatgpt",
       "tester1"
+    ],
+    "main": [
+      "mailchimp",
+      "tao suite",
+      "test3",
+      "ebay",
+      "tes",
+      "espn",
+      "zebra",
+      "x",
+      "test2",
+      "rename test",
+      "mlb.com",
+      "google"
+    ],
+    "luxury": [
+      "test"
+    ],
+    "accounts": [
+      "ny jets"
+    ],
+    "travel": [
+      "jetblue",
+      "test"
     ]
-  },
-  "themeColor": "#0061ff"
+  }
 }
