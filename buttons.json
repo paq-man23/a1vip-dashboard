@@ -10,10 +10,6 @@
       {
         "label": "ChatGPT",
         "url": "https://chatgpt.com/"
-      },
-      {
-        "label": "tester",
-        "url": "test"
       }
     ],
     "luxury": [
@@ -22,7 +18,12 @@
         "url": "https://www.suitesixteenlounge.com/"
       }
     ],
-    "travel": [],
+    "travel": [
+      {
+        "label": "tester",
+        "url": "test"
+      }
+    ],
     "social": []
   },
   "removed": {
