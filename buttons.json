@@ -19,12 +19,7 @@
       }
     ],
     "travel": [],
-    "social": [
-      {
-        "label": "tester1",
-        "url": "test"
-      }
-    ]
+    "social": []
   },
   "removed": {
     "accounts": [
@@ -57,7 +52,8 @@
       "x",
       "rolex",
       "mailchimp",
-      "chatgpt"
+      "chatgpt",
+      "tester1"
     ]
   }
 }
