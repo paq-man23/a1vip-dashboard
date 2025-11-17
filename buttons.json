@@ -10,6 +10,10 @@
       {
         "label": "ChatGPT",
         "url": "https://chatgpt.com/"
+      },
+      {
+        "label": "tester",
+        "url": "test"
       }
     ],
     "luxury": [
