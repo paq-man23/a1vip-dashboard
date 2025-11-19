@@ -14,6 +14,10 @@
         "url": "https://connect.appetizeapp.com/preorders/portal/metlife/login"
       },
       {
+        "label": "ebay.com",
+        "url": "https://ebay.com"
+      },
+      {
         "label": "login.mailchimp.com",
         "url": "https://login.mailchimp.com/?gclid=Cj0KCQjw753rBRCVARIsANe3o46ThzCwy2ZV-kCo-qjdl6-8q8E3W9-3hxC7Bj6mAowu0s0EOZ9RVC4aAv7YEALw_wcB&gclsrc=aw.ds"
       },
