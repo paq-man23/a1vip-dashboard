@@ -6,6 +6,10 @@
         "url": "https://auth.ticketmaster.com/as/authorization.oauth2?redirect_uri=https%3A%2F%2Fam.ticketmaster.com%2Fnms%2Fam-sso%3Fdeeplink%3DL25tcy9pbnZvaWNlLzMyMjkyLzExOQ%3D%3D&response_type=code&lang=en-us&integratorId=NAM&placementId=homepage&visualPresets=nms&hideLeftPanel=true&client_id=6b746a204aee.web.nms-nms.us&scope=openid%20profile%20phone%20email%20tm"
       },
       {
+        "label": "Chase Members Exclusive events",
+        "url": "https://www.unitedcardevents.com/past-events"
+      },
+      {
         "label": "chase.com",
         "url": "https://chase.com"
       },
