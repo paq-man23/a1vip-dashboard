@@ -22,10 +22,6 @@
         "url": "https://criterionticketing.com/"
       },
       {
-        "label": "Dolphins",
-        "url": "https://am.ticketmaster.com/dolphins/my-events"
-      },
-      {
         "label": "ebay.com",
         "url": "https://ebay.com"
       },
@@ -40,9 +36,28 @@
       {
         "label": "pollstar.com",
         "url": "https://www.pollstar.com/login"
+      },
+      {
+        "label": "Dolphins",
+        "url": "https://am.ticketmaster.com/dolphins/my-events"
+      }
+    ],
+    "social": [],
+    "luxury": [
+      {
+        "label": "TAO Suite",
+        "url": "https://www.suitesixteenlounge.com/"
       }
     ],
     "accounts": [
+      {
+        "label": "Auburn",
+        "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
+      },
+      {
+        "label": "Dolphins",
+        "url": "https://am.ticketmaster.com/dolphins/my-events"
+      },
       {
         "label": "MLB.com",
         "url": "https://www.mlb.com/login?redirectUri=/apps/ballpark"
@@ -50,45 +65,11 @@
       {
         "label": "auburn tigers",
         "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
-      },
-      {
-        "label": "Dolphins",
-        "url": "https://am.ticketmaster.com/dolphins/my-events"
       }
     ],
-    "luxury": [
-      {
-        "label": "TAO Suite",
-        "url": "https://www.suitesixteenlounge.com/"
-      }
-    ],
-    "social": [],
     "travel": []
   },
   "removed": {
-    "main": [
-      "ebay",
-      "tes",
-      "test2",
-      "zebra",
-      "x",
-      "espn",
-      "mailchimp",
-      "chatgpt",
-      "test",
-      "tao suite",
-      "test3",
-      "rename test",
-      "mlb.com",
-      "google",
-      "auburn tigers"
-    ],
-    "accounts": [
-      "ny jets"
-    ],
-    "luxury": [
-      "test"
-    ],
     "social": [
       "snap",
       "x",
@@ -96,6 +77,29 @@
       "mailchimp",
       "chatgpt",
       "tester1"
+    ],
+    "main": [
+      "mailchimp",
+      "tao suite",
+      "test3",
+      "ebay",
+      "tes",
+      "espn",
+      "zebra",
+      "x",
+      "test2",
+      "rename test",
+      "mlb.com",
+      "google",
+      "test",
+      "auburn tigers",
+      "chatgpt"
+    ],
+    "luxury": [
+      "test"
+    ],
+    "accounts": [
+      "ny jets"
     ],
     "travel": [
       "jetblue",
