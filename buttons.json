@@ -61,10 +61,6 @@
       {
         "label": "MLB.com",
         "url": "https://www.mlb.com/login?redirectUri=/apps/ballpark"
-      },
-      {
-        "label": "auburn tigers",
-        "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
       }
     ],
     "travel": []
@@ -99,7 +95,8 @@
       "test"
     ],
     "accounts": [
-      "ny jets"
+      "ny jets",
+      "auburn tigers"
     ],
     "travel": [
       "jetblue",
