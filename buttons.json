@@ -38,10 +38,18 @@
         "url": "https://am.ticketmaster.com/dolphins/my-events"
       }
     ],
-    "social": [
+    "accounts": [
       {
-        "label": "login.mailchimp.com",
-        "url": "https://login.mailchimp.com/?gclid=Cj0KCQjw753rBRCVARIsANe3o46ThzCwy2ZV-kCo-qjdl6-8q8E3W9-3hxC7Bj6mAowu0s0EOZ9RVC4aAv7YEALw_wcB&gclsrc=aw.ds"
+        "label": "MLB.com",
+        "url": "https://www.mlb.com/login?redirectUri=/apps/ballpark"
+      },
+      {
+        "label": "Auburn Tigers",
+        "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
+      },
+      {
+        "label": "Dolphins",
+        "url": "https://am.ticketmaster.com/dolphins/my-events"
       }
     ],
     "luxury": [
@@ -50,58 +58,50 @@
         "url": "https://www.suitesixteenlounge.com/"
       }
     ],
-    "accounts": [
+    "travel": [],
+    "social": [
       {
-        "label": "Auburn Tigers",
-        "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
-      },
-      {
-        "label": "Dolphins",
-        "url": "https://am.ticketmaster.com/dolphins/my-events"
-      },
-      {
-        "label": "MLB.com",
-        "url": "https://www.mlb.com/login?redirectUri=/apps/ballpark"
+        "label": "login.mailchimp.com",
+        "url": "https://login.mailchimp.com/?gclid=Cj0KCQjw753rBRCVARIsANe3o46ThzCwy2ZV-kCo-qjdl6-8q8E3W9-3hxC7Bj6mAowu0s0EOZ9RVC4aAv7YEALw_wcB&gclsrc=aw.ds"
       }
-    ],
-    "travel": []
+    ]
   },
   "removed": {
-    "social": [
-      "snap",
-      "x",
-      "rolex",
-      "chatgpt",
-      "tester1",
-      "mailchimp"
-    ],
     "main": [
-      "mailchimp",
-      "tao suite",
-      "test3",
       "ebay",
       "tes",
-      "espn",
+      "test2",
       "zebra",
       "x",
-      "test2",
+      "mailchimp",
+      "espn",
+      "test",
+      "tao suite",
+      "test3",
       "rename test",
       "mlb.com",
       "google",
-      "test",
       "auburn tigers",
       "chatgpt",
       "login.mailchimp.com"
     ],
-    "luxury": [
-      "test"
-    ],
     "accounts": [
       "ny jets"
+    ],
+    "luxury": [
+      "test"
     ],
     "travel": [
       "jetblue",
       "test"
+    ],
+    "social": [
+      "snap",
+      "x",
+      "rolex",
+      "mailchimp",
+      "chatgpt",
+      "tester1"
     ]
   }
 }
