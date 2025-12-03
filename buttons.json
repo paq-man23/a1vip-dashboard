@@ -36,16 +36,20 @@
     ],
     "accounts": [
       {
+        "label": "Auburn",
+        "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
+      },
+      {
+        "label": "Dolphins",
+        "url": "https://am.ticketmaster.com/dolphins/my-events"
+      },
+      {
         "label": "MLB.com",
         "url": "https://www.mlb.com/login?redirectUri=/apps/ballpark"
       },
       {
         "label": "auburn tigers",
         "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
-      },
-      {
-        "label": "Dolphins",
-        "url": "https://am.ticketmaster.com/dolphins/my-events"
       }
     ],
     "luxury": [
