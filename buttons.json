@@ -36,20 +36,16 @@
     ],
     "accounts": [
       {
-        "label": "Auburn",
-        "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
-      },
-      {
-        "label": "Barclay Center",
-        "url": "http://am.ticketmaster.com/bse/"
+        "label": "MLB.com",
+        "url": "https://www.mlb.com/login?redirectUri=/apps/ballpark"
       },
       {
         "label": "Dolphins",
         "url": "https://am.ticketmaster.com/dolphins/my-events"
       },
       {
-        "label": "MLB.com",
-        "url": "https://www.mlb.com/login?redirectUri=/apps/ballpark"
+        "label": "Auburn",
+        "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
       },
       {
         "label": "Barlcay Center",
@@ -92,7 +88,8 @@
     ],
     "accounts": [
       "ny jets",
-      "auburn tigers"
+      "auburn tigers",
+      "barclay center"
     ],
     "luxury": [
       "test"
