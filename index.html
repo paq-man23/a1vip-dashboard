@@ -30,7 +30,7 @@
     header img{height:150px}
     .title{font-size:2.1rem;line-height:1.05;font-weight:900;letter-spacing:.2px}
 
-    /* NEW: Logout button in header */
+    /* Logout button in header */
     .logout-btn{
       margin-left:auto;
       background:#ef4444;
@@ -212,7 +212,7 @@
   <header>
     <img src="A1VIP_LOGO_VERT_for _Black_backgrounds.png" alt="Logo">
     <div class="title">A1 VIP<br/>Ticket<br/>Dashboard</div>
-    <!-- NEW: Logout button -->
+    <!-- Logout button -->
     <button class="logout-btn" onclick="logout()">Logout</button>
   </header>
 
@@ -326,12 +326,12 @@
         </div>
         <div id="authUpdateMsg" class="note" style="margin-top:6px;"></div>
         <div class="note" style="margin-top:4px;">
-          Changes apply only to this browser/device. 
+          Changes apply only to this browser/device. Default login is <strong>JAW / Da$h25</strong>.
         </div>
       </div>
 
       <p style="font-size:0.8rem;color:#9ca3af;margin-top:8px;">
-        SYSTEM is hidden unless you hold the Alt/Option key while viewing Admin.
+        Desktop: hold Alt while viewing Admin. Mobile: long-press the Admin tab to show/hide SYSTEM.
       </p>
     </div>
 
@@ -540,7 +540,6 @@
       }
     }
 
-    /* NEW: Logout */
     function logout(){
       try{
         localStorage.removeItem(AUTH_KEY);
@@ -838,17 +837,32 @@
       }
     }
 
+    /* ===== SYSTEM visibility: desktop Alt + mobile long-press ===== */
     let systemAltDown = false;
+    let systemUnlocked = false; // toggled by long-press on Admin tab (mobile)
+
+    function isTouchDevice(){
+      return (
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0 ||
+        navigator.msMaxTouchPoints > 0
+      );
+    }
+
     function updateSystemButtonVisibility(currentSectionId){
       const btn = document.querySelector('#admin .grid [data-system-btn]');
       if (!btn) return;
+
       const adminSec = document.getElementById('admin');
       const isAdminVisible = currentSectionId
         ? currentSectionId === 'admin'
         : (adminSec && adminSec.style.display !== 'none');
-      btn.style.display = (isAdminVisible && systemAltDown) ? 'inline-flex' : 'none';
+
+      const shouldShow = isAdminVisible && (systemAltDown || systemUnlocked);
+      btn.style.display = shouldShow ? 'inline-flex' : 'none';
     }
 
+    // Desktop: Alt key holds
     document.addEventListener('keydown', (e) => {
       if (e.altKey || e.key === 'Alt'){
         systemAltDown = true;
@@ -860,6 +874,35 @@
         systemAltDown = false;
         updateSystemButtonVisibility();
       }
+    });
+
+    // Mobile: long-press Admin tab to toggle SYSTEM
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!isTouchDevice()) return; // only on touch devices
+
+      const adminTab = document.querySelector('.tab-admin');
+      if (!adminTab) return;
+
+      let pressTimer = null;
+
+      const startPress = (e) => {
+        if (!e.touches || e.touches.length !== 1) return;
+        pressTimer = setTimeout(() => {
+          systemUnlocked = !systemUnlocked; // toggle on/off
+          updateSystemButtonVisibility('admin');
+        }, 900); // ~0.9s long-press
+      };
+
+      const cancelPress = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      };
+
+      adminTab.addEventListener('touchstart', startPress);
+      adminTab.addEventListener('touchend', cancelPress);
+      adminTab.addEventListener('touchcancel', cancelPress);
     });
 
     function showSection(id){
