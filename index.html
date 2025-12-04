@@ -20,9 +20,32 @@
     html,body{margin:0;padding:0;height:100%}
     body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
 
-    header{position:sticky;top:0;z-index:1000;padding:10px 16px;padding-top:calc(env(safe-area-inset-top) + 8px);background:#111827;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+    header{
+      position:sticky;top:0;z-index:1000;
+      padding:10px 16px;
+      padding-top:calc(env(safe-area-inset-top) + 8px);
+      background:#111827;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:12px;
+    }
     header img{height:150px}
     .title{font-size:2.1rem;line-height:1.05;font-weight:900;letter-spacing:.2px}
+
+    /* NEW: Logout button in header */
+    .logout-btn{
+      margin-left:auto;
+      background:#ef4444;
+      border:none;
+      color:#fff;
+      font-weight:700;
+      border-radius:999px;
+      padding:8px 14px;
+      cursor:pointer;
+      font-size:0.8rem;
+      white-space:nowrap;
+    }
+    .logout-btn:hover{
+      filter:brightness(1.1);
+    }
 
     .search-row{margin:10px 0 4px;display:flex;flex-direction:column;gap:6px}
     .search-row input{padding:8px 10px;border-radius:999px;border:1px solid var(--border);background:#020617;color:#e5e7eb;font-size:0.85rem}
@@ -189,7 +212,10 @@
   <header>
     <img src="A1VIP_LOGO_VERT_for _Black_backgrounds.png" alt="Logo">
     <div class="title">A1 VIP<br/>Ticket<br/>Dashboard</div>
+    <!-- NEW: Logout button -->
+    <button class="logout-btn" onclick="logout()">Logout</button>
   </header>
+
   <div id="linkStatus" class="link-status"></div>
 
   <div class="quick-link-bar">
@@ -272,12 +298,38 @@
         <button class="btn" onclick="toggleTheme()">Toggle Button Theme</button>
         <button class="btn" onclick="exportLayout()">Backup / Export Layout</button>
       </div>
+
       <div style="margin-top:10px;font-size:0.8rem;">
         <label for="themeColor">
           Button Color:
           <input id="themeColor" type="color" onchange="setThemeColor(this.value)" style="margin-left:6px;vertical-align:middle;">
         </label>
       </div>
+
+      <!-- Login Settings tool -->
+      <div class="upload-card" style="margin-top:18px;">
+        <h4 style="margin:0 0 8px;color:#facc15;">Login Settings</h4>
+        <div class="form-grid">
+          <label>Current Password
+            <input id="authCurrentPass" type="password" autocomplete="current-password">
+          </label>
+          <label>New Username
+            <input id="authNewUser" type="text" autocomplete="username">
+          </label>
+          <label>New Password
+            <input id="authNewPass" type="password" autocomplete="new-password">
+          </label>
+        </div>
+        <div class="modal-actions" style="justify-content:flex-start;margin-top:10px;">
+          <button class="cta cta-primary" onclick="updateCredentials()">Update Login</button>
+          <button class="cta ghost" onclick="resetCredentialsToDefault()">Reset to Default</button>
+        </div>
+        <div id="authUpdateMsg" class="note" style="margin-top:6px;"></div>
+        <div class="note" style="margin-top:4px;">
+          Changes apply only to this browser/device. Default login is <strong>JAW / Da$h25</strong>.
+        </div>
+      </div>
+
       <p style="font-size:0.8rem;color:#9ca3af;margin-top:8px;">
         SYSTEM is hidden unless you hold the Alt/Option key while viewing Admin.
       </p>
@@ -426,39 +478,135 @@
     const SHARED_SECRET = 'a1vip-2025-sync-9fK2sX';
     const STORAGE_KEY = 'a1vip-button-manager-v2';
 
-    /* ===== Simple front-end auth ===== */
-    const AUTH_USER = 'JAW';
-    const AUTH_PASS = 'Da$h25';
-    const AUTH_KEY  = 'a1vip-auth-v1';
+    /* ===== Auth (with overrides) ===== */
+    const AUTH_DEFAULT_USER = 'JAW';
+    const AUTH_DEFAULT_PASS = 'Da$h25';
+    const AUTH_KEY          = 'a1vip-auth-v1';
+    const AUTH_OVERRIDE_KEY = 'a1vip-auth-override';
+
+    function getAuthCreds(){
+      try{
+        const raw = localStorage.getItem(AUTH_OVERRIDE_KEY);
+        if (raw){
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.user && parsed.pass){
+            return { user:String(parsed.user), pass:String(parsed.pass) };
+          }
+        }
+      }catch(e){}
+      return { user:AUTH_DEFAULT_USER, pass:AUTH_DEFAULT_PASS };
+    }
 
     function isAuthenticated(){
       try{
-        return localStorage.getItem(AUTH_KEY) === 'ok';
+        const token = localStorage.getItem(AUTH_KEY);
+        if (!token) return false;
+        const creds = getAuthCreds();
+        return token === 'ok::' + creds.user;
       }catch(e){
         return false;
       }
     }
+
     function showLogin(){
       const el = document.getElementById('loginScreen');
       if (el) el.style.display = 'flex';
+      const uEl = document.getElementById('loginUser');
+      const pEl = document.getElementById('loginPass');
+      const err = document.getElementById('loginError');
+      if (uEl) uEl.value = '';
+      if (pEl) pEl.value = '';
+      if (err) err.textContent = '';
     }
     function hideLogin(){
       const el = document.getElementById('loginScreen');
       if (el) el.style.display = 'none';
     }
+
     function handleLogin(){
       const uEl = document.getElementById('loginUser');
       const pEl = document.getElementById('loginPass');
       const err = document.getElementById('loginError');
       const u = (uEl?.value || '').trim();
       const p = pEl?.value || '';
-      if (u === AUTH_USER && p === AUTH_PASS){
-        try{ localStorage.setItem(AUTH_KEY,'ok'); }catch(e){}
+      const creds = getAuthCreds();
+      if (u === creds.user && p === creds.pass){
+        try{ localStorage.setItem(AUTH_KEY,'ok::' + creds.user); }catch(e){}
         if (err) err.textContent = '';
         hideLogin();
       }else{
         if (err) err.textContent = 'Invalid username or password.';
         else alert('Invalid username or password.');
+      }
+    }
+
+    /* NEW: Logout */
+    function logout(){
+      try{
+        localStorage.removeItem(AUTH_KEY);
+      }catch(e){}
+      showLogin();
+      window.scrollTo({ top:0, behavior:'smooth' });
+    }
+
+    function setAuthMessage(text, okColor){
+      const msg = document.getElementById('authUpdateMsg');
+      if (!msg){
+        if (text) alert(text);
+        return;
+      }
+      msg.textContent = text || '';
+      msg.style.color = okColor || '#f97373';
+    }
+
+    function updateCredentials(){
+      const currentPass = document.getElementById('authCurrentPass')?.value || '';
+      const newUser = (document.getElementById('authNewUser')?.value || '').trim();
+      const newPass = document.getElementById('authNewPass')?.value || '';
+      const creds = getAuthCreds();
+
+      if (!currentPass){
+        setAuthMessage('Please enter your current password.', '#f97373');
+        return;
+      }
+      if (currentPass !== creds.pass){
+        setAuthMessage('Current password is incorrect.', '#f97373');
+        return;
+      }
+      if (!newUser || !newPass){
+        setAuthMessage('New username and password cannot be empty.', '#f97373');
+        return;
+      }
+      if (newUser.length < 2){
+        setAuthMessage('New username must be at least 2 characters.', '#f97373');
+        return;
+      }
+
+      try{
+        const override = { user:newUser, pass:newPass };
+        localStorage.setItem(AUTH_OVERRIDE_KEY, JSON.stringify(override));
+        localStorage.setItem(AUTH_KEY, 'ok::' + newUser);
+
+        const cur = document.getElementById('authCurrentPass');
+        const np  = document.getElementById('authNewPass');
+        if (cur) cur.value = '';
+        if (np)  np.value  = '';
+        setAuthMessage('Login updated for this browser/device.', '#4ade80');
+      }catch(e){
+        setAuthMessage('Could not save new login: ' + e.message, '#f97373');
+      }
+    }
+
+    function resetCredentialsToDefault(){
+      if (!confirm('Reset login to default username/password (JAW / Da$h25) for this browser?')){
+        return;
+      }
+      try{
+        localStorage.removeItem(AUTH_OVERRIDE_KEY);
+        localStorage.removeItem(AUTH_KEY);
+        setAuthMessage('Login reset to default (JAW / Da$h25). You will use these next time you log in.', '#facc15');
+      }catch(e){
+        setAuthMessage('Could not reset: ' + e.message, '#f97373');
       }
     }
 
@@ -470,17 +618,15 @@
       }
       const uEl = document.getElementById('loginUser');
       const pEl = document.getElementById('loginPass');
-      const hookEnter = (el) => {
+      [uEl,pEl].forEach(el=>{
         if (!el) return;
-        el.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter'){ handleLogin(); }
+        el.addEventListener('keydown', (e)=>{
+          if (e.key === 'Enter') handleLogin();
         });
-      };
-      hookEnter(uEl);
-      hookEnter(pEl);
+      });
     });
 
-    /* ===== Seed (links preserved) ===== */
+    /* ===== Seed (links) ===== */
     const SEED = {
       main: [
         ["Audience Rewards","https://www.audiencerewards.com/"],
@@ -616,10 +762,12 @@
     }
 
     function resetDashboard(){
-      if (!confirm('This will erase all custom buttons and sync a factory reset. Continue?')) return;
+      if (!confirm('This will erase all custom buttons, login overrides, and sync a factory reset. Continue?')) return;
       const empty = { added:{}, removed:{} };
       try{
         saveState(empty);
+        localStorage.removeItem('a1vip-auth-override');
+        localStorage.removeItem(AUTH_KEY);
       }catch(e){ console.warn('saveState during reset failed', e); }
       (async () => {
         try{
@@ -720,6 +868,7 @@
       if(el) el.style.display='block';
       if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
     }
+
     function openPopup(url){
       if(url && url.startsWith('javascript:')){
         new Function(url.slice('javascript:'.length))();
@@ -747,16 +896,15 @@
     }
 
     const manageableSections = [
-      { id:'main', label:'Main Links' },
-      { id:'luxury', label:'Luxury Suites' },
-      { id:'accounts', label:'Ticket Accounts' },
-      { id:'travel', label:'Travel' },
-      { id:'social', label:'Social' },
-      { id:'domains', label:'A1 Domains & Emails' },
-      { id:'privatejet', label:'Private Jet (within Travel)' },
-      { id:'luxhomes', label:'Luxury Homes (within Travel)' },
+      { id:'main',      label:'Main Links' },
+      { id:'luxury',    label:'Luxury Suites' },
+      { id:'accounts',  label:'Ticket Accounts' },
+      { id:'travel',    label:'Travel' },
+      { id:'social',    label:'Social' },
+      { id:'domains',   label:'A1 Domains & Emails' },
+      { id:'privatejet',label:'Private Jet (within Travel)' },
+      { id:'luxhomes',  label:'Luxury Homes (within Travel)' },
     ];
-
     window.manageableSections = manageableSections;
 
     function loadState(){
@@ -859,6 +1007,40 @@
       }
 
       return merged;
+    }
+
+    function compareLabels(a, b){
+      return normLabel(a).localeCompare(normLabel(b));
+    }
+
+    function insertButtonSorted(grid, btn){
+      const target = normLabel(btn.textContent);
+      const buttons = [...grid.querySelectorAll('.btn')];
+      const idx = buttons.findIndex(b => compareLabels(b.textContent, target) > 0);
+      if (idx === -1) grid.appendChild(btn);
+      else grid.insertBefore(btn, buttons[idx]);
+    }
+
+    function getBtnURL(btn){
+      if (btn && btn.dataset && btn.dataset.url) return btn.dataset.url;
+      const onclick = btn ? (btn.getAttribute('onclick') || '') : '';
+      const m = onclick.match(/openPopup\(['"](.+?)['"]\)/);
+      return m ? m[1] : '';
+    }
+
+    function wireHoverStatus(){
+      const bar = document.getElementById('linkStatus');
+      if (!bar) return;
+      const buttons = document.querySelectorAll('.grid .btn');
+      buttons.forEach(btn => {
+        if (btn.dataset && btn.dataset.hoverWired === '1') return;
+        const url = getBtnURL(btn);
+        btn.dataset.hoverWired = '1';
+        btn.addEventListener('mouseenter', ()=>{ bar.textContent = url || ''; });
+        btn.addEventListener('focus',      ()=>{ bar.textContent = url || ''; });
+        btn.addEventListener('mouseleave', ()=>{ bar.textContent = ''; });
+        btn.addEventListener('blur',       ()=>{ bar.textContent = ''; });
+      });
     }
 
     function applyState(state){
@@ -971,38 +1153,6 @@
         console.warn('Remote sync error:', e);
         alert('Remote sync error: ' + e.message);
       }
-    }
-
-    function compareLabels(a, b){
-      return normLabel(a).localeCompare(normLabel(b));
-    }
-    function insertButtonSorted(grid, btn){
-      const target = normLabel(btn.textContent);
-      const buttons = [...grid.querySelectorAll('.btn')];
-      const idx = buttons.findIndex(b => compareLabels(b.textContent, target) > 0);
-      if (idx === -1) grid.appendChild(btn);
-      else grid.insertBefore(btn, buttons[idx]);
-    }
-
-    function getBtnURL(btn){
-      if (btn && btn.dataset && btn.dataset.url) return btn.dataset.url;
-      const onclick = btn ? (btn.getAttribute('onclick') || '') : '';
-      const m = onclick.match(/openPopup\(['"](.+?)['"]\)/);
-      return m ? m[1] : '';
-    }
-    function wireHoverStatus(){
-      const bar = document.getElementById('linkStatus');
-      if (!bar) return;
-      const buttons = document.querySelectorAll('.grid .btn');
-      buttons.forEach(btn => {
-        if (btn.dataset && btn.dataset.hoverWired === '1') return;
-        const url = getBtnURL(btn);
-        btn.dataset.hoverWired = '1';
-        btn.addEventListener('mouseenter', ()=>{ bar.textContent = url || ''; });
-        btn.addEventListener('focus', ()=>{ bar.textContent = url || ''; });
-        btn.addEventListener('mouseleave', ()=>{ bar.textContent = ''; });
-        btn.addEventListener('blur', ()=>{ bar.textContent = ''; });
-      });
     }
 
     async function confirmAdd(){
