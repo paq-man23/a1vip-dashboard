@@ -71,12 +71,12 @@
     "travel": [],
     "yachts": [
       {
-        "label": "Mansion Yachts",
-        "url": "https://mansionyachts.com"
+        "label": "Burgess Yachts",
+        "url": "https://www.burgessyachts.com/en/charter-a-yacht/yachts-for-charter/aquila-00005340"
       },
       {
-        "label": "Yachts",
-        "url": "https://www.burgessyachts.com/en/charter-a-yacht/yachts-for-charter/aquila-00005340"
+        "label": "Mansion Yachts",
+        "url": "https://mansionyachts.com"
       }
     ]
   },
