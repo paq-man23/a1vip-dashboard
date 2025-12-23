@@ -73,10 +73,6 @@
       {
         "label": "Mansion Yachts",
         "url": "https://mansionyachts.com"
-      },
-      {
-        "label": "mansionyachts.com",
-        "url": "https://mansionyachts.com"
       }
     ]
   },
@@ -122,6 +118,8 @@
       "jetblue",
       "test"
     ],
-    "yachts": []
+    "yachts": [
+      "mansionyachts.com"
+    ]
   }
 }
