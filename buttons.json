@@ -75,6 +75,10 @@
     "travel": [],
     "yachts": [
       {
+        "label": "Mansion Yachts",
+        "url": "https://mansionyachts.com"
+      },
+      {
         "label": "mansionyachts.com",
         "url": "https://mansionyachts.com"
       }
