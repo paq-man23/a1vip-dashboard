@@ -28,10 +28,6 @@
       {
         "label": "pollstar.com",
         "url": "https://www.pollstar.com/login"
-      },
-      {
-        "label": "mansionyachts.com",
-        "url": "https://mansionyachts.com"
       }
     ],
     "accounts": [
@@ -103,7 +99,8 @@
       "auburn tigers",
       "login.mailchimp.com",
       "dolphins",
-      "auth.ticketmaster.com"
+      "auth.ticketmaster.com",
+      "mansionyachts.com"
     ],
     "accounts": [
       "ny jets",
