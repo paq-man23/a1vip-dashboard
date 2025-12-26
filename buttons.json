@@ -18,10 +18,6 @@
         "url": "https://ebay.com"
       },
       {
-        "label": "paciolon.com",
-        "url": "https://Paciolon.com/AuburnTigers"
-      },
-      {
         "label": "pollstar.com",
         "url": "https://www.pollstar.com/login"
       },
@@ -32,6 +28,10 @@
       {
         "label": "connect.appetizeapp.com",
         "url": "https://connect.appetizeapp.com/preorders/portal/metlife/login"
+      },
+      {
+        "label": "paciolon.com",
+        "url": "https://Paciolon.com/AuburnTigers"
       }
     ],
     "accounts": [
@@ -58,6 +58,10 @@
       {
         "label": "MSG",
         "url": "https://am.ticketmaster.com/msg/en/my-events/67849"
+      },
+      {
+        "label": "paciolon.com",
+        "url": "https://Paciolon.com/AuburnTigers"
       }
     ],
     "luxury": [
