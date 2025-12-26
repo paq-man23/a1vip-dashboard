@@ -22,10 +22,6 @@
         "url": "https://delta.com"
       },
       {
-        "label": "connect.appetizeapp.com",
-        "url": "https://connect.appetizeapp.com/preorders/portal/metlife/login"
-      },
-      {
         "label": "paciolon.com",
         "url": "https://Paciolon.com/AuburnTigers"
       }
@@ -114,7 +110,8 @@
       "dolphins",
       "auth.ticketmaster.com",
       "mansionyachts.com",
-      "pollstar.com"
+      "pollstar.com",
+      "connect.appetizeapp.com"
     ],
     "accounts": [
       "ny jets",
