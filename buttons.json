@@ -20,10 +20,6 @@
       {
         "label": "delta.com",
         "url": "https://delta.com"
-      },
-      {
-        "label": "paciolon.com",
-        "url": "https://Paciolon.com/AuburnTigers"
       }
     ],
     "accounts": [
@@ -111,7 +107,8 @@
       "auth.ticketmaster.com",
       "mansionyachts.com",
       "pollstar.com",
-      "connect.appetizeapp.com"
+      "connect.appetizeapp.com",
+      "paciolon.com"
     ],
     "accounts": [
       "ny jets",
