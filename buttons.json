@@ -10,10 +10,6 @@
         "url": "https://chase.com"
       },
       {
-        "label": "connect.appetizeapp.com",
-        "url": "https://connect.appetizeapp.com/preorders/portal/metlife/login"
-      },
-      {
         "label": "criterionticketing.com",
         "url": "https://criterionticketing.com/"
       },
@@ -32,6 +28,10 @@
       {
         "label": "delta.com",
         "url": "https://delta.com"
+      },
+      {
+        "label": "connect.appetizeapp.com",
+        "url": "https://connect.appetizeapp.com/preorders/portal/metlife/login"
       }
     ],
     "accounts": [
@@ -61,6 +61,10 @@
       }
     ],
     "luxury": [
+      {
+        "label": "connect.appetizeapp.com",
+        "url": "https://connect.appetizeapp.com/preorders/portal/metlife/login"
+      },
       {
         "label": "TAO Suite",
         "url": "https://www.suitesixteenlounge.com/"
