@@ -36,6 +36,10 @@
         "url": "http://am.ticketmaster.com/bse/"
       },
       {
+        "label": "College Football Playoff Tickets",
+        "url": "https://playoffpremium.com/"
+      },
+      {
         "label": "Dolphins",
         "url": "https://am.ticketmaster.com/dolphins/my-events"
       },
@@ -54,10 +58,6 @@
       {
         "label": "paciolon.com",
         "url": "https://Paciolon.com/AuburnTigers"
-      },
-      {
-        "label": "playoffpremium.com",
-        "url": "https://playoffpremium.com/"
       }
     ],
     "luxury": [
