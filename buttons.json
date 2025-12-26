@@ -14,12 +14,16 @@
         "url": "https://criterionticketing.com/"
       },
       {
+        "label": "delta.com",
+        "url": "https://delta.com"
+      },
+      {
         "label": "ebay.com",
         "url": "https://ebay.com"
       },
       {
-        "label": "delta.com",
-        "url": "https://delta.com"
+        "label": "playoffpremium.com",
+        "url": "https://playoffpremium.com/"
       }
     ],
     "accounts": [
