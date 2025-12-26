@@ -18,10 +18,6 @@
         "url": "https://ebay.com"
       },
       {
-        "label": "pollstar.com",
-        "url": "https://www.pollstar.com/login"
-      },
-      {
         "label": "delta.com",
         "url": "https://delta.com"
       },
@@ -117,7 +113,8 @@
       "login.mailchimp.com",
       "dolphins",
       "auth.ticketmaster.com",
-      "mansionyachts.com"
+      "mansionyachts.com",
+      "pollstar.com"
     ],
     "accounts": [
       "ny jets",
