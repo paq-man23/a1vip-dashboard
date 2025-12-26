@@ -18,10 +18,6 @@
         "url": "https://criterionticketing.com/"
       },
       {
-        "label": "delta.com",
-        "url": "https://delta.com"
-      },
-      {
         "label": "ebay.com",
         "url": "https://ebay.com"
       },
@@ -32,6 +28,10 @@
       {
         "label": "pollstar.com",
         "url": "https://www.pollstar.com/login"
+      },
+      {
+        "label": "delta.com",
+        "url": "https://delta.com"
       }
     ],
     "accounts": [
@@ -72,7 +72,12 @@
         "url": "https://login.mailchimp.com/?gclid=Cj0KCQjw753rBRCVARIsANe3o46ThzCwy2ZV-kCo-qjdl6-8q8E3W9-3hxC7Bj6mAowu0s0EOZ9RVC4aAv7YEALw_wcB&gclsrc=aw.ds"
       }
     ],
-    "travel": [],
+    "travel": [
+      {
+        "label": "delta.com",
+        "url": "https://delta.com"
+      }
+    ],
     "yachts": [
       {
         "label": "Burgess Yachts",
