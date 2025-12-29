@@ -2,6 +2,10 @@
   "added": {
     "main": [
       {
+        "label": "am.ticketmaster.com",
+        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
+      },
+      {
         "label": "Chase Members Exclusive events",
         "url": "https://www.unitedcardevents.com/past-events"
       },
