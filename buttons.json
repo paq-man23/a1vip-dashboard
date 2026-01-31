@@ -50,10 +50,6 @@
         "url": "https://faranofineart.com"
       },
       {
-        "label": "LA Lakers account",
-        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
-      },
-      {
         "label": "Mets Tickets",
         "url": "https://www.mlb.com/mets"
       },
@@ -200,7 +196,8 @@
       "axs",
       "am.ticketmaster.com",
       "myticketmaster",
-      "yankees season account"
+      "yankees season account",
+      "la lakers account"
     ],
     "accounts": [
       "ny jets",
