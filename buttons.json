@@ -68,10 +68,6 @@
       {
         "label": "Yankees Season Account",
         "url": "https://am.ticketmaster.com/nyyreg/"
-      },
-      {
-        "label": "am.ticketmaster.com",
-        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
       }
     ],
     "accounts": [
@@ -185,7 +181,8 @@
       "pollstar.com",
       "connect.appetizeapp.com",
       "paciolon.com",
-      "axs"
+      "axs",
+      "am.ticketmaster.com"
     ],
     "accounts": [
       "ny jets",
