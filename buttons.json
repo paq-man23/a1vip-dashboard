@@ -68,10 +68,6 @@
       {
         "label": "intake.charitybuzz.com",
         "url": "https://intake.charitybuzz.com/submissions"
-      },
-      {
-        "label": "Mets Tickets",
-        "url": "https://www.mlb.com/mets"
       }
     ],
     "accounts": [
@@ -197,7 +193,8 @@
       "am.ticketmaster.com",
       "myticketmaster",
       "yankees season account",
-      "la lakers account"
+      "la lakers account",
+      "mets tickets"
     ],
     "accounts": [
       "ny jets",
