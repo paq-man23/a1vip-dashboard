@@ -2,6 +2,10 @@
   "added": {
     "main": [
       {
+        "label": "A1 Square app",
+        "url": "https://app.squareup.com/login?lang_code=en-us"
+      },
+      {
         "label": "Charity Buzz Portal",
         "url": "https://intake.charitybuzz.com/submissions"
       },
