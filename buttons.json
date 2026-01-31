@@ -118,10 +118,6 @@
       {
         "label": "paciolon.com",
         "url": "https://Paciolon.com/AuburnTigers"
-      },
-      {
-        "label": "am.ticketmaster.com",
-        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
       }
     ],
     "luxury": [
@@ -192,7 +188,8 @@
       "ny jets",
       "barclay center",
       "vols",
-      "auburn tigers"
+      "auburn tigers",
+      "am.ticketmaster.com"
     ],
     "luxury": [
       "test"
