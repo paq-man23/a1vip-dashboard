@@ -112,6 +112,10 @@
         "url": "https://am.ticketmaster.com/msg/en/my-events/67849"
       },
       {
+        "label": "MyTicketmaster",
+        "url": "https://www.ticketmaster.com"
+      },
+      {
         "label": "NY Islanders & UBS Arena",
         "url": "https://am.ticketmaster.com/newyorkislanders/en/my-events"
       },
@@ -182,7 +186,8 @@
       "connect.appetizeapp.com",
       "paciolon.com",
       "axs",
-      "am.ticketmaster.com"
+      "am.ticketmaster.com",
+      "myticketmaster"
     ],
     "accounts": [
       "ny jets",
