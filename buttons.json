@@ -80,6 +80,10 @@
         "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
       },
       {
+        "label": "AXS",
+        "url": "https://www.axs.com/"
+      },
+      {
         "label": "Barlcay Center",
         "url": "http://am.ticketmaster.com/bse/"
       },
@@ -176,7 +180,8 @@
       "mansionyachts.com",
       "pollstar.com",
       "connect.appetizeapp.com",
-      "paciolon.com"
+      "paciolon.com",
+      "axs"
     ],
     "accounts": [
       "ny jets",
