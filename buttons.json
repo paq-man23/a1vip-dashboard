@@ -2,10 +2,6 @@
   "added": {
     "main": [
       {
-        "label": "am.ticketmaster.com",
-        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
-      },
-      {
         "label": "Chase Members Exclusive events",
         "url": "https://www.unitedcardevents.com/past-events"
       },
@@ -68,9 +64,17 @@
       {
         "label": "Yankees Season Account",
         "url": "https://am.ticketmaster.com/nyyreg/"
+      },
+      {
+        "label": "am.ticketmaster.com",
+        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
       }
     ],
     "accounts": [
+      {
+        "label": "am.ticketmaster.com",
+        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
+      },
       {
         "label": "Auburn",
         "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
