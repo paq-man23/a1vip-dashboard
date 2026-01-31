@@ -72,10 +72,6 @@
     ],
     "accounts": [
       {
-        "label": "am.ticketmaster.com",
-        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
-      },
-      {
         "label": "Auburn",
         "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
       },
@@ -94,6 +90,10 @@
       {
         "label": "Dolphins",
         "url": "https://am.ticketmaster.com/dolphins/my-events"
+      },
+      {
+        "label": "LA Lakers account",
+        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
       },
       {
         "label": "Metlife",
@@ -118,6 +118,10 @@
       {
         "label": "paciolon.com",
         "url": "https://Paciolon.com/AuburnTigers"
+      },
+      {
+        "label": "am.ticketmaster.com",
+        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
       }
     ],
     "luxury": [
