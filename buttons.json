@@ -2,6 +2,10 @@
   "added": {
     "main": [
       {
+        "label": "Charity Buzz Portal",
+        "url": "https://intake.charitybuzz.com/submissions"
+      },
+      {
         "label": "Chase Members Exclusive events",
         "url": "https://www.unitedcardevents.com/past-events"
       },
@@ -26,16 +30,16 @@
         "url": "https://outlook.office.com/"
       },
       {
+        "label": "faranofineart.com",
+        "url": "https://faranofineart.com"
+      },
+      {
         "label": "fareharbor.com",
         "url": "https://fareharbor.com/embeds/book/faoschwarz/items/592655/calendar/2026/01/?full-items=yes&flow=1295863"
       },
       {
         "label": "gametime.com",
         "url": "https://gametime.com"
-      },
-      {
-        "label": "intake.charitybuzz.com",
-        "url": "https://intake.charitybuzz.com/submissions"
       },
       {
         "label": "Jelly Cat Dinner",
@@ -70,8 +74,8 @@
         "url": "https://www.todaytix.com/nyc/category/all-shows?utm_source=google&utm_medium=cpc&utm_campaignid=13840093666&utm_adgroupid=129941665412&utm_adid=747742008947&utm_term=todaytix%20new%20york&utm_matchtype=e&utm_campaign=TTG_TTX_NY_g_acq_search_brand_usa_allweb_app&utm_adgroup=Brand_Brand_Exact&gad_source=1&gad_campaignid=13840093666&gbraid=0AAAAADFlIyre2Cui0lUHqqadqiP7Pps7v&gclid=Cj0KCQiAp-zLBhDkARIsABcYc6t7yWT0ttS_abnd9UPSqpT-C2t1Ia_8hSLj4guxW_9XXv3RLAqrwucaAqolEALw_wcB"
       },
       {
-        "label": "faranofineart.com",
-        "url": "https://faranofineart.com"
+        "label": "intake.charitybuzz.com",
+        "url": "https://intake.charitybuzz.com/submissions"
       }
     ],
     "accounts": [
