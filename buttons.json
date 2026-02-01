@@ -90,10 +90,6 @@
         "url": "https://am.ticketmaster.com/msg/"
       },
       {
-        "label": "Private Jets Fly USA",
-        "url": "https://flyusa.com/book-private-flights/"
-      },
-      {
         "label": "tickpick.com",
         "url": "https://www.tickpick.com/"
       },
@@ -104,6 +100,10 @@
       {
         "label": "resy Restuarant Reservation 5 stars",
         "url": "https://resy.com/cities/new-york-ny/events?seats=6&time=1730&list=collection_1031&date=2026-01-31"
+      },
+      {
+        "label": "Private Jets Fly USA",
+        "url": "https://flyusa.com/book-private-flights/"
       }
     ],
     "accounts": [
@@ -192,6 +192,10 @@
       {
         "label": "delta.com",
         "url": "https://delta.com"
+      },
+      {
+        "label": "Private Jets Fly USA",
+        "url": "https://flyusa.com/book-private-flights/"
       },
       {
         "label": "resy Restuarant Reservation 5 stars",
