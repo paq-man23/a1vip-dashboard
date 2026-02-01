@@ -186,10 +186,6 @@
         "url": "https://delta.com"
       },
       {
-        "label": "Private Jets Fly USA",
-        "url": "https://flyusa.com/book-private-flights/"
-      },
-      {
         "label": "resy Restuarant Reservation 5 stars",
         "url": "https://resy.com/cities/new-york-ny/events?seats=6&time=1730&list=collection_1031&date=2026-01-31"
       }
@@ -260,7 +256,8 @@
     "travel": [
       "jetblue",
       "test",
-      "yachts"
+      "yachts",
+      "private jets fly usa"
     ],
     "yachts": [
       "mansionyachts.com"
