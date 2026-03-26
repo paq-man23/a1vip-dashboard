@@ -2,12 +2,28 @@
   "added": {
     "main": [
       {
+        "label": "A1 Square app",
+        "url": "https://app.squareup.com/login?lang_code=en-us"
+      },
+      {
+        "label": "Charity Buzz Portal",
+        "url": "https://intake.charitybuzz.com/submissions"
+      },
+      {
         "label": "Chase Members Exclusive events",
         "url": "https://www.unitedcardevents.com/past-events"
       },
       {
         "label": "chase.com",
         "url": "https://chase.com"
+      },
+      {
+        "label": "chat GPT",
+        "url": "https://chatgpt.com/"
+      },
+      {
+        "label": "craigslist.com",
+        "url": "https://craigslist.com"
       },
       {
         "label": "criterionticketing.com",
@@ -38,34 +54,6 @@
         "url": "https://intake.charitybuzz.com/submissions"
       },
       {
-        "label": "playoffpremium.com",
-        "url": "https://playoffpremium.com/"
-      },
-      {
-        "label": "reachpro.com",
-        "url": "https://reachpro.com"
-      },
-      {
-        "label": "rockjockcollectibles.com",
-        "url": "https://Rockjockcollectibles.com"
-      },
-      {
-        "label": "todaytix.com-Broadway",
-        "url": "https://www.todaytix.com/nyc/category/all-shows?utm_source=google&utm_medium=cpc&utm_campaignid=13840093666&utm_adgroupid=129941665412&utm_adid=747742008947&utm_term=todaytix%20new%20york&utm_matchtype=e&utm_campaign=TTG_TTX_NY_g_acq_search_brand_usa_allweb_app&utm_adgroup=Brand_Brand_Exact&gad_source=1&gad_campaignid=13840093666&gbraid=0AAAAADFlIyre2Cui0lUHqqadqiP7Pps7v&gclid=Cj0KCQiAp-zLBhDkARIsABcYc6t7yWT0ttS_abnd9UPSqpT-C2t1Ia_8hSLj4guxW_9XXv3RLAqrwucaAqolEALw_wcB"
-      },
-      {
-        "label": "A1 Square app",
-        "url": "https://app.squareup.com/login?lang_code=en-us"
-      },
-      {
-        "label": "Charity Buzz Portal",
-        "url": "https://intake.charitybuzz.com/submissions"
-      },
-      {
-        "label": "chat GPT",
-        "url": "https://chatgpt.com/"
-      },
-      {
         "label": "Jelly Cat Dinner",
         "url": "https://fareharbor.com/embeds/book/faoschwarz/items/592655/calendar/2026/01/?full-items=yes&flow=1295863"
       },
@@ -86,16 +74,32 @@
         "url": "https://am.ticketmaster.com/msg/"
       },
       {
+        "label": "playoffpremium.com",
+        "url": "https://playoffpremium.com/"
+      },
+      {
+        "label": "reachpro.com",
+        "url": "https://reachpro.com"
+      },
+      {
+        "label": "Rockjock Email",
+        "url": "https://sso.godaddy.com/?domain=rockjockcollectibles.com&realm=pass&app=o365&client-request-id=fbf81741-cd9e-6ef1-b70b-6c967a8f983f&wa=wsignin1.0&wtrealm=urn%3afederation%3aMicrosoftOnline&wctx=LoginOptions%3D3%26estsredirect%3d2%26estsrequest%3drQQIARAAjZJNaBtXEMd3tbYiK22suNCG0oBQ0xLqar-k1e4KTCurjrWKVhvJdvRRinj79q290tt98n7IklLfc2tyKaGHUHLUKeTS0ktKLwVDiKGX4lPp0RTS9mTopRK9tlCY-TOHPzPDbyYZz7OiwoofMCLLF2-ogqqatshngZCzs3mBl7OKZMEsLwpCXlZkZOcVfy2ZKr118dfjF39431zGX06_ePTRjH73IAyHQZHjSBRiQgYssW0HolxBYiFxORc4mPuWpk9peha7wQuqJcpQyEIhJ2VlMJ-gWpKdtSwoSzAvyLKqnsVWjVIUHogLIb4zReexKwHCCIY9ACGJvPDPWML2wb6LvPAr5msaTarDblkraP3S2Gg1JnVRH9da-lifNsK62Dwwdnip0-9ItVZH1MUqru_uCXWxIRk7WqC5Ara2txzDCxzQkvhuu3rQyTWHpijtofYm1vrEge7dAWhXcSfXcOw2v_E5qDR5WNELtYk6strNwBRVv-aqbtfF_e6uLtZ3pL4p8iOzdWtolpUZ8_a_Q1oQesbE5-oS74Qp_beLYy1kgwiHaTJEnmOlhz6xHYzScwt2PLQgg4LgZ4b-lbnueDb52Cdw0J8nJHiBzjExChadTpfo86U3E0upd67F0tTN9_nlYiKRTK1eu5SmLpboJ8vzKz98_t7ezZ-INlup_Ri-vE6dLHPj9dutOmqurw-M0cSYyOV9XGhoSLpTKrdHik9qeWMTRIOpNNQ2ckXhQZx-EH_jWXwlwaSoDFO-I5zEV90AYLYfsKZPjgLk_x6n71-ivlv5Px_0KEnPkutHvXCAjd422C0ATfO3gXQY6aXWxEB78FZVbx0JXteMKodVcetpkj69TJ-9piTjEAPHDdbYe5l_IPVCMkBepngvM3aDHoSLagRwhIJM8dPMfNXMZ8fHx9-_Tl1cefj4tx9enT15VTlf_dBwuuXNyie6cJc_Aiq3z-FqeXRbGe2CemeoFw6nylZ7bEYDjxtsPE1Rv8zjKnVxNX1_jfob0&cbcxt=&username=info%40rockjockcollectibles.com&mkt=&lc="
+      },
+      {
+        "label": "rockjockcollectibles.com",
+        "url": "https://Rockjockcollectibles.com"
+      },
+      {
         "label": "tickpick.com",
         "url": "https://www.tickpick.com/"
       },
       {
-        "label": "viagogo.com",
-        "url": "https://www.viagogo.com/?AffiliateID=49&adposition=&PCID=PSUSGOOCONVIAGOB6F8731CB9&AdID=407223547438&MetroRegionID=&psc=&psc=&ps=&ps=&ps_p=0&ps_c=8381323080&ps_ag=92235117252&ps_tg=kwd-296792620280&ps_ad=407223547438&ps_adp=&ps_adp=&ps_fi=&ps_fi=&ps_li=&ps_li=&ps_lp=1022987&ps_n=g&ps_d=c&gclid=CjwKCAiA-f78BRBbEiwATKRRBK-gbCyA7_h9HfnQukK1rT5SIjueUClkj021XOM5NiHOolLRMF64whoC4O4QAvD_BwE"
+        "label": "todaytix.com-Broadway",
+        "url": "https://www.todaytix.com/nyc/category/all-shows?utm_source=google&utm_medium=cpc&utm_campaignid=13840093666&utm_adgroupid=129941665412&utm_adid=747742008947&utm_term=todaytix%20new%20york&utm_matchtype=e&utm_campaign=TTG_TTX_NY_g_acq_search_brand_usa_allweb_app&utm_adgroup=Brand_Brand_Exact&gad_source=1&gad_campaignid=13840093666&gbraid=0AAAAADFlIyre2Cui0lUHqqadqiP7Pps7v&gclid=Cj0KCQiAp-zLBhDkARIsABcYc6t7yWT0ttS_abnd9UPSqpT-C2t1Ia_8hSLj4guxW_9XXv3RLAqrwucaAqolEALw_wcB"
       },
       {
-        "label": "craigslist.com",
-        "url": "https://craigslist.com"
+        "label": "viagogo.com",
+        "url": "https://www.viagogo.com/?AffiliateID=49&adposition=&PCID=PSUSGOOCONVIAGOB6F8731CB9&AdID=407223547438&MetroRegionID=&psc=&psc=&ps=&ps=&ps_p=0&ps_c=8381323080&ps_ag=92235117252&ps_tg=kwd-296792620280&ps_ad=407223547438&ps_adp=&ps_adp=&ps_fi=&ps_fi=&ps_li=&ps_li=&ps_lp=1022987&ps_n=g&ps_d=c&gclid=CjwKCAiA-f78BRBbEiwATKRRBK-gbCyA7_h9HfnQukK1rT5SIjueUClkj021XOM5NiHOolLRMF64whoC4O4QAvD_BwE"
       }
     ],
     "accounts": [
@@ -104,60 +108,60 @@
         "url": "https://auburntigers.evenue.net/myaccount/receive/YYZePTg1shTyRky3UeoBzXVH7czFfAVX/details"
       },
       {
-        "label": "AXS",
-        "url": "https://www.axs.com/"
-      },
-      {
-        "label": "Barlcay Center",
-        "url": "http://am.ticketmaster.com/bse/"
-      },
-      {
-        "label": "College Football Playoff Tickets",
-        "url": "https://playoffpremium.com/"
-      },
-      {
         "label": "Dolphins",
         "url": "https://am.ticketmaster.com/dolphins/my-events"
-      },
-      {
-        "label": "LA Lakers account",
-        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
-      },
-      {
-        "label": "Metlife",
-        "url": "https://auth.ticketmaster.com/as/authorization.oauth2?redirect_uri=https%3A%2F%2Fam.ticketmaster.com%2Fnms%2Fam-sso%3Fdeeplink%3DL25tcy9pbnZvaWNlLzMyMjkyLzExOQ%3D%3D&response_type=code&lang=en-us&integratorId=NAM&placementId=homepage&visualPresets=nms&hideLeftPanel=true&client_id=6b746a204aee.web.nms-nms.us&scope=openid%20profile%20phone%20email%20tm"
-      },
-      {
-        "label": "Mets Tickets",
-        "url": "mets.com"
       },
       {
         "label": "MLB.com",
         "url": "https://www.mlb.com/login?redirectUri=/apps/ballpark"
       },
       {
+        "label": "Barlcay Center",
+        "url": "http://am.ticketmaster.com/bse/"
+      },
+      {
+        "label": "Metlife",
+        "url": "https://auth.ticketmaster.com/as/authorization.oauth2?redirect_uri=https%3A%2F%2Fam.ticketmaster.com%2Fnms%2Fam-sso%3Fdeeplink%3DL25tcy9pbnZvaWNlLzMyMjkyLzExOQ%3D%3D&response_type=code&lang=en-us&integratorId=NAM&placementId=homepage&visualPresets=nms&hideLeftPanel=true&client_id=6b746a204aee.web.nms-nms.us&scope=openid%20profile%20phone%20email%20tm"
+      },
+      {
         "label": "MSG",
         "url": "https://am.ticketmaster.com/msg/en/my-events/67849"
-      },
-      {
-        "label": "MyTicketmaster",
-        "url": "https://www.ticketmaster.com"
-      },
-      {
-        "label": "NY Islanders & UBS Arena",
-        "url": "https://am.ticketmaster.com/newyorkislanders/en/my-events"
       },
       {
         "label": "paciolon.com",
         "url": "https://Paciolon.com/AuburnTigers"
       },
       {
-        "label": "Preditors Tickets",
-        "url": "https://auth.ticketmaster.com/as/authorization.oauth2?redirect_uri=https%3A%2F%2Fam.ticketmaster.com%2Fpredators%2Fam-sso%3Fdeeplink%3DL3ByZWRhdG9ycy9teS1ldmVudHM%3D&response_type=code&lang=en-us&integratorId=NAM&placementId=homepage&visualPresets=predators&hideLeftPanel=true&client_id=6c0ae101350e.web.predators-predator.us&scope=openid%20profile%20phone%20email%20tm"
+        "label": "College Football Playoff Tickets",
+        "url": "https://playoffpremium.com/"
+      },
+      {
+        "label": "Mets Tickets",
+        "url": "mets.com"
+      },
+      {
+        "label": "NY Islanders & UBS Arena",
+        "url": "https://am.ticketmaster.com/newyorkislanders/en/my-events"
+      },
+      {
+        "label": "AXS",
+        "url": "https://www.axs.com/"
+      },
+      {
+        "label": "LA Lakers account",
+        "url": "https://am.ticketmaster.com/lakers/my-events/8807"
+      },
+      {
+        "label": "MyTicketmaster",
+        "url": "https://www.ticketmaster.com"
       },
       {
         "label": "Yankees Season Account",
         "url": "https://am.ticketmaster.com/nyyreg/"
+      },
+      {
+        "label": "Preditors Tickets",
+        "url": "https://auth.ticketmaster.com/as/authorization.oauth2?redirect_uri=https%3A%2F%2Fam.ticketmaster.com%2Fpredators%2Fam-sso%3Fdeeplink%3DL3ByZWRhdG9ycy9teS1ldmVudHM%3D&response_type=code&lang=en-us&integratorId=NAM&placementId=homepage&visualPresets=predators&hideLeftPanel=true&client_id=6c0ae101350e.web.predators-predator.us&scope=openid%20profile%20phone%20email%20tm"
       }
     ],
     "luxury": [
@@ -172,12 +176,12 @@
     ],
     "social": [
       {
-        "label": "login.mailchimp.com",
-        "url": "https://login.mailchimp.com/?gclid=Cj0KCQjw753rBRCVARIsANe3o46ThzCwy2ZV-kCo-qjdl6-8q8E3W9-3hxC7Bj6mAowu0s0EOZ9RVC4aAv7YEALw_wcB&gclsrc=aw.ds"
-      },
-      {
         "label": "A1 30 Sec Super Bowl ad",
         "url": "http://reel2.a1eei.com"
+      },
+      {
+        "label": "login.mailchimp.com",
+        "url": "https://login.mailchimp.com/?gclid=Cj0KCQjw753rBRCVARIsANe3o46ThzCwy2ZV-kCo-qjdl6-8q8E3W9-3hxC7Bj6mAowu0s0EOZ9RVC4aAv7YEALw_wcB&gclsrc=aw.ds"
       }
     ],
     "travel": [
@@ -254,9 +258,9 @@
       "snap",
       "x",
       "rolex",
-      "mailchimp",
       "chatgpt",
-      "tester1"
+      "tester1",
+      "mailchimp"
     ],
     "travel": [
       "jetblue",
