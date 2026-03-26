@@ -86,10 +86,6 @@
         "url": "https://reachpro.com"
       },
       {
-        "label": "Rockjock Email",
-        "url": "https://sso.godaddy.com/?domain=rockjockcollectibles.com&realm=pass&app=o365&client-request-id=fbf81741-cd9e-6ef1-b70b-6c967a8f983f&wa=wsignin1.0&wtrealm=urn%3afederation%3aMicrosoftOnline&wctx=LoginOptions%3D3%26estsredirect%3d2%26estsrequest%3drQQIARAAjZJNaBtXEMd3tbYiK22suNCG0oBQ0xLqar-k1e4KTCurjrWKVhvJdvRRinj79q290tt98n7IklLfc2tyKaGHUHLUKeTS0ktKLwVDiKGX4lPp0RTS9mTopRK9tlCY-TOHPzPDbyYZz7OiwoofMCLLF2-ogqqatshngZCzs3mBl7OKZMEsLwpCXlZkZOcVfy2ZKr118dfjF39431zGX06_ePTRjH73IAyHQZHjSBRiQgYssW0HolxBYiFxORc4mPuWpk9peha7wQuqJcpQyEIhJ2VlMJ-gWpKdtSwoSzAvyLKqnsVWjVIUHogLIb4zReexKwHCCIY9ACGJvPDPWML2wb6LvPAr5msaTarDblkraP3S2Gg1JnVRH9da-lifNsK62Dwwdnip0-9ItVZH1MUqru_uCXWxIRk7WqC5Ara2txzDCxzQkvhuu3rQyTWHpijtofYm1vrEge7dAWhXcSfXcOw2v_E5qDR5WNELtYk6strNwBRVv-aqbtfF_e6uLtZ3pL4p8iOzdWtolpUZ8_a_Q1oQesbE5-oS74Qp_beLYy1kgwiHaTJEnmOlhz6xHYzScwt2PLQgg4LgZ4b-lbnueDb52Cdw0J8nJHiBzjExChadTpfo86U3E0upd67F0tTN9_nlYiKRTK1eu5SmLpboJ8vzKz98_t7ezZ-INlup_Ri-vE6dLHPj9dutOmqurw-M0cSYyOV9XGhoSLpTKrdHik9qeWMTRIOpNNQ2ckXhQZx-EH_jWXwlwaSoDFO-I5zEV90AYLYfsKZPjgLk_x6n71-ivlv5Px_0KEnPkutHvXCAjd422C0ATfO3gXQY6aXWxEB78FZVbx0JXteMKodVcetpkj69TJ-9piTjEAPHDdbYe5l_IPVCMkBepngvM3aDHoSLagRwhIJM8dPMfNXMZ8fHx9-_Tl1cefj4tx9enT15VTlf_dBwuuXNyie6cJc_Aiq3z-FqeXRbGe2CemeoFw6nylZ7bEYDjxtsPE1Rv8zjKnVxNX1_jfob0&cbcxt=&username=info%40rockjockcollectibles.com&mkt=&lc="
-      },
-      {
         "label": "rockjockcollectibles.com",
         "url": "https://Rockjockcollectibles.com"
       },
@@ -246,7 +242,8 @@
       "preditors tickets",
       "resy restuarant reservation 5 stars",
       "private jets fly usa",
-      "fareharbor.com"
+      "fareharbor.com",
+      "rockjock email"
     ],
     "accounts": [
       "ny jets",
