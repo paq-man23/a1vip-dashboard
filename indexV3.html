@@ -296,7 +296,19 @@
     .invoice-preview .sky-right-totals .row{display:flex;justify-content:space-between;padding:5px 0;font-size:17px}
     .invoice-preview .sky-right-totals .grand{font-size:19px;font-weight:800}
     @media (max-width: 980px){.invoice-layout{grid-template-columns:1fr}.invoice-preview{min-height:auto;padding:22px}.invoice-preview .sky-top,.invoice-preview .sky-detail-grid,.invoice-preview .sky-three-col,.invoice-preview .sky-bottom{grid-template-columns:1fr}.invoice-preview .sky-logo-wrap{justify-content:flex-start}.invoice-preview .sky-created-row{grid-template-columns:1fr}}
+    
+    /* ===== PDF PAGE CONTROL ===== */
 
+    .invoice-section{
+    page-break-inside: avoid;
+    break-inside: avoid;
+    }
+
+    /* Force clean second page */
+    .other-costs-section{
+    page-break-before: always;
+    break-before: page;
+    }
   </style>
 </head>
 <body>
@@ -2382,7 +2394,7 @@ function createBtn(label, url, isCustom=true){
 
         <div class="sky-section-title">Invoice Lines</div>
         <div class="sky-rule"></div>
-        <div class="sky-lines-wrap">
+        <div class="sky-lines-wrap invoice-section invoice-lines-section">
           <table>
             <thead>
               <tr>
@@ -2399,7 +2411,8 @@ function createBtn(label, url, isCustom=true){
         </div>
         <div class="sky-subtotal">Inventory Subtotal: ${money(subtotal)}</div>
 
-        <div class="sky-section-title">Other Costs & Credits</div>
+        <div class="invoice-section other-costs-section">
+          <h4>Other Costs & Credits</h4>
         <div class="sky-rule"></div>
         <table class="sky-cost-table">
           <thead>
@@ -2623,6 +2636,9 @@ function createBtn(label, url, isCustom=true){
       unit: 'pt',
       format: 'letter',
       orientation: 'portrait'
+    },
+    pagebreak: {
+      mode: ['css', 'legacy']
     }
   }).from(clone).save().then(() => {
     document.body.removeChild(wrapper);
