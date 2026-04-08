@@ -38,10 +38,6 @@
         "url": "https://criterionticketing.com/"
       },
       {
-        "label": "Dashboard",
-        "url": "https://a1dash.a1eei.com"
-      },
-      {
         "label": "delta.com",
         "url": "https://delta.com"
       },
@@ -268,7 +264,8 @@
       "private jets fly usa",
       "fareharbor.com",
       "rockjock email",
-      "email rockjock"
+      "email rockjock",
+      "dashboard"
     ],
     "accounts": [
       "ny jets",
