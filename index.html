@@ -2599,6 +2599,13 @@ function createBtn(label, url, isCustom=true){
   // Clone clean version
   const clone = original.cloneNode(true);
 
+  // 🔥 SCALE DOWN ENTIRE INVOICE FOR PDF
+  clone.style.transform = "scale(0.92)";
+  clone.style.transformOrigin = "top left";
+  clone.style.width = "888px"; // compensate for scale
+
+  // Slight font tightening (only PDF)
+  clone.style.fontSize = "13px";
   
   // Measure content height BEFORE PDF
   const contentHeight = clone.scrollHeight;
@@ -2621,7 +2628,10 @@ function createBtn(label, url, isCustom=true){
   if (costs){
     costs.style.pageBreakBefore = "auto";
   }
-
+  // Reduce Section Spacing
+  clone.querySelectorAll(".invoice-section").forEach(section => {
+  section.style.marginBottom = "12px";
+  });
   // Prevent row splitting
   clone.querySelectorAll("tr").forEach(row=>{
     row.style.pageBreakInside = "avoid";
@@ -2631,7 +2641,7 @@ function createBtn(label, url, isCustom=true){
   clone.style.width = "816px"; // exact letter width
   clone.style.maxWidth = "816px";
   clone.style.margin = "0 auto";
-  clone.style.padding = "48px 56px";
+  clone.style.padding = "40px 48px";
   clone.style.background = "#ffffff";
   clone.style.boxSizing = "border-box";
 
