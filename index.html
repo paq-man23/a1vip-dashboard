@@ -296,18 +296,22 @@
     .invoice-preview .sky-right-totals .row{display:flex;justify-content:space-between;padding:5px 0;font-size:17px}
     .invoice-preview .sky-right-totals .grand{font-size:19px;font-weight:800}
     @media (max-width: 980px){.invoice-layout{grid-template-columns:1fr}.invoice-preview{min-height:auto;padding:22px}.invoice-preview .sky-top,.invoice-preview .sky-detail-grid,.invoice-preview .sky-three-col,.invoice-preview .sky-bottom{grid-template-columns:1fr}.invoice-preview .sky-logo-wrap{justify-content:flex-start}.invoice-preview .sky-created-row{grid-template-columns:1fr}}
+
+    /* Prevent table rows from splitting */
+    .invoice-preview table{
+    page-break-inside: auto;
+    }
+
+    .invoice-preview tr{
+    page-break-inside: avoid;
+    break-inside: avoid;
+    }
     
     /* ===== PDF PAGE CONTROL ===== */
 
     .invoice-section{
     page-break-inside: avoid;
     break-inside: avoid;
-    }
-
-    /* Force clean second page */
-    .other-costs-section{
-    page-break-before: always;
-    break-before: page;
     }
   </style>
 </head>
@@ -2595,6 +2599,34 @@ function createBtn(label, url, isCustom=true){
   // Clone clean version
   const clone = original.cloneNode(true);
 
+  
+  // Measure content height BEFORE PDF
+  const contentHeight = clone.scrollHeight;
+
+  // Letter page height in px (approx for html2canvas scale)
+  const PAGE_HEIGHT = 1056;
+
+  // If content is too tall → apply controlled split
+  if (contentHeight > PAGE_HEIGHT){
+
+  // Find invoice lines section
+  const lines = clone.querySelector(".invoice-lines-section");
+
+  if (lines){
+    lines.style.pageBreakAfter = "auto";
+  }
+
+  // Move totals/other costs to next page cleanly
+  const costs = clone.querySelector(".other-costs-section");
+  if (costs){
+    costs.style.pageBreakBefore = "auto";
+  }
+
+  // Prevent row splitting
+  clone.querySelectorAll("tr").forEach(row=>{
+    row.style.pageBreakInside = "avoid";
+  });
+}
   // FORCE PDF layout (this is the key)
   clone.style.width = "816px"; // exact letter width
   clone.style.maxWidth = "816px";
