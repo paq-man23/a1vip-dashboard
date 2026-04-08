@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>A1 VIP Ticket Dashboard</title>
-
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <!-- PWA hooks -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0b1220">
@@ -2570,32 +2571,60 @@ function createBtn(label, url, isCustom=true){
     }
 
     function downloadInvoicePdf(){
-      refreshInvoicePreview();
-      const invoice = collectInvoiceFromForm();
-      const previewHtml = document.getElementById('invoicePreview')?.outerHTML || '';
-      const win = window.open('', '_blank');
-      if (!win) {
-        alert('Popup blocked. Please allow popups to save the PDF.');
-        return;
-      }
-      win.document.write(`<!DOCTYPE html><html><head><title>Invoice ${escHtml(invoice.number)}</title>
-        <style>
-          body{font-family:Arial,Helvetica,sans-serif;background:#fff;padding:24px}
-          .invoice-preview{background:#fff;color:#111827;border-radius:0;padding:0}
-          .invoice-preview h2,.invoice-preview h4,.invoice-preview p{margin:0}
-          .invoice-preview .muted{color:#475569}
-          .invoice-preview .invoice-head{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #e2e8f0;padding-bottom:14px;margin-bottom:16px}
-          .invoice-preview .invoice-meta{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:8px 16px;font-size:.92rem}
-          .invoice-preview .doc-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
-          .invoice-preview .doc-card{border:1px solid #e2e8f0;border-radius:12px;padding:12px}
-          .invoice-preview table{width:100%;border-collapse:collapse;font-size:.92rem;margin-top:14px}
-          .invoice-preview th,.invoice-preview td{padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:top;text-align:left}
-          .invoice-preview .totals{margin-left:auto;max-width:320px;margin-top:14px}
-          .invoice-preview .totals .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2e8f0}
-          .invoice-preview .totals .grand{font-size:1.08rem;font-weight:900}
-        </style></head><body>${previewHtml}
-        <script>window.onload=()=>setTimeout(()=>window.print(),250);<\/script></body></html>`);
-      win.document.close();
+  const original = document.getElementById("invoicePreview");
+  if (!original){
+    alert("Invoice preview not found");
+    return;
+  }
+
+  // Clone clean version
+  const clone = original.cloneNode(true);
+
+  // FORCE PDF layout (this is the key)
+  clone.style.width = "816px"; // exact letter width
+  clone.style.maxWidth = "816px";
+  clone.style.margin = "0 auto";
+  clone.style.padding = "40px 40px";
+  clone.style.background = "#ffffff";
+  clone.style.boxSizing = "border-box";
+
+  // Fix logo sizing (critical)
+  const logo = clone.querySelector("img");
+  if (logo){
+    logo.style.maxWidth = "260px";
+    logo.style.maxHeight = "180px";
+    logo.style.objectFit = "contain";
+  }
+
+  // Prevent flex/grid collapse issues
+  clone.querySelectorAll("*").forEach(el => {
+    el.style.boxSizing = "border-box";
+  });
+
+  // Create hidden container for clean render
+  const wrapper = document.createElement("div");
+  wrapper.style.position = "fixed";
+  wrapper.style.left = "-9999px";
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
+  html2pdf().set({
+    margin: 0,
+    filename: 'A1VIP_Invoice.pdf',
+    image: { type: 'jpeg', quality: 1 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff"
+    },
+    jsPDF: {
+      unit: 'pt',
+      format: 'letter',
+      orientation: 'portrait'
+    }
+  }).from(clone).save().then(() => {
+    document.body.removeChild(wrapper);
+  });
     }
 
     function emailInvoice(){
