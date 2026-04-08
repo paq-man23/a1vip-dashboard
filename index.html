@@ -2324,7 +2324,7 @@ function createBtn(label, url, isCustom=true){
           <td>${money(invoiceLineAmount(line))}</td>
         </tr>
       `).join('');
-      const logoSrc = 'A1VIP_LOGO_VERT_for _Black_backgrounds.png';
+      const logoSrc = 'A1VIP_LOGO_VERT_for_Black_backgrounds.png';
       preview.innerHTML = `
         <div class="sky-top">
           <div class="company-col">
@@ -2584,17 +2584,17 @@ function createBtn(label, url, isCustom=true){
   clone.style.width = "816px"; // exact letter width
   clone.style.maxWidth = "816px";
   clone.style.margin = "0 auto";
-  clone.style.padding = "40px 40px";
+  clone.style.padding = "48px 56px";
   clone.style.background = "#ffffff";
   clone.style.boxSizing = "border-box";
 
   // Fix logo sizing (critical)
-  const logo = clone.querySelector("img");
-  if (logo){
-    logo.style.maxWidth = "260px";
-    logo.style.maxHeight = "180px";
-    logo.style.objectFit = "contain";
-  }
+  const logo = clone.querySelector(".sky-logo-wrap img");
+if (logo){
+  logo.style.width = "180px";
+  logo.style.maxWidth = "180px";
+  logo.style.height = "auto";
+}
 
   // Prevent flex/grid collapse issues
   clone.querySelectorAll("*").forEach(el => {
