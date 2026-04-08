@@ -760,7 +760,9 @@
     const SHARED_SECRET = 'a1vip-2025-sync-9fK2sX';
     const STORAGE_KEY = 'a1vip-button-manager-v2';
 
-    /* ===== Auth (with overrides) ===== */
+    /* === INVOICE LOGO ==== */
+    const INVOICE_LOGO = "./A1VIP_LOGO_WIDE_for_White_backgrounds_large.png";
+  /* ===== Auth (with overrides) ===== */
     const AUTH_DEFAULT_USER = 'JAW';
     const AUTH_DEFAULT_PASS = 'Da$h25';
     const AUTH_KEY          = 'a1vip-auth-v1';
@@ -2337,7 +2339,7 @@ function createBtn(label, url, isCustom=true){
             <div>United States</div>
           </div>
           <div class="sky-logo-wrap">
-            <img src="${logoSrc}" alt="A1 VIP Logo" onerror="this.style.display='none'">
+            <img src="${INVOICE_LOGO}" alt="A1 VIP Logo">
           </div>
         </div>
 
