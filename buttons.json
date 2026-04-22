@@ -238,10 +238,6 @@
     ],
     "travel": [
       {
-        "label": "ARC Travel Site",
-        "url": "https://tradedesk.ticketmaster.com"
-      },
-      {
         "label": "centerhillmarina.com",
         "url": "https://www.centerhillmarina.com/"
       },
@@ -339,7 +335,8 @@
       "test",
       "yachts",
       "private jets fly usa",
-      "delta.com"
+      "delta.com",
+      "arc travel site"
     ],
     "yachts": [
       "mansionyachts.com"
