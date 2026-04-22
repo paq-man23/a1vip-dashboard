@@ -140,6 +140,10 @@
         "url": "https://www.broadwaybox.com/"
       },
       {
+        "label": "Broadwaydirect",
+        "url": "https://tickets.broadwaydirect.com/shop/account/login?returnUrl=https://tickets.broadwaydirect.com/Account/Orders"
+      },
+      {
         "label": "College Football Playoff Tickets",
         "url": "https://playoffpremium.com/"
       },
@@ -274,7 +278,8 @@
       "rockjock email",
       "email rockjock",
       "dashboard",
-      "broadway box discounts"
+      "broadway box discounts",
+      "broadwaydirect"
     ],
     "accounts": [
       "ny jets",
