@@ -14,6 +14,10 @@
         "url": "https://app.squareup.com/login?lang_code=en-us"
       },
       {
+        "label": "ARC Travel Site",
+        "url": "https://tradedesk.ticketmaster.com"
+      },
+      {
         "label": "Charity Buzz Portal",
         "url": "https://intake.charitybuzz.com/submissions"
       },
@@ -295,7 +299,8 @@
       "todaytix.com-broadway",
       "delta.com",
       "ryder cup",
-      "telecharge.com"
+      "telecharge.com",
+      "trade desk"
     ],
     "accounts": [
       "ny jets",
