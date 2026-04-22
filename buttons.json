@@ -98,10 +98,6 @@
         "url": "https://Rockjockcollectibles.com"
       },
       {
-        "label": "telecharge.com",
-        "url": "https://www.telecharge.com"
-      },
-      {
         "label": "tickpick.com",
         "url": "https://www.tickpick.com/"
       },
@@ -112,6 +108,10 @@
       {
         "label": "Livenation account",
         "url": "https://am.ticketmaster.com/lnconcerts/my-events"
+      },
+      {
+        "label": "telecharge.com",
+        "url": "https://www.telecharge.com"
       }
     ],
     "accounts": [
@@ -182,6 +182,10 @@
       {
         "label": "Preditors Tickets",
         "url": "https://auth.ticketmaster.com/as/authorization.oauth2?redirect_uri=https%3A%2F%2Fam.ticketmaster.com%2Fpredators%2Fam-sso%3Fdeeplink%3DL3ByZWRhdG9ycy9teS1ldmVudHM%3D&response_type=code&lang=en-us&integratorId=NAM&placementId=homepage&visualPresets=predators&hideLeftPanel=true&client_id=6c0ae101350e.web.predators-predator.us&scope=openid%20profile%20phone%20email%20tm"
+      },
+      {
+        "label": "telecharge.com",
+        "url": "https://www.telecharge.com"
       },
       {
         "label": "TennVols.ticketmaster.com",
