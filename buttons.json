@@ -102,10 +102,6 @@
         "url": "https://Rockjockcollectibles.com"
       },
       {
-        "label": "telecharge.com",
-        "url": "https://www.telecharge.com"
-      },
-      {
         "label": "tickpick.com",
         "url": "https://www.tickpick.com/"
       },
@@ -294,7 +290,8 @@
       "broadwaydirect",
       "todaytix.com-broadway",
       "delta.com",
-      "ryder cup"
+      "ryder cup",
+      "telecharge.com"
     ],
     "accounts": [
       "ny jets",
