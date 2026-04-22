@@ -70,10 +70,6 @@
         "url": "https://intake.charitybuzz.com/submissions"
       },
       {
-        "label": "Jelly Cat Dinner",
-        "url": "https://fareharbor.com/embeds/book/faoschwarz/items/592655/calendar/2026/01/?full-items=yes&flow=1295863"
-      },
-      {
         "label": "Justyn Ferano Art",
         "url": "https://faranofineart.com"
       },
@@ -112,6 +108,10 @@
       {
         "label": "telecharge.com",
         "url": "https://www.telecharge.com"
+      },
+      {
+        "label": "Jelly Cat Dinner",
+        "url": "https://fareharbor.com/embeds/book/faoschwarz/items/592655/calendar/2026/01/?full-items=yes&flow=1295863"
       }
     ],
     "accounts": [
@@ -142,6 +142,10 @@
       {
         "label": "Dolphins",
         "url": "https://am.ticketmaster.com/dolphins/my-events"
+      },
+      {
+        "label": "Jelly Cat Dinner",
+        "url": "https://fareharbor.com/embeds/book/faoschwarz/items/592655/calendar/2026/01/?full-items=yes&flow=1295863"
       },
       {
         "label": "LA Lakers account",
