@@ -1,0 +1,3451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>A1 VIP Ticket Dashboard</title>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- PWA hooks -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="A1VIP">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <style>
+    :root { --bg:#0b1220; --text:#e5e7eb; --border:rgba(148,163,184,.22);
+            --gold:#facc15; --blue:#3b82f6; --pink:#ec4899; --red:#ef4444; --black:#000;
+            --btn-color:#1e293b; --btn-color-hover:#facc15; }
+    html,body{margin:0;padding:0;height:100%}
+    body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+    header{
+      position:sticky;top:0;z-index:1000;
+      padding:10px 16px;
+      padding-top:calc(env(safe-area-inset-top) + 8px);
+      background:#111827;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:12px;
+    }
+    header img{height:150px}
+    .title{font-size:2.1rem;line-height:1.05;font-weight:900;letter-spacing:.2px}
+
+    /* Logout button in header */
+    .logout-btn{
+      margin-left:auto;
+      background:#ef4444;
+      border:none;
+      color:#fff;
+      font-weight:700;
+      border-radius:999px;
+      padding:8px 14px;
+      cursor:pointer;
+      font-size:0.8rem;
+      white-space:nowrap;
+    }
+    .logout-btn:hover{
+      filter:brightness(1.1);
+    }
+
+    .search-row{margin:10px 0 4px;display:flex;flex-direction:column;gap:6px}
+    .search-row input{padding:8px 10px;border-radius:999px;border:1px solid var(--border);background:#020617;color:#e5e7eb;font-size:0.85rem}
+    .search-results{max-height:180px;overflow:auto;font-size:0.8rem;border-radius:10px;background:#020617;border:1px solid #111827;padding:4px 6px}
+    .search-result-item{padding:4px 6px;border-radius:6px;cursor:pointer;color:#e5e7eb}
+    .search-result-item:hover{background:#1f2937}
+    .btn-highlight{box-shadow:0 0 0 2px #22d3ee,0 0 12px #22d3ee}
+
+    .link-status{font-size:11px;min-height:14px;color:#9ca3af;padding:2px 16px 4px;background:transparent;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+    #installBtn{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:8px;z-index:1200;display:none;background:#16a34a;color:#fff;border:none;padding:8px 10px;border-radius:10px;font-weight:800;cursor:pointer}
+
+    .top-tabs{padding:12px 16px 6px;background:linear-gradient(180deg,#0b1220 0%,rgba(11,18,32,.7) 100%)}
+    .tabs-scroller{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory}
+    .tabs-scroller::-webkit-scrollbar{display:none}
+    .tab{flex:0 0 auto;scroll-snap-align:start;border:none;padding:10px 16px;border-radius:12px;cursor:pointer;font-weight:800;color:#fff;user-select:none;box-shadow:0 0 0 1px rgba(148,163,184,.22) inset;transition:.2s}
+    .tab-main{background:var(--gold);color:#000}.tab-main:hover{background:#ffe44d}
+    .tab-luxury{background:var(--blue)}.tab-luxury:hover{background:#60a5fa}
+    .tab-accounts{background:var(--pink)}.tab-accounts:hover{background:#f472b6}
+    .tab-travel{background:var(--red)}.tab-travel:hover{background:#f87171}
+    .tab-social{background:#000}.tab-social:hover{background:#1f2937}
+    .tab-admin{background:#fff;color:#000}.tab-admin:hover{background:#e5e7eb}
+
+    main{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 28px}
+    .section{margin-bottom:30px}
+    h3{color:#facc15;font-size:1.3rem;margin:10px 4px 14px}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+    .btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;border-radius:16px;background:var(--btn-color,#1e293b);color:#fff;font-weight:800;border:1px solid var(--border);transition:.25s;text-align:center}
+    .btn:hover{background:var(--btn-color-hover,#facc15);color:#000;box-shadow:0 0 15px var(--btn-color-hover,#facc15)}
+
+
+/* Full-browser badge on specific links (e.g., Trade Desk) */
+.btn.full-browser::after{
+  content:"↗ Full Browser";
+  margin-left:10px;
+  font-size:0.72rem;
+  font-weight:800;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.35);
+  background:rgba(2,6,23,.6);
+  color:#e5e7eb;
+  white-space:nowrap;
+}
+.btn.full-browser:hover::after{
+  background:rgba(250,204,21,.22);
+  color:#fff;
+  border-color:rgba(250,204,21,.6);
+}
+
+
+/* Video links: show an old-school film reel SVG icon + badge */
+.btn.video-link{
+  justify-content:center;
+  gap:10px;
+}
+.btn .reel-icon{
+  width:20px;
+  height:20px;
+  flex:0 0 auto;
+}
+.btn.video-link::after{
+  content:"↗ Video";
+  margin-left:10px;
+  font-size:0.72rem;
+  font-weight:800;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.35);
+  background:rgba(2,6,23,.6);
+  color:#e5e7eb;
+  white-space:nowrap;
+}
+.btn.video-link:hover::after{
+  background:rgba(59,130,246,.25);
+  color:#fff;
+  border-color:rgba(59,130,246,.7);
+}
+
+    details{background:#0f172a;border:1px solid var(--border);border-radius:12px;margin:10px 0}
+    summary{cursor:pointer;font-weight:800;padding:10px 14px;color:#e5e7eb}
+    details .inner{padding:12px}
+    .note{color:#9ca3af;font-size:.9rem}
+
+    .upload-card{background:#0f172a;border:1px solid var(--border);border-radius:14px;padding:16px;display:grid;gap:14px}
+    .upload-grid{display:grid;grid-template-columns:1fr;gap:14px}
+    .upload-grid label{font-weight:700}
+    .upload-grid textarea{width:100%;min-height:120px;border-radius:10px;border:1px solid var(--border);background:#111827;color:#e5e7eb;padding:10px}
+    .upload-grid input[type=file]{border:1px dashed var(--border);padding:12px;border-radius:10px;background:#0b1220;color:#e5e7eb}
+    .targets{display:flex;flex-wrap:wrap;gap:10px}
+    .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);padding:8px 12px;border-radius:999px;background:#111827}
+    .upload-actions{display:flex;flex-wrap:wrap;gap:12px}
+    .cta{border:none;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer}
+    .cta-primary{background:#22d3ee;color:#0b1220}.cta-primary:hover{filter:brightness(1.1)}
+    .cta-secondary{background:#facc15;color:#0b1220}.cta-secondary:hover{filter:brightness(1.05)}
+
+    .manager-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
+    .btn-add{background:#16a34a}.btn-add:hover{filter:brightness(1.05)}
+    .btn-remove{background:#ef4444}.btn-remove:hover{filter:brightness(1.05)}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:2000}
+    .modal-card{width:min(560px,92vw);background:#0f172a;border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+    .modal h4{margin:0 0 12px;color:#facc15}
+    .form-grid{display:grid;gap:12px}
+    .form-grid label{font-weight:700}
+    .form-grid select,.form-grid input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:#111827;color:#e5e7eb}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+    .ghost{background:transparent;border:1px solid var(--border);color:#e5e7eb}
+  
+    .quick-link-bar{display:flex;gap:8px;align-items:center;padding:4px 16px 8px;}
+    .quick-link-bar input{flex:1;padding:8px 10px;border-radius:999px;border:1px solid var(--border);background:#020617;color:#e5e7eb;font-size:0.85rem;}
+    .btn-quick-go{padding:8px 12px;font-size:0.8rem;}
+    .btn-quick-add{padding:8px 12px;font-size:0.8rem;background:#22c55e;border-color:#22c55e;}
+    .btn-quick-add:hover{background:#4ade80;color:#022c22;box-shadow:0 0 10px rgba(34,197,94,.8);}
+    .btn[data-quick="1"]{background:#22c55e;border-color:#22c55e;}
+    .btn[data-quick="1"]:hover{background:#4ade80;color:#022c22;box-shadow:0 0 12px rgba(34,197,94,.9);}
+
+    /* ===== Login overlay ===== */
+    .login-screen{
+      position:fixed;
+      inset:0;
+      background:#020617;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:5000;
+    }
+    .login-card{
+      width:min(360px,90vw);
+      background:#0f172a;
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 18px 40px rgba(0,0,0,.8);
+      display:grid;
+      gap:12px;
+    }
+    .login-card h2{
+      margin:0 0 4px;
+      font-size:1.4rem;
+      color:#facc15;
+      text-align:center;
+    }
+    .login-card p{
+      margin:0 0 6px;
+      font-size:0.8rem;
+      color:#9ca3af;
+      text-align:center;
+    }
+    .login-card label{
+      font-size:0.85rem;
+      font-weight:700;
+      display:grid;
+      gap:4px;
+      color:#e5e7eb;
+    }
+    .login-card input{
+      padding:10px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#020617;
+      color:#e5e7eb;
+    }
+    .login-actions{
+      display:flex;
+      justify-content:center;
+      margin-top:6px;
+    }
+    .login-btn{
+      border:none;
+      border-radius:999px;
+      padding:10px 20px;
+      font-weight:800;
+      cursor:pointer;
+      background:#facc15;
+      color:#000;
+    }
+    .login-btn:hover{
+      filter:brightness(1.05);
+    }
+    .login-error{
+      min-height:16px;
+      font-size:0.8rem;
+      color:#f97373;
+      text-align:center;
+      margin-top:4px;
+    }
+
+
+    .tab-invoices{background:#86efac;color:#052e16}.tab-invoices:hover{background:#bbf7d0}
+    .tab-letter{background:#bae6fd;color:#082f49}.tab-letter:hover{background:#7dd3fc}
+
+    .invoice-shell{display:grid;gap:16px}
+    .invoice-panel{background:#0f172a;border:1px solid var(--border);border-radius:16px;padding:16px}
+    .invoice-toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+    .invoice-toolbar .btn{padding:12px 14px;min-height:auto}
+    .invoice-layout{display:grid;grid-template-columns:minmax(320px,1.1fr) minmax(320px,.9fr);gap:16px}
+    .invoice-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+    .invoice-form-grid label,.invoice-lines label,.invoice-history-card strong,.invoice-preview strong{font-weight:700}
+    .invoice-form-grid input,.invoice-form-grid select,.invoice-form-grid textarea,.invoice-lines input,.invoice-lines select,.invoice-lines textarea{
+      width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:#111827;color:#e5e7eb;box-sizing:border-box
+    }
+    .invoice-form-grid textarea,.invoice-lines textarea{min-height:90px;resize:vertical}
+    .invoice-form-grid .full,.invoice-lines .full{grid-column:1/-1}
+    .invoice-lines{display:grid;gap:12px}
+    .line-item{border:1px solid var(--border);border-radius:14px;padding:14px;background:#111827}
+    .line-item-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+    .line-item-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .line-item-total{font-weight:800;color:#facc15}
+    .invoice-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+    .invoice-preview{background:#f7f7f7;color:#111;border-radius:16px;padding:22px 20px;min-height:780px;font-family:Arial,Helvetica,sans-serif}
+    .invoice-preview h2,.invoice-preview h4,.invoice-preview p{margin:0}
+    .invoice-preview .muted{color:#475569}
+    .invoice-preview .sky-top{display:grid;grid-template-columns:1fr 220px;gap:18px;align-items:start;margin-bottom:18px}
+    .invoice-preview .sky-top .company-col,.invoice-preview .sky-top .address-col{font-size:11px;line-height:1.35}
+    .invoice-preview .sky-logo-wrap{display:flex;justify-content:flex-end;align-items:flex-start}
+    .invoice-preview .sky-logo-wrap img{max-width:180px;max-height:120px;object-fit:contain}
+    .invoice-preview .sky-section-title{font-size:12px;font-weight:700;margin:8px 0 4px;color:#0f3d62;background:#dbeafe;padding:5px 8px;border-radius:6px;display:inline-block}
+    .invoice-preview .sky-rule{height:1px;background:#cfcfcf;margin:0 0 12px}
+    .invoice-preview .sky-created-row{display:grid;grid-template-columns:1fr 1fr;align-items:end;margin-bottom:10px}
+    .invoice-preview .sky-created-row .created-by{justify-self:start;font-size:11px}
+    .invoice-preview .sky-created-row .created-by strong{font-weight:800}
+    .invoice-preview .sky-detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 24px;margin-bottom:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px}
+    .invoice-preview .sky-detail-grid .label{font-size:11px;font-weight:800;margin-bottom:2px}
+    .invoice-preview .sky-detail-grid .value{font-size:11px;line-height:1.25}
+    .invoice-preview .sky-customer{font-size:11px;font-weight:700;margin:4px 0 4px;background:#eff6ff;border-left:4px solid #93c5fd;padding:6px 8px;border-radius:6px}
+    .invoice-preview .sky-customer span{font-weight:400}
+    .invoice-preview .sky-three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin:12px 0 16px;background:#f8fbff;border:1px solid #dbeafe;border-radius:10px;padding:10px 12px}
+    .invoice-preview .sky-three-col .label{font-size:11px;font-weight:800;margin-bottom:2px}
+    .invoice-preview .sky-three-col .stack{margin-bottom:10px}
+    .invoice-preview .sky-three-col .value{font-size:11px;line-height:1.26}
+    .invoice-preview table{width:100%;border-collapse:collapse;font-size:11px;margin-top:10px}
+    .invoice-preview th,.invoice-preview td{padding:8px 8px 8px 0;vertical-align:top;text-align:left;border-bottom:none}
+    .invoice-preview th{font-size:11px;font-weight:800}
+    .invoice-preview td{font-size:11px;line-height:1.32}
+    .invoice-preview .sky-lines-wrap{margin-bottom:4px;background:#f8fbff;border:1px solid #dbeafe;border-radius:10px;padding:6px 10px}
+    .invoice-preview .sky-subtotal{display:flex;justify-content:flex-end;font-size:11px;font-weight:800;margin:6px 0 16px}
+    .invoice-preview .sky-cost-table{margin-top:10px}
+    .invoice-preview .sky-cost-table th,.invoice-preview .sky-cost-table td{padding:8px 0;text-align:left}
+    .invoice-preview .sky-cost-table th:nth-child(2),.invoice-preview .sky-cost-table td:nth-child(2),.invoice-preview .sky-cost-table th:nth-child(3),.invoice-preview .sky-cost-table td:nth-child(3),.invoice-preview .sky-cost-table th:nth-child(4),.invoice-preview .sky-cost-table td:nth-child(4){text-align:right;padding-left:12px}
+    .invoice-preview .sky-cost-subtotal{display:flex;justify-content:flex-end;font-size:11px;font-weight:800;margin:6px 0 14px}
+    .invoice-preview .sky-notes{min-height:28px;font-size:11px;line-height:1.32;margin:6px 0 12px;background:#f8fbff;border:1px solid #dbeafe;border-radius:8px;padding:8px 10px}
+    .invoice-preview .sky-bottom{display:grid;grid-template-columns:1fr 240px;gap:14px;align-items:start;margin-top:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px}
+    .invoice-preview .sky-status-grid{font-size:11px}
+    .invoice-preview .sky-status-grid .row{display:flex;justify-content:space-between;padding:2px 0}
+    .invoice-preview .sky-status-grid .strong{font-weight:800}
+    .invoice-preview .sky-right-totals{justify-self:end;width:100%;max-width:240px}
+    .invoice-preview .sky-right-totals .row{display:flex;justify-content:space-between;padding:3px 0;font-size:11px}
+    .invoice-preview .sky-right-totals .grand{font-size:12px;font-weight:800}
+    .invoice-preview .letter-meta{display:grid;gap:6px;margin-bottom:14px}
+    .invoice-preview .letter-meta-row{font-size:11px;line-height:1.5;color:#111}
+    .invoice-preview .letter-meta-row strong{display:inline-block;min-width:56px}
+    .invoice-preview .letter-body{font-size:11px;line-height:1.75;white-space:pre-wrap;min-height:280px;color:#111;padding:0;background:transparent;border:none;border-radius:0}
+    .invoice-preview .letter-signature{margin-top:24px;font-size:11px;line-height:1.6;color:#111}
+    @media (max-width: 980px){.invoice-layout{grid-template-columns:1fr}.invoice-preview{min-height:auto;padding:18px 16px}.invoice-preview .sky-top,.invoice-preview .sky-detail-grid,.invoice-preview .sky-three-col,.invoice-preview .sky-bottom{grid-template-columns:1fr}.invoice-preview .sky-logo-wrap{justify-content:flex-start}.invoice-preview .sky-created-row{grid-template-columns:1fr}}
+
+    /* Prevent table rows from splitting */
+    .invoice-preview table{
+    page-break-inside: auto;
+    }
+
+    .invoice-preview tr{
+    page-break-inside: avoid;
+    break-inside: avoid;
+    }
+    
+    /* ===== PDF PAGE CONTROL ===== */
+
+    .invoice-section{
+    page-break-inside: avoid;
+    break-inside: avoid;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="loginScreen" class="login-screen" style="display:none;">
+    <div class="login-card">
+      <h2>A1 VIP Login</h2>
+      <p>Enter your credentials to access the dashboard.</p>
+      <label>
+        Username
+        <input id="loginUser" type="text" autocomplete="username" placeholder="Username">
+      </label>
+      <label>
+        Password
+        <input id="loginPass" type="password" autocomplete="current-password" placeholder="Password">
+      </label>
+      <div class="login-actions">
+        <button class="login-btn" onclick="handleLogin()">Login</button>
+      </div>
+      <div id="loginError" class="login-error"></div>
+    </div>
+  </div>
+
+  <header>
+    <img src="A1VIP_LOGO_VERT_for _Black_backgrounds.png" alt="Logo">
+    <div class="title">A1 VIP<br/>Ticket<br/>Dashboard</div>
+    <!-- Logout button -->
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </header>
+
+  <div id="linkStatus" class="link-status"></div>
+
+  <div class="quick-link-bar">
+    <input id="quickLinkInput" type="url" placeholder="Paste or type a link (https://...)" />
+    <button class="btn btn-quick-go" onclick="openQuickLink()">Go</button>
+    <button class="btn btn-quick-add" onclick="addQuickLinkButton()">Add to Main</button>
+  </div>
+
+  <nav class="top-tabs">
+    <div class="tabs-scroller">
+      <button class="tab tab-main" onclick="showSection('main')">Main Links</button>
+      <button class="tab tab-luxury" onclick="showSection('luxury')">Luxury Suites</button>
+      <button class="tab tab-accounts" onclick="showSection('accounts')">Ticket Accounts</button>
+      <button class="tab tab-travel" onclick="showSection('travel')">Travel</button>
+      <button class="tab tab-social" onclick="showSection('social')">Social</button>
+      <button class="tab tab-invoices" onclick="showSection('invoices')">Invoices</button>
+      <button class="tab tab-letter" onclick="showSection('formLetter')">Form Letter</button>
+      <button class="tab tab-admin" onclick="showSection('admin')">Admin</button>
+    </div>
+  </nav>
+
+  <main>
+    <div id="main" class="section">
+      <h3>Main Links</h3>
+      <div class="grid" data-section="main"></div>
+    </div>
+
+    <div id="luxury" class="section" style="display:none;">
+      <h3>Luxury Suites</h3>
+      <div class="grid" data-section="luxury"></div>
+    </div>
+
+    <div id="accounts" class="section" style="display:none;">
+      <h3>Ticket Accounts</h3>
+      <div class="grid" data-section="accounts"></div>
+    </div>
+
+    <div id="travel" class="section" style="display:none;">
+      <h3>Travel</h3>
+      <div class="grid" data-section="travel"></div>
+
+      <details>
+        <summary>Private Jet</summary>
+        <div class="inner">
+          <div class="grid" data-section="privatejet"></div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Luxury Homes</summary>
+        <div class="inner">
+          <div class="grid" data-section="luxhomes"></div>
+        </div>
+      </details>
+           
+      <details>
+        <summary>Yachts</summary>
+        <div class="inner">
+          <div class="grid" data-section="yachts"></div>
+        </div>
+      </details>
+      </div>
+    
+  <div id="social" class="section" style="display:none;">
+      <h3>Social</h3>
+      <div class="grid" data-section="social"></div>
+    </div>
+
+    <div id="invoices" class="section" style="display:none;">
+      <h3>Invoices</h3>
+      <div class="invoice-shell">
+        <div class="invoice-subnav">
+          <button class="cta cta-primary" onclick="openInvoiceMode('editor')">New / Edit Invoice</button>
+          <button class="cta cta-secondary" onclick="openInvoiceMode('history')">Invoice History</button>
+          <button class="cta ghost" onclick="openInvoiceMode('presets')">Saved Clients / Presets</button>
+        </div>
+
+        <div id="invoiceEditor" class="invoice-panel">
+          <div class="invoice-toolbar">
+            <button class="btn" onclick="startNewInvoice()">New Invoice</button>
+            <button class="btn" onclick="saveInvoice()">Save Invoice</button>
+            <button class="btn" onclick="exportInvoiceFile()">Export File</button>
+            <button class="btn" onclick="document.getElementById('invoiceImportInput').click()">Import File</button>
+            <button class="btn" onclick="duplicateCurrentInvoice()">Duplicate</button>
+            <button class="btn" onclick="downloadInvoicePdf()">Save PDF</button>
+            <button class="btn" onclick="emailInvoice()">Email Invoice</button>
+          </div>
+          <input id="invoiceImportInput" type="file" accept=".json,.a1vip.json,application/json" style="display:none;" onchange="handleInvoiceImport(event)">
+
+          <div class="invoice-layout">
+            <div class="invoice-panel" style="padding:14px;">
+              <div class="invoice-form-grid">
+                <label>Document Type
+                  <select id="invType" onchange="onInvoiceTypeChange()">
+                    <option value="invoice-ticket">Invoice - Ticket / Experience</option>
+                    <option value="invoice-travel">Invoice - Travel / Experience</option>
+                    <option value="po-ticket">Purchase Order - Ticket / Experience</option>
+                    <option value="po-travel">Purchase Order - Travel / Experience</option>
+                  </select>
+                </label>
+                <label id="invNumberLabel">Invoice Number
+                  <input id="invNumber" type="text" placeholder="Auto generated if blank">
+                </label>
+                <label>Date Created
+                  <input id="invCreated" type="date">
+                </label>
+                <label>Due Date
+                  <input id="invDue" type="date">
+                </label>
+                <label>Fulfillment Status
+                  <select id="invFulfillment">
+                    <option>Pending</option>
+                    <option>In Hand</option>
+                    <option>Delivered</option>
+                    <option>Complete</option>
+                  </select>
+                </label>
+                <label>External Reference
+                  <input id="invExternalReference" type="text" placeholder="External reference">
+                </label>
+                <label>In Hand Date
+                  <input id="invInHandDate" type="date">
+                </label>
+                <label>Terms
+                  <input id="invTerms" list="termsList" placeholder="Net 0">
+                </label>
+                <label>Payment Type
+                  <select id="invPaymentType">
+                    <option>Credit Card</option>
+                    <option>Zelle</option>
+                    <option>Venmo</option>
+                    <option>Check</option>
+                    <option>Wire</option>
+                    <option>Other</option>
+                  </select>
+                </label>
+                <label>Delivery Method
+                  <input id="invDeliveryMethod" list="deliveryMethodList" placeholder="Mobile Transfer">
+                </label>
+                <label>Status
+                  <select id="invStatus">
+                    <option>Unpaid</option>
+                    <option>Pending</option>
+                    <option>Paid</option>
+                    <option>Partially Paid</option>
+                  </select>
+                </label>
+                <label>Client / Company
+                  <input id="invClientCompany" list="clientCompanyList" placeholder="Client / Company">
+                </label>
+                <label>Contact Name
+                  <input id="invClientContact" list="clientContactList" placeholder="Contact Name">
+                </label>
+                <label>Email
+                  <input id="invClientEmail" list="clientEmailList" type="email" placeholder="Email">
+                </label>
+                <label>Phone
+                  <input id="invClientPhone" list="clientPhoneList" type="text" placeholder="Phone">
+                </label>
+                <label class="full">Billing Address
+                  <textarea id="invBillingAddress" placeholder="Name&#10;Company&#10;Street&#10;City, State ZIP&#10;Country&#10;Phone"></textarea>
+                </label>
+                <label class="full">Shipping Address
+                  <textarea id="invShippingAddress" placeholder="Name&#10;Company&#10;Street&#10;City, State ZIP&#10;Country&#10;Phone"></textarea>
+                </label>
+                <label>Created By
+                  <input id="invCreatedBy" type="email" placeholder="ja@a1entertainmentevents.com">
+                </label>
+                <label class="full">Notes
+                  <textarea id="invNotes" placeholder="Invoice notes or internal reference"></textarea>
+                </label>
+              </div>
+
+              <div class="invoice-actions">
+                <button class="cta cta-primary" onclick="addLineItem()">Add Line Item</button>
+                <button class="cta ghost" onclick="copyBillingToShipping()">Copy Billing to Shipping</button>
+                <button class="cta ghost" onclick="refreshInvoicePreview()">Refresh Preview</button>
+              </div>
+
+              <div id="invoiceLines" class="invoice-lines" style="margin-top:16px;"></div>
+
+              <div class="invoice-form-grid" style="margin-top:16px;">
+                <label>Tax
+                  <input id="invTax" type="number" step="0.01" value="0">
+                </label>
+                <label>Shipping
+                  <input id="invShipping" type="number" step="0.01" value="0">
+                </label>
+                <label>Credit / Amount Paid
+                  <input id="invCredit" type="number" step="0.01" value="0">
+                </label>
+              </div>
+            </div>
+
+            <div class="invoice-panel" style="padding:14px;">
+              <div id="invoicePreview" class="invoice-preview"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="invoiceHistoryPanel" class="invoice-panel" style="display:none;">
+          <div class="invoice-toolbar">
+            <button class="btn" onclick="renderInvoiceHistory()">Refresh History</button>
+            <button class="btn btn-remove" onclick="clearInvoiceHistory()">Clear History</button>
+          </div>
+          <div class="invoice-form-grid" style="margin-bottom:14px;">
+            <label class="full">Search Invoice History
+              <input id="invoiceHistorySearch" type="search" placeholder="Search invoice #, client, status, or type..." oninput="renderInvoiceHistory()">
+            </label>
+          </div>
+          <div id="invoiceHistoryList" class="invoice-history-list"></div>
+        </div>
+
+        <div id="invoicePresetsPanel" class="invoice-panel" style="display:none;">
+          <div class="invoice-toolbar">
+            <button class="btn" onclick="renderInvoicePresets()">Refresh Presets</button>
+          </div>
+          <div id="invoicePresetsList" class="invoice-presets-list"></div>
+        </div>
+      </div>
+
+      <datalist id="clientCompanyList"></datalist>
+      <datalist id="clientContactList"></datalist>
+      <datalist id="clientEmailList"></datalist>
+      <datalist id="clientPhoneList"></datalist>
+      <datalist id="termsList"></datalist>
+      <datalist id="paymentTypeList"></datalist>
+      <datalist id="deliveryMethodList"></datalist>
+      <datalist id="eventNameList"></datalist>
+      <datalist id="venueList"></datalist>
+    </div>
+
+    <div id="formLetter" class="section" style="display:none;">
+      <h3>Form Letter</h3>
+      <div class="invoice-shell">
+        <div class="invoice-subnav">
+          <button class="cta cta-primary" onclick="openLetterMode('editor')">New / Edit Letter</button>
+          <button class="cta cta-secondary" onclick="openLetterMode('history')">Letter History</button>
+        </div>
+
+        <div id="letterEditor" class="invoice-panel">
+          <div class="invoice-toolbar">
+            <button class="btn" onclick="startNewLetter()">New Letter</button>
+            <button class="btn" onclick="saveLetter()">Save Letter</button>
+            <button class="btn" onclick="exportLetterFile()">Export File</button>
+            <button class="btn" onclick="document.getElementById('letterImportInput').click()">Import File</button>
+            <button class="btn" onclick="refreshLetterPreview()">Refresh Preview</button>
+            <button class="btn" onclick="printLetter()">Print Letter</button>
+            <button class="btn" onclick="downloadLetterPdf()">Save PDF</button>
+            <button class="btn" onclick="emailLetter()">Email Letter</button>
+          </div>
+          <input id="letterImportInput" type="file" accept=".json,.a1vip.json,application/json" style="display:none;" onchange="handleLetterImport(event)">
+
+          <div class="invoice-layout">
+            <div class="invoice-panel" style="padding:14px;">
+              <div class="invoice-form-grid">
+                <label>To
+                  <input id="letterTo" type="text" placeholder="Recipient name or company">
+                </label>
+                <label>Recipient Email
+                  <input id="letterToEmail" type="email" placeholder="recipient@example.com">
+                </label>
+                <label>Letter Date
+                  <input id="letterDate" type="date">
+                </label>
+                <label>From
+                  <input id="letterFrom" type="text" value="John Anthony White">
+                </label>
+                <label class="full">Subject
+                  <input id="letterSubject" type="text" placeholder="Letter subject">
+                </label>
+                <label class="full">Body
+                  <textarea id="letterBody" placeholder="Write the body of the letter here..." style="min-height:280px;"></textarea>
+                </label>
+              </div>
+            </div>
+
+            <div class="invoice-panel" style="padding:14px;">
+              <div id="letterPreview" class="invoice-preview"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="letterHistoryPanel" class="invoice-panel" style="display:none;">
+          <div class="invoice-toolbar">
+            <button class="btn" onclick="renderLetterHistory()">Refresh History</button>
+            <button class="btn btn-remove" onclick="clearLetterHistory()">Clear History</button>
+          </div>
+          <div class="invoice-form-grid" style="margin-bottom:14px;">
+            <label class="full">Search Letter History
+              <input id="letterHistorySearch" type="search" placeholder="Search by recipient, subject, or date..." oninput="renderLetterHistory()">
+            </label>
+          </div>
+          <div id="letterHistoryList" class="invoice-history-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin" class="section" style="display:none;">
+      <h3>Admin</h3>
+      <div class="search-row">
+        <input id="linkSearch" type="text" placeholder="Search buttons..." oninput="searchLinks()" />
+        <div id="searchResults" class="search-results"></div>
+      </div>
+      <div class="grid">
+        <button class="btn" onclick="showSection('domains')">A1 Domains & Emails</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/')">A1VIP</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/wp-login.php?redirect_to=https%3A%2F%2Fa1vipevents.com%2Fwp-admin%2F&reauth=1')">BackEnd</button>
+        <button class="btn" onclick="showSection('upload')">UPLOAD</button>
+        <button class="btn" onclick="showSection('buttonManager')">Button Manager</button>
+        <button class="btn" style="display:none;" data-system-btn="1" onclick="showSection('system')">SYSTEM</button>
+      </div>
+    </div>
+
+    <div id="system" class="section" style="display:none;">
+      <h3>SYSTEM Tools</h3>
+      <div class="grid">
+        <button class="btn btn-remove" onclick="resetDashboard()">Reset Dashboard (Factory)</button>
+        <button class="btn" onclick="toggleTheme()">Toggle Button Theme</button>
+        <button class="btn" onclick="exportLayout()">Backup / Export Layout</button>
+      </div>
+
+      <div style="margin-top:10px;font-size:0.8rem;">
+        <label for="themeColor">
+          Button Color:
+          <input id="themeColor" type="color" onchange="setThemeColor(this.value)" style="margin-left:6px;vertical-align:middle;">
+        </label>
+      </div>
+
+      <!-- Login Settings tool -->
+      <div class="upload-card" style="margin-top:18px;">
+        <h4 style="margin:0 0 8px;color:#facc15;">Login Settings</h4>
+        <div class="form-grid">
+          <label>Current Password
+            <input id="authCurrentPass" type="password" autocomplete="current-password">
+          </label>
+          <label>New Username
+            <input id="authNewUser" type="text" autocomplete="username">
+          </label>
+          <label>New Password
+            <input id="authNewPass" type="password" autocomplete="new-password">
+          </label>
+        </div>
+        <div class="modal-actions" style="justify-content:flex-start;margin-top:10px;">
+          <button class="cta cta-primary" onclick="updateCredentials()">Update Login</button>
+          <button class="cta ghost" onclick="resetCredentialsToDefault()">Reset to Default</button>
+        </div>
+        <div id="authUpdateMsg" class="note" style="margin-top:6px;"></div>
+        <div class="note" style="margin-top:4px;">
+          Changes apply only to this browser/device.
+        </div>
+      </div>
+
+      <p style="font-size:0.8rem;color:#9ca3af;margin-top:8px;">
+        Desktop: hold Alt while viewing Admin. Mobile: long-press the Admin tab to show/hide SYSTEM.
+      </p>
+    </div>
+
+    <div id="domains" class="section" style="display:none;">
+      <h3>A1 Domains & Emails</h3>
+      <div class="grid" data-section="domains"></div>
+    </div>
+
+    <section id="upload" class="section" style="display:none;">
+      <h3>UPLOAD</h3>
+      <div class="upload-card">
+        <div class="upload-grid">
+          <div>
+            <label for="uploadDesc">Post Description</label>
+            <textarea id="uploadDesc" placeholder="Write the caption / description you want on your posts..."></textarea>
+            <div class="note">We’ll copy this to your clipboard so you can paste it on each site.</div>
+          </div>
+          <div>
+            <label for="uploadFile">Video File</label>
+            <input id="uploadFile" type="file" accept="video/*" />
+            <div class="note">A single HTML file can’t upload to multiple sites without APIs/OAuth. The buttons below open each site’s upload page.</div>
+          </div>
+          <div>
+            <label>Targets</label>
+            <div class="targets">
+              <label class="chip"><input type="checkbox" id="tYouTube" checked> YouTube</label>
+              <label class="chip"><input type="checkbox" id="tFacebook" checked> Facebook</label>
+              <label class="chip"><input type="checkbox" id="tInstagram" checked> Instagram</label>
+              <label class="chip"><input type="checkbox" id="tTikTok" checked> TikTok</label>
+            </div>
+          </div>
+        </div>
+        <div class="upload-actions">
+          <button class="cta cta-secondary" onclick="copyDescription()">Copy Description</button>
+          <button class="cta cta-primary" onclick="openUploadPages()">Open Upload Pages</button>
+          <div class="note">If only one window opens, your browser is blocking multiple popups. Allow popups for this page or open sites one by one.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="buttonManager" class="section" style="display:none;">
+      <h3>Button Manager</h3>
+      <div class="manager-row">
+        <button class="btn btn-add" onclick="openAddModal()">➕ Add Button</button>
+        <button class="btn" style="background:#3b82f6" onclick="openMoveModal()">🔀 Move Button</button>
+        <button class="btn" onclick="openRenameModal()">✏️ Rename Button</button>
+        <button class="btn btn-remove" onclick="openRemoveModal()">➖ Remove Button</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Add Modal -->
+  <div id="addModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <div class="modal-card">
+      <h4 id="addTitle">Add a New Button</h4>
+      <div class="form-grid">
+        <label>Section
+          <select id="addSection"></select>
+        </label>
+        <label>Button Label
+          <input id="addLabel" type="text" placeholder="e.g., Team Store">
+        </label>
+        <label>Button URL
+          <input id="addUrl" type="url" placeholder="https://example.com">
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="cta ghost" onclick="closeModal('addModal')">Cancel</button>
+        <button class="cta cta-primary" onclick="confirmAdd()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename Modal -->
+  <div id="renameModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="renameTitle">
+    <div class="modal-card">
+      <h4 id="renameTitle">Rename Button</h4>
+      <div class="form-grid">
+        <label>Section
+          <select id="renameSection" onchange="populateRenameList()"></select>
+        </label>
+        <label>Button to Rename
+          <select id="renameButton"></select>
+        </label>
+        <label>New Label
+          <input id="renameNewLabel" type="text" placeholder="New button label" />
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="cta ghost" onclick="closeModal('renameModal')">Cancel</button>
+        <button class="cta cta-primary" onclick="confirmRename()">Rename</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remove Modal -->
+  <div id="removeModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="removeTitle">
+    <div class="modal-card">
+      <h4 id="removeTitle">Remove a Button</h4>
+      <div class="form-grid">
+        <label>Section
+          <select id="removeSection" onchange="populateRemoveList()"></select>
+        </label>
+        <label>Pick Button to Remove
+          <select id="removeButton"></select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="cta ghost" onclick="closeModal('removeModal')">Cancel</button>
+        <button class="cta cta-secondary" onclick="confirmRemove()">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move Modal -->
+  <div id="moveModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="moveTitle">
+    <div class="modal-card">
+      <h4 id="moveTitle">Move a Button</h4>
+      <div class="form-grid">
+        <label>From Section
+          <select id="moveFrom" onchange="populateMoveList()"></select>
+        </label>
+        <label>Pick Button to Move
+          <select id="moveButton"></select>
+        </label>
+        <label>To Section
+          <select id="moveTo"></select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="cta ghost" onclick="closeModal('moveModal')">Cancel</button>
+        <button class="cta cta-primary" onclick="confirmMove()">Move</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- Video Modal -->
+  <div id="videoModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="videoTitle" onclick="if(event.target===this) closeVideoModal()">
+    <div class="modal-card" style="width:min(900px,95vw);">
+      <h4 id="videoTitle">A1 REEL</h4>
+      <video id="videoPlayer" controls playsinline style="width:100%;max-height:70vh;border-radius:12px;background:#000;"></video>
+      <div class="modal-actions">
+        <button class="cta ghost" onclick="closeVideoModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+    /* ===== Config ===== */
+    const CONFIG_URLS = [
+      'https://raw.githubusercontent.com/paq-man23/a1vip-dashboard/main/buttons.json',
+      'https://paq-man23.github.io/a1vip-dashboard/buttons.json'
+    ];
+    const SYNC_ENDPOINT = 'https://a1vip-sync.jviphone.workers.dev';
+    const SHARED_SECRET = 'a1vip-2025-sync-9fK2sX';
+    const STORAGE_KEY = 'a1vip-button-manager-v2';
+
+    /* === INVOICE LOGO ==== */
+    const INVOICE_LOGO = "./A1VIP_LOGO_WIDE_for_White_backgrounds_large.png";
+  /* ===== Auth (with overrides) ===== */
+    const AUTH_DEFAULT_USER = 'JAW';
+    const AUTH_DEFAULT_PASS = 'Da$h25';
+    const AUTH_KEY          = 'a1vip-auth-v1';
+    const AUTH_OVERRIDE_KEY = 'a1vip-auth-override';
+
+    function getAuthCreds(){
+      try{
+        const raw = localStorage.getItem(AUTH_OVERRIDE_KEY);
+        if (raw){
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.user && parsed.pass){
+            return { user:String(parsed.user), pass:String(parsed.pass) };
+          }
+        }
+      }catch(e){}
+      return { user:AUTH_DEFAULT_USER, pass:AUTH_DEFAULT_PASS };
+    }
+
+    function isAuthenticated(){
+      try{
+        const token = localStorage.getItem(AUTH_KEY);
+        if (!token) return false;
+        const creds = getAuthCreds();
+        return token === 'ok::' + creds.user;
+      }catch(e){
+        return false;
+      }
+    }
+
+    function showLogin(){
+      const el = document.getElementById('loginScreen');
+      if (el) el.style.display = 'flex';
+      const uEl = document.getElementById('loginUser');
+      const pEl = document.getElementById('loginPass');
+      const err = document.getElementById('loginError');
+      if (uEl) uEl.value = '';
+      if (pEl) pEl.value = '';
+      if (err) err.textContent = '';
+    }
+    function hideLogin(){
+      const el = document.getElementById('loginScreen');
+      if (el) el.style.display = 'none';
+    }
+
+    function handleLogin(){
+      const uEl = document.getElementById('loginUser');
+      const pEl = document.getElementById('loginPass');
+      const err = document.getElementById('loginError');
+      const u = (uEl?.value || '').trim();
+      const p = pEl?.value || '';
+      const creds = getAuthCreds();
+      if (u === creds.user && p === creds.pass){
+        try{ localStorage.setItem(AUTH_KEY,'ok::' + creds.user); }catch(e){}
+        if (err) err.textContent = '';
+        hideLogin();
+      }else{
+        if (err) err.textContent = 'Invalid username or password.';
+        else alert('Invalid username or password.');
+      }
+    }
+
+    function logout(){
+      try{
+        localStorage.removeItem(AUTH_KEY);
+      }catch(e){}
+      showLogin();
+      window.scrollTo({ top:0, behavior:'smooth' });
+    }
+
+    function setAuthMessage(text, okColor){
+      const msg = document.getElementById('authUpdateMsg');
+      if (!msg){
+        if (text) alert(text);
+        return;
+      }
+      msg.textContent = text || '';
+      msg.style.color = okColor || '#f97373';
+    }
+
+    function updateCredentials(){
+      const currentPass = document.getElementById('authCurrentPass')?.value || '';
+      const newUser = (document.getElementById('authNewUser')?.value || '').trim();
+      const newPass = document.getElementById('authNewPass')?.value || '';
+      const creds = getAuthCreds();
+
+      if (!currentPass){
+        setAuthMessage('Please enter your current password.', '#f97373');
+        return;
+      }
+      if (currentPass !== creds.pass){
+        setAuthMessage('Current password is incorrect.', '#f97373');
+        return;
+      }
+      if (!newUser || !newPass){
+        setAuthMessage('New username and password cannot be empty.', '#f97373');
+        return;
+      }
+      if (newUser.length < 2){
+        setAuthMessage('New username must be at least 2 characters.', '#f97373');
+        return;
+      }
+
+      try{
+        const override = { user:newUser, pass:newPass };
+        localStorage.setItem(AUTH_OVERRIDE_KEY, JSON.stringify(override));
+        localStorage.setItem(AUTH_KEY, 'ok::' + newUser);
+
+        const cur = document.getElementById('authCurrentPass');
+        const np  = document.getElementById('authNewPass');
+        if (cur) cur.value = '';
+        if (np)  np.value  = '';
+        setAuthMessage('Login updated for this browser/device.', '#4ade80');
+      }catch(e){
+        setAuthMessage('Could not save new login: ' + e.message, '#f97373');
+      }
+    }
+
+    function resetCredentialsToDefault(){
+      if (!confirm('Reset login to default username/password (JAW / Da$h25) for this browser?')){
+        return;
+      }
+      try{
+        localStorage.removeItem(AUTH_OVERRIDE_KEY);
+        localStorage.removeItem(AUTH_KEY);
+        setAuthMessage('Login reset to default (JAW / Da$h25). You will use these next time you log in.', '#facc15');
+      }catch(e){
+        setAuthMessage('Could not reset: ' + e.message, '#f97373');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!isAuthenticated()){
+        showLogin();
+      }else{
+        hideLogin();
+      }
+      const uEl = document.getElementById('loginUser');
+      const pEl = document.getElementById('loginPass');
+      [uEl,pEl].forEach(el=>{
+        if (!el) return;
+        el.addEventListener('keydown', (e)=>{
+          if (e.key === 'Enter') handleLogin();
+        });
+      });
+    });
+
+    /* ===== Seed (links) ===== */
+    const SEED = {
+      main: [
+        ["Audience Rewards","https://www.audiencerewards.com/"],
+        ["AXS","https://www.axs.com/"],
+        ["Braintree","https://www.braintreegateway.com/login"],
+        ["Broadway Box Discounts","https://www.broadwaybox.com/"],
+        ["Broadwaydirect","https://tickets.broadwaydirect.com/shop/account/login?returnUrl=https://tickets.broadwaydirect.com/Account/Orders"],
+        ["Charity buzz","https://www.charitybuzz.com/"],
+        ["Chase Gets You In Lounge","https://chasegetsyoucloser.com/login/?msg=200"],
+        ["ChatGPT","https://chatgpt.com/"],
+        ["Clover Go A1","https://www.clover.com/login?webRedirectUrl=%2Fdashboard"],
+        ["Core Ticketevolution","https://core.ticketevolution.com"],
+        ["FedEx","https://www.fedex.com/secure-login/en-us/#/credentials"],
+        ["Gametime Portal","https://portal.gametime.co/login"],
+        ["Mailchimp","https://login.mailchimp.com/login/unified-login"],
+        ["M&T Rewards","https://rewards.mtb.com/welcome.htm"],
+        ["MLB.com","https://www.mlb.com/login?redirectUri=/apps/ballpark"],
+        ["MyTicketmaster","https://www.ticketmaster.com"],
+        ["Pollstar","https://www.pollstar.com/login"],
+        ["Presale","https://www.presalepasswordinfo.com/members/checkuser.php"],
+        ["Quint","https://quint.co/"],
+        ["Rate Your Seats","https://www.rateyourseats.com"],
+        ["Ryder Cup","https://onlocationexp.com/golf/ryder-cup-tickets"],
+        ["SeatGeek","https://seatgeek.com/"],
+        ["Seatgeek Portal","https://sellers.seatgeek.com/orders?status=all&selectedTab=all"],
+        ["Skybox","https://skybox.vividseats.com/inventory?groupBy=event&sortedBy=event_date&sortDir=asc&limit=100&pageNumber=1&sortedByB=quantity&sortDirB=asc"],
+        ["StubHub","https://www.stubhub.com/"],
+        ["TAO Suite","https://www.suitesixteenlounge.com/"],
+        ["TicketFlipping","https://ticketflipping.com/ticketflipping-toolbox/"],
+        ["Ticket Utils","https://app.ticketutils.com/POS/DashBoard"],
+        ["Ticketnetwork POS NEXT","https://posnext.ticketnetwork.com/#inventory"],
+        ["Trade Desk","https://tradedesk.ticketmaster.com"],
+        ["Victory Live","https://www.victorylive.com"],
+        ["Vista Print","https://www.vistaprint.com/my-account/design/projects?xnav=accountMenu"]
+      ],
+      luxury: [
+        ["Suite Experience","https://www.suiteexperiencegroup.com/"],
+        ["Suite Hop","https://suitehop.com/"],
+        ["MSG Premium Hospitality","https://www.msg.com/madison-square-garden/luxury-suites"],
+        ["LSA Suites","https://lsaus.com/"],
+        ["The Sphere Suites","https://www.thesphere.com/premium-suites"],
+        ["Access Sports","https://accessvipsports.com/about-us/"]
+      ],
+      accounts: [
+        ["Dolphins","https://am.ticketmaster.com/dolphins/my-events"],
+        ["NY Islanders","https://am.ticketmaster.com/newyorkislanders/my-events#/17998"],
+        ["Predators","https://am.ticketmaster.com/predators/my-events"],
+        ["Vanderbilt","https://vucommodores.evenue.net/signin"],
+        ["Vols","https://am.ticketmaster.com/allvols/my-events"],
+        ["Yankees","https://am.ticketmaster.com/nyyreg/my-events"]
+      ],
+      travel: [
+        ["ARCCORP","https://www2.arccorp.com/#"],
+        ["Delta","https://www.delta.com/"],
+        ["Expedia","https://www.expedia.com/Hotels?v=b"],
+        ["EZ-PASS","https://www.e-zpassny.com/vector/account/transactions/transactionlist.do"],
+        ["Jetset","https://jetsetjansen.com/versace-mansion-miami/"],
+        ["JSX","https://www.jsx.com/home/search"],
+        ["Universal","https://www.universalpartnercommunity.com/s/login/SelfRegister?language=en_US"],
+        ["Yachts","https://www.burgessyachts.com/en/charter-a-yacht/yachts-for-charter/aquila-00005340"]
+      ],
+      privatejet: [
+        ["Fly XO","https://flyxo.com/"],
+        ["Flyte","https://www.flyte.travel/rebrand"],
+        ["Private Jet Contracts","javascript:alert('Add contract link URL and I\\'ll wire this up.')"],
+        ["Private Jet Fly USA","https://flyusa.com/book-private-flights/"],
+        ["Wheels Up","https://wheelsup.com/"]
+      ],
+      luxhomes: [
+        ["Airbnb","https://www.airbnb.com/"],
+        ["VRBO","https://www.vrbo.com/"]
+      ],
+      yachts: [
+        ["Barton Yachts","https://www.bartonyachts.com/"]
+      ],
+      social: [
+        ["A1 REEL","video:https://www.dropbox.com/scl/fi/2oa3cp7qns0w0rplovea2/A1VIP_REELV2.mp4?rlkey=6w06qj3rrbdtnug2nqalwf9b0&dl=0"],
+        ["Facebook","https://www.facebook.com/"],
+        ["Instagram","https://www.instagram.com/"],
+        ["LinkedIn","https://www.linkedin.com/"],
+        ["Mailchimp","https://mailchimp.com/"],
+        ["Tiktok","https://tiktok.com/"],
+        ["YouTube","https://www.youtube.com/"]
+      ],
+      domains: [
+        ["A1 Timesheets","https://1drv.ms/x/c/f3acac4cab808f86/EQsA5-xNQvBApOR3XhRkD1EBNC3MT3eW0wlrza-6wpYNPQ?e=fbawZI"],
+        ["Domain Pal","https://domainpal.com/"],
+        ["GoDaddy","https://www.godaddy.com/"]
+      ]
+    };
+
+    function seedDOM(){
+      Object.entries(SEED).forEach(([sec, items])=>{
+        const grid = sectionGrid(sec);
+        if(!grid) return;
+        items.forEach(([label,url])=> grid.appendChild(createBtn(label,url,false)));
+      });
+    }
+
+    function searchLinks(){
+      const input = document.getElementById('linkSearch');
+      const resultsBox = document.getElementById('searchResults');
+      if (!input || !resultsBox) return;
+      const q = (input.value || '').trim().toLowerCase();
+      resultsBox.innerHTML = '';
+      if (!q) return;
+
+      const matches = [];
+      document.querySelectorAll('.grid[data-section] .btn').forEach(btn => {
+        const label = (btn.textContent || '').trim();
+        if (!label.toLowerCase().includes(q)) return;
+        const grid = btn.closest('.grid');
+        if (!grid) return;
+        const secId = grid.getAttribute('data-section');
+        matches.push({ label, secId, btn });
+      });
+
+      matches.slice(0,50).forEach(m => {
+        const div = document.createElement('div');
+        const secMeta = (window.manageableSections || []).find(s => s.id === m.secId);
+        div.className = 'search-result-item';
+        div.textContent = (secMeta ? secMeta.label : m.secId) + ': ' + m.label;
+        div.onclick = () => {
+          const topSection = (m.secId === 'privatejet' || m.secId === 'luxhomes') ? 'travel' : m.secId;
+          showSection(topSection);
+          if (topSection === 'travel'){
+            document.querySelectorAll('#travel details').forEach(d => d.open = true);
+          }
+          setTimeout(() => {
+            m.btn.scrollIntoView({ behavior:'smooth', block:'center' });
+            m.btn.classList.add('btn-highlight');
+            setTimeout(() => m.btn.classList.remove('btn-highlight'), 1200);
+          }, 40);
+        };
+        resultsBox.appendChild(div);
+      });
+    }
+
+    function resetDashboard(){
+      if (!confirm('This will erase all custom buttons, login overrides, and sync a factory reset. Continue?')) return;
+      const empty = { added:{}, removed:{} };
+      try{
+        saveState(empty);
+        localStorage.removeItem('a1vip-auth-override');
+        localStorage.removeItem(AUTH_KEY);
+      }catch(e){ console.warn('saveState during reset failed', e); }
+      (async () => {
+        try{
+          await syncRemote(empty);
+        }catch(e){
+          console.warn('syncRemote during reset failed', e);
+        }finally{
+          localStorage.removeItem('a1vip-button-manager-v2');
+          location.reload();
+        }
+      })();
+    }
+
+    function toggleTheme(){
+      const rand = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
+      setThemeColor(rand);
+      try{ localStorage.setItem('a1vip-theme-color', rand); }catch(e){}
+      const picker = document.getElementById('themeColor');
+      if (picker) picker.value = rand;
+    }
+
+    async function exportLayout(){
+      try{
+        const local = loadState();
+        const remote = await fetchRemoteConfig();
+        const merged = mergeStates(local, remote);
+        const blob = new Blob([JSON.stringify(merged, null, 2)], { type:'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+        a.href = url;
+        a.download = 'a1vip-buttons-backup-' + ts + '.json';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }catch(e){
+        alert('Export failed: ' + e.message);
+      }
+    }
+
+    function setThemeColor(hex){
+      if (!hex) return;
+      document.documentElement.style.setProperty('--btn-color', hex);
+      const hover = lightenHex(hex, 0.12);
+      document.documentElement.style.setProperty('--btn-color-hover', hover);
+      try{
+        localStorage.setItem('a1vip-theme-color', hex);
+      }catch(e){}
+    }
+
+    function lightenHex(hex, amt){
+      try{
+        let c = hex.replace('#','');
+        if (c.length === 3){
+          c = c.split('').map(ch => ch + ch).join('');
+        }
+        let num = parseInt(c,16);
+        let r = (num >> 16) & 255;
+        let g = (num >> 8) & 255;
+        let b = num & 255;
+        const f = (v) => Math.min(255, Math.max(0, Math.round(v + (255 - v) * amt)));
+        r = f(r); g = f(g); b = f(b);
+        const out = (r << 16) | (g << 8) | b;
+        return '#' + out.toString(16).padStart(6,'0');
+      }catch(e){
+        return hex;
+      }
+    }
+
+    /* ===== SYSTEM visibility: desktop Alt + mobile long-press ===== */
+    let systemAltDown = false;
+    let systemUnlocked = false; // toggled by long-press on Admin tab (mobile)
+
+    function isTouchDevice(){
+      return (
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0 ||
+        navigator.msMaxTouchPoints > 0
+      );
+    }
+
+    function updateSystemButtonVisibility(currentSectionId){
+      const btn = document.querySelector('#admin .grid [data-system-btn]');
+      if (!btn) return;
+
+      const adminSec = document.getElementById('admin');
+      const isAdminVisible = currentSectionId
+        ? currentSectionId === 'admin'
+        : (adminSec && adminSec.style.display !== 'none');
+
+      const shouldShow = isAdminVisible && (systemAltDown || systemUnlocked);
+      btn.style.display = shouldShow ? 'inline-flex' : 'none';
+    }
+
+    // Desktop: Alt key holds
+    document.addEventListener('keydown', (e) => {
+      if (e.altKey || e.key === 'Alt'){
+        systemAltDown = true;
+        updateSystemButtonVisibility();
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      if (!e.altKey || e.key === 'Alt'){
+        systemAltDown = false;
+        updateSystemButtonVisibility();
+      }
+    });
+
+    // Mobile: long-press Admin tab to toggle SYSTEM
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!isTouchDevice()) return; // only on touch devices
+
+      const adminTab = document.querySelector('.tab-admin');
+      if (!adminTab) return;
+
+      let pressTimer = null;
+
+      const startPress = (e) => {
+        if (!e.touches || e.touches.length !== 1) return;
+        pressTimer = setTimeout(() => {
+          systemUnlocked = !systemUnlocked; // toggle on/off
+          updateSystemButtonVisibility('admin');
+        }, 900); // ~0.9s long-press
+      };
+
+      const cancelPress = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      };
+
+      adminTab.addEventListener('touchstart', startPress);
+      adminTab.addEventListener('touchend', cancelPress);
+      adminTab.addEventListener('touchcancel', cancelPress);
+    });
+
+    function showSection(id){
+      document.querySelectorAll('.section').forEach(s=>s.style.display='none');
+      const el = document.getElementById(id);
+      if(el) el.style.display='block';
+      if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
+    }
+
+
+// URLs that should open in a full browser tab (not the popup window)
+const FULL_BROWSER_MATCH = [
+  'tradedesk.ticketmaster.com'
+];
+
+function isFullBrowserUrl(url){
+  if (!url) return false;
+  const u = String(url).toLowerCase();
+  return FULL_BROWSER_MATCH.some(k => u.includes(k));
+}
+
+// Video links (local/hosted MP4) - use "video:" prefix so it can live in the normal button system
+function isVideoUrl(url){
+  if (!url) return false;
+  return String(url).toLowerCase().startsWith('video:');
+}
+function getVideoSrc(url){
+  // "video:filename.mp4" or "video:https://..." or "video:/path/file.mp4"
+  let src = String(url).slice(6).trim();
+
+  // Dropbox share links often need "raw=1" for direct streaming in <video>
+  if (src.includes('dropbox.com')) {
+    try{
+      const u = new URL(src);
+      u.searchParams.set('raw','1');
+      u.searchParams.delete('dl');
+      src = u.toString();
+    }catch(e){
+      // fallback
+      src = src.replace('dl=0','dl=1');
+    }
+  }
+  return src;
+}
+function openVideoModal(title, src){
+  const modal = document.getElementById('videoModal');
+  const player = document.getElementById('videoPlayer');
+  const heading = document.getElementById('videoTitle');
+  if (!modal || !player) return;
+
+  if (heading) heading.textContent = title || 'Video';
+  player.pause();
+  player.removeAttribute('src');
+  player.load();
+
+  player.src = src;
+  modal.style.display = 'flex';
+
+  // Attempt autoplay (will succeed on many desktops; mobile may require user tap which they already did)
+  setTimeout(() => {
+    try { player.play(); } catch(e) {}
+  }, 50);
+}
+function closeVideoModal(){
+  const modal = document.getElementById('videoModal');
+  const player = document.getElementById('videoPlayer');
+  if (player){
+    try{ player.pause(); }catch(e){}
+    player.removeAttribute('src');
+    player.load();
+  }
+  if (modal) modal.style.display = 'none';
+}
+
+    function openPopup(url, label){
+  if (!url) return;
+
+  // Video modal
+  if (isVideoUrl(url)){
+    const src = getVideoSrc(url);
+    openVideoModal(label || 'A1 REEL', src);
+    return;
+  }
+
+  // Force specific links to open in a full browser tab (not popup features)
+  if (isFullBrowserUrl(url)) {
+    window.open(url, '_blank');
+    return;
+  }
+
+  // Allow inline JS actions
+  if (url.startsWith('javascript:')){
+    new Function(url.slice('javascript:'.length))();
+    return;
+  }
+
+  // Default behavior: app-style popup window
+  window.open(
+    url,
+    '_blank',
+    'popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=1200,height=800'
+  );
+}
+
+
+function copyDescription(){
+      const txt = document.getElementById('uploadDesc')?.value || '';
+      if(navigator.clipboard?.writeText){
+        navigator.clipboard.writeText(txt).then(()=>alert('Description copied to clipboard.')).catch(()=>alert('Clipboard blocked. Copy manually.'));
+      } else { alert('Clipboard not available. Copy manually.'); }
+    }
+    function openUploadPages(){
+      const urls = [];
+      if(document.getElementById('tYouTube')?.checked)  urls.push('https://www.youtube.com/upload');
+      if(document.getElementById('tFacebook')?.checked) urls.push('https://www.facebook.com/creatorstudio');
+      if(document.getElementById('tInstagram')?.checked) urls.push('https://www.instagram.com/');
+      if(document.getElementById('tTikTok')?.checked)    urls.push('https://www.tiktok.com/upload?lang=en');
+      if(!urls.length){ alert('Select at least one target.'); return; }
+      const features = 'popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=1200,height=800';
+      const wins = urls.map(()=>window.open('about:blank','_blank',features));
+      wins.forEach((w,i)=>{ try{ if(w) w.location = urls[i]; }catch(e){} });
+      if(!wins[0]) alert('Your browser blocked popups. Allow popups for this page.');
+    }
+
+    const manageableSections = [
+      { id:'main',      label:'Main Links' },
+      { id:'luxury',    label:'Luxury Suites' },
+      { id:'accounts',  label:'Ticket Accounts' },
+      { id:'travel',    label:'Travel' },
+      { id:'social',    label:'Social' },
+      { id:'domains',   label:'A1 Domains & Emails' },
+      { id:'privatejet',label:'Private Jet (within Travel)' },
+      { id:'luxhomes',  label:'Luxury Homes (within Travel)' },
+      { id:'yachts',    label:'Yachts (within Travel)' } 
+    ];
+    window.manageableSections = manageableSections;
+
+    function loadState(){
+      try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { added:{}, removed:{} }; }
+      catch{ return { added:{}, removed:{} }; }
+    }
+    function saveState(state){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    function sectionGrid(id){ return document.querySelector(`.grid[data-section="${id}"]`); }
+    
+    // Old-school film reel SVG (inline)
+    const FILM_REEL_SVG = `
+      <svg class="reel-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="12" cy="12" r="2" fill="currentColor"/>
+        <circle cx="12" cy="6.8" r="1.2" fill="currentColor"/>
+        <circle cx="16.2" cy="8.8" r="1.2" fill="currentColor"/>
+        <circle cx="17.2" cy="13" r="1.2" fill="currentColor"/>
+        <circle cx="14.8" cy="16.6" r="1.2" fill="currentColor"/>
+        <circle cx="9.2" cy="16.6" r="1.2" fill="currentColor"/>
+        <circle cx="6.8" cy="13" r="1.2" fill="currentColor"/>
+        <circle cx="7.8" cy="8.8" r="1.2" fill="currentColor"/>
+      </svg>
+    `;
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'","&#39;");
+    }
+
+function createBtn(label, url, isCustom=true){
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      // Default label
+  btn.textContent = label;
+  // If this is a video link, render a film-reel SVG icon + label
+  if (url && String(url).toLowerCase().startsWith('video:')){
+    btn.classList.add('video-link');
+    btn.innerHTML = FILM_REEL_SVG + `<span class="btn-label">${escapeHtml(label)}</span>`;
+  }
+      btn.setAttribute('data-label', label);
+      if (url) btn.dataset.url = url;
+      if(isCustom) btn.setAttribute('data-custom','1');
+      // Badge + behavior hint for links that must open in a full browser tab
+      if (isFullBrowserUrl(url)) btn.classList.add('full-browser');
+  if (isVideoUrl(url)) btn.classList.add('video-link');
+      btn.addEventListener('click', ()=>openPopup(url, label));
+      return btn;
+    }
+
+    async function fetchRemoteConfig(){
+      for (const base of CONFIG_URLS) {
+        try {
+          const res = await fetch(`${base}?v=${Date.now()}`, { cache: 'no-store' });
+          if (res.ok) {
+            const json = await res.json();
+            return (json && typeof json === 'object') ? json : { added:{}, removed:{} };
+          }
+        } catch(_) {}
+      }
+      return { added:{}, removed:{} };
+    }
+
+    function normLabel(s){
+      return (s || "").normalize("NFKC").replace(/\s+/g," ").trim().toLowerCase();
+    }
+
+    async function checkForUpdatesNow(){
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) return;
+        await reg.update();
+      } catch(e) {
+        console.warn('Update check failed', e);
+      }
+    }
+
+    function populateRemoveList(){
+      const sec  = document.getElementById('removeSection').value;
+      const grid = sectionGrid(sec);
+      const list = document.getElementById('removeButton');
+      list.innerHTML = '';
+      if (!grid) return;
+      [...grid.querySelectorAll('.btn')].forEach(b=>{
+        const raw = b.textContent.trim();
+        const o = document.createElement('option');
+        o.value = normLabel(raw);
+        o.textContent = raw;
+        o.setAttribute('data-raw', raw);
+        list.appendChild(o);
+      });
+    }
+
+    function mergeStates(base, remote){
+      const merged = JSON.parse(JSON.stringify(base || { added:{}, removed:{} }));
+
+      for (const [sec, arr] of Object.entries((remote && remote.added) || {})) {
+        merged.added[sec] = merged.added[sec] || [];
+        const seen = new Map(merged.added[sec].map(x => [normLabel(x.label), x]));
+        (arr || []).forEach(item => {
+          const nl = normLabel(item.label);
+          if (!seen.has(nl)) {
+            seen.set(nl, { label: item.label, url: item.url });
+          } else {
+            const prev = seen.get(nl);
+            if (item.url && item.url !== prev.url) {
+              seen.set(nl, { label: prev.label, url: item.url });
+            }
+          }
+        });
+        merged.added[sec] = Array.from(seen.values());
+      }
+
+      for (const [sec, labels] of Object.entries((remote && remote.removed) || {})) {
+        const prev = new Set((merged.removed?.[sec] || []).map(normLabel));
+        const next = new Set((labels || []).map(normLabel));
+        merged.removed = merged.removed || {};
+        merged.removed[sec] = Array.from(new Set([...prev, ...next]));
+      }
+
+      const allSecs = new Set([
+        ...Object.keys(merged.added || {}),
+        ...Object.keys(merged.removed || {})
+      ]);
+
+      for (const sec of allSecs) {
+        const remSet = new Set((merged.removed?.[sec] || []).map(normLabel));
+        if (merged.added && merged.added[sec]) {
+          merged.added[sec] = merged.added[sec].filter(x => !remSet.has(normLabel(x.label)));
+        }
+      }
+
+      return merged;
+    }
+
+    function compareLabels(a, b){
+      return normLabel(a).localeCompare(normLabel(b));
+    }
+
+    function insertButtonSorted(grid, btn){
+      const target = normLabel(btn.textContent);
+      const buttons = [...grid.querySelectorAll('.btn')];
+      const idx = buttons.findIndex(b => compareLabels(b.textContent, target) > 0);
+      if (idx === -1) grid.appendChild(btn);
+      else grid.insertBefore(btn, buttons[idx]);
+    }
+
+    function getBtnURL(btn){
+      if (btn && btn.dataset && btn.dataset.url) return btn.dataset.url;
+      const onclick = btn ? (btn.getAttribute('onclick') || '') : '';
+      const m = onclick.match(/openPopup\(['"](.+?)['"]\)/);
+      return m ? m[1] : '';
+    }
+
+    function wireHoverStatus(){
+      const bar = document.getElementById('linkStatus');
+      if (!bar) return;
+      const buttons = document.querySelectorAll('.grid .btn');
+      buttons.forEach(btn => {
+        if (btn.dataset && btn.dataset.hoverWired === '1') return;
+        const url = getBtnURL(btn);
+        btn.dataset.hoverWired = '1';
+        btn.addEventListener('mouseenter', ()=>{ bar.textContent = url || ''; });
+        btn.addEventListener('focus',      ()=>{ bar.textContent = url || ''; });
+        btn.addEventListener('mouseleave', ()=>{ bar.textContent = ''; });
+        btn.addEventListener('blur',       ()=>{ bar.textContent = ''; });
+      });
+    }
+
+    function applyState(state){
+      document.querySelectorAll('.grid[data-section]').forEach(g => g.innerHTML = '');
+      seedDOM();
+
+      const removedMap = {};
+      Object.entries(state.removed || {}).forEach(([sec, labels]) => {
+        const grid = sectionGrid(sec);
+        if (!grid) return;
+        const set = new Set((labels || []).map(normLabel));
+        removedMap[sec] = set;
+
+        [...grid.querySelectorAll('.btn')].forEach(b => {
+          if (set.has(normLabel(b.textContent))) b.remove();
+        });
+      });
+
+      Object.entries(state.added || {}).forEach(([sec, arr]) => {
+        const grid = sectionGrid(sec);
+        if (!grid) return;
+
+        const removedSet = removedMap[sec] || new Set();
+        const existing = new Set([...grid.querySelectorAll('.btn')].map(b => normLabel(b.textContent)));
+
+        const sorted = [...(arr || [])].sort((a, b) => compareLabels(a.label, b.label));
+        sorted.forEach(({ label, url }) => {
+          const nl = normLabel(label);
+          if (removedSet.has(nl)) return;
+          if (existing.has(nl))  return;
+          insertButtonSorted(grid, createBtn(label, url, true));
+          existing.add(nl);
+        });
+      });
+      wireHoverStatus();
+    }
+
+    const bc = 'BroadcastChannel' in window ? new BroadcastChannel('a1vip-sync') : null;
+    function broadcastRefresh(){ bc && bc.postMessage({ type:'REFRESH_REMOTE' }); }
+    bc && bc.addEventListener('message', async (ev)=>{
+      if (ev.data?.type === 'REFRESH_REMOTE') {
+        const remote = await fetchRemoteConfig();
+        const merged = mergeStates(loadState(), remote);
+        saveState(merged);
+        applyState(merged);
+      }
+    });
+
+    let lastRemoteSig = null;
+    async function fingerprint(obj){
+      const txt = JSON.stringify(obj);
+      const buf = new TextEncoder().encode(txt);
+      const hash = await crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+    async function refreshFromRemoteIfChanged(){
+      try{
+        const remote = await fetchRemoteConfig();
+        const sig = await fingerprint(remote);
+        if (sig !== lastRemoteSig) {
+          lastRemoteSig = sig;
+          const merged = mergeStates(loadState(), remote);
+          saveState(merged);
+          applyState(merged);
+        }
+      }catch{}
+    }
+
+    async function init(){
+      seedDOM();
+      const localState = loadState();
+      const remote = await fetchRemoteConfig();
+      lastRemoteSig = await fingerprint(remote);
+      const merged = mergeStates(localState, remote);
+      saveState(merged);
+      applyState(merged);
+      try{
+        const savedColor = localStorage.getItem('a1vip-theme-color');
+        if (savedColor){
+          setThemeColor(savedColor);
+          const picker = document.getElementById('themeColor');
+          if (picker) picker.value = savedColor;
+        }
+      }catch(e){}
+      bindInvoiceFieldListeners();
+      bindLetterFieldListeners();
+      refreshInvoiceDatalists();
+      startNewInvoice();
+      startNewLetter();
+      openInvoiceMode('editor');
+      setInterval(refreshFromRemoteIfChanged, 30000);
+    }
+
+    async function syncRemote(state){
+      if(!SYNC_ENDPOINT) return;
+      try{
+        const res = await fetch(SYNC_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'X-A1VIP-Secret': SHARED_SECRET },
+          body: JSON.stringify(state)
+        });
+        const text = await res.text();
+        if (!res.ok) {
+          console.error('Sync failed', res.status, text);
+          alert(`Sync failed: ${res.status}\n${text}`);
+          return;
+        }
+        setTimeout(async ()=>{
+          const remote = await fetchRemoteConfig();
+          const merged = mergeStates(loadState(), remote);
+          saveState(merged);
+          applyState(merged);
+          broadcastRefresh();
+        }, 1200);
+      }catch(e){
+        console.warn('Remote sync error:', e);
+        alert('Remote sync error: ' + e.message);
+      }
+    }
+
+    async function confirmAdd(){
+      const sec   = document.getElementById('addSection').value;
+      const label = document.getElementById('addLabel').value.trim();
+      const url   = document.getElementById('addUrl').value.trim();
+      if(!sec || !label || !url){ alert('Please complete all fields.'); return; }
+
+      const grid = sectionGrid(sec);
+      if(!grid){ alert('Section not found.'); return; }
+
+      const newBtn = createBtn(label, url, true);
+      insertButtonSorted(grid, newBtn);
+
+      const state = loadState();
+      if(!state.added[sec]) state.added[sec] = [];
+      const n = normLabel(label);
+      const idx = state.added[sec].findIndex(x => normLabel(x.label) === n);
+      if (idx >= 0) state.added[sec][idx].url = url;
+      else state.added[sec].push({ label, url });
+      state.added[sec].sort((a,b)=> compareLabels(a.label, b.label));
+
+      if (state.removed[sec]) {
+        state.removed[sec] = state.removed[sec].filter(l => normLabel(l) !== n);
+      }
+
+      saveState(state);
+      closeModal('addModal');
+      alert('Button added.');
+
+      const remote = await fetchRemoteConfig();
+      const merged = mergeStates(state, remote);
+
+      if (!merged.removed) merged.removed = {};
+      if (!merged.removed[sec]) merged.removed[sec] = [];
+      merged.removed[sec] = merged.removed[sec].filter(l => normLabel(l) !== n);
+
+      await syncRemote(merged);
+    }
+
+    async function addQuickLinkButton(){
+      const input = document.getElementById('quickLinkInput');
+      if (!input) return;
+      let url = normalizeUrl(input.value);
+      if (!url){ alert('Please enter a link first.'); return; }
+
+      let label;
+      try{
+        const u = new URL(url);
+        label = u.hostname.replace(/^www\./,'');
+      }catch(e){
+        label = url;
+      }
+      const custom = prompt('Button label for this link:', label);
+      if (!custom) return;
+      label = custom.trim();
+      if (!label){
+        alert('Label cannot be empty.');
+        return;
+      }
+
+      const sec = 'main';
+      const grid = sectionGrid(sec);
+      if (!grid){
+        alert('Main section not found.');
+        return;
+      }
+
+      const n = normLabel(label);
+
+      const existing = [...grid.querySelectorAll('.btn')].find(
+        b => normLabel(b.textContent) === n
+      );
+      if (existing){
+        existing.setAttribute('onclick', `openPopup('${url}')`);
+        existing.dataset.url = url;
+        existing.setAttribute('data-quick','1');
+      } else {
+        const newBtn = createBtn(label, url, true);
+        newBtn.setAttribute('data-quick','1');
+        insertButtonSorted(grid, newBtn);
+      }
+
+      const state = loadState();
+      if (!state.added[sec]) state.added[sec] = [];
+      const idx = state.added[sec].findIndex(x => normLabel(x.label) === n);
+      if (idx >= 0) state.added[sec][idx].url = url;
+      else state.added[sec].push({ label, url });
+      state.added[sec].sort((a,b)=> compareLabels(a.label, b.label));
+
+      if (state.removed[sec]){
+        state.removed[sec] = state.removed[sec].filter(l => normLabel(l) !== n);
+      }
+
+      saveState(state);
+
+      try{
+        const remote = await fetchRemoteConfig();
+        const merged = mergeStates(state, remote);
+        if (!merged.removed) merged.removed = {};
+        if (!merged.removed[sec]) merged.removed[sec] = [];
+        merged.removed[sec] = merged.removed[sec].filter(l => normLabel(l) !== n);
+        await syncRemote(merged);
+      }catch(e){
+        console.warn('sync quick add failed', e);
+      }
+
+      wireHoverStatus();
+      alert('Button added to Main.');
+    }
+
+    function normalizeUrl(raw){
+      raw = (raw || '').trim();
+      if (!raw) return '';
+      if (!/^https?:\/\//i.test(raw)){ raw = 'https://' + raw; }
+      return raw;
+    }
+
+    function openQuickLink(){
+      const input = document.getElementById('quickLinkInput');
+      if (!input) return;
+      const url = normalizeUrl(input.value);
+      if (!url){ alert('Please enter a link first.'); return; }
+      openPopup(url);
+    }
+
+    function openAddModal(){
+      fillSelect('addSection');
+      const l = document.getElementById('addLabel'); if(l) l.value = '';
+      const u = document.getElementById('addUrl');   if(u) u.value = '';
+      showModal('addModal');
+    }
+    function openRemoveModal(){
+      fillSelect('removeSection');
+      populateRemoveList();
+      showModal('removeModal');
+    }
+    function fillSelect(selectId){
+      const sel = document.getElementById(selectId);
+      if(!sel) return;
+      sel.innerHTML = '';
+      const list = (typeof manageableSections !== 'undefined' && Array.isArray(manageableSections))
+        ? manageableSections
+        : (window.manageableSections || []);
+      list.forEach(s=>{
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.label;
+        sel.appendChild(opt);
+      });
+    }
+    function showModal(id){
+      const m = document.getElementById(id);
+      if(m) m.style.display='flex';
+    }
+    function closeModal(id){
+      const m = document.getElementById(id);
+      if(m) m.style.display='none';
+    }
+
+    function openRenameModal(){
+      fillSelect('renameSection');
+      populateRenameList();
+      showModal('renameModal');
+    }
+
+    function populateRenameList(){
+      const sec = document.getElementById('renameSection').value;
+      const list = document.getElementById('renameButton');
+      if (!list) return;
+      list.innerHTML = '';
+      const grid = sectionGrid(sec);
+      if (!grid) return;
+      [...grid.querySelectorAll('.btn')].forEach(b => {
+        const raw = (b.textContent || '').trim();
+        if (!raw) return;
+        const opt = document.createElement('option');
+        opt.value = raw;
+        opt.textContent = raw;
+        list.appendChild(opt);
+      });
+    }
+
+    function getButtonURL(sectionId, rawLabel){
+      const grid = sectionGrid(sectionId);
+      if (grid){
+        const btn = [...grid.querySelectorAll('.btn')].find(b => normLabel(b.textContent) === normLabel(rawLabel));
+        if (btn && btn.dataset && btn.dataset.url) return btn.dataset.url;
+      }
+      const state = loadState();
+      const arr = (state.added && state.added[sectionId]) || [];
+      const found = arr.find(x => normLabel(x.label) === normLabel(rawLabel));
+      if (found && found.url) return found.url;
+      const seedArr = (SEED && SEED[sectionId]) || [];
+      for (const pair of seedArr){
+        const [lbl, url] = pair;
+        if (normLabel(lbl) === normLabel(rawLabel)) return url;
+      }
+      return '';
+    }
+
+    async function confirmRename(){
+      const sec = document.getElementById('renameSection').value;
+      const oldLabel = document.getElementById('renameButton').value;
+      const newLabel = (document.getElementById('renameNewLabel').value || '').trim();
+      if (!sec || !oldLabel || !newLabel){
+        alert('Please choose a section, a button, and enter a new label.');
+        return;
+      }
+      if (normLabel(oldLabel) === normLabel(newLabel)){
+        alert('New label must be different.');
+        return;
+      }
+      const grid = sectionGrid(sec);
+      if (!grid){
+        alert('Section not found.');
+        return;
+      }
+
+      const conflict = [...grid.querySelectorAll('.btn')].some(
+        b => normLabel(b.textContent) === normLabel(newLabel)
+      );
+      if (conflict){
+        alert('A button with that label already exists in this section.');
+        return;
+      }
+
+      const btn = [...grid.querySelectorAll('.btn')].find(
+        b => normLabel(b.textContent) === normLabel(oldLabel)
+      );
+      if (!btn){
+        alert('Button not found.');
+        return;
+      }
+      const url = getButtonURL(sec, oldLabel);
+
+      btn.textContent = newLabel;
+      btn.setAttribute('data-label', newLabel);
+
+      const buttons = [...grid.querySelectorAll('.btn')];
+      buttons.sort((a,b) => compareLabels(a.textContent, b.textContent));
+      grid.innerHTML = '';
+      buttons.forEach(b => grid.appendChild(b));
+
+      const state = loadState();
+      state.added = state.added || {};
+      state.removed = state.removed || {};
+      state.added[sec] = state.added[sec] || [];
+      state.removed[sec] = state.removed[sec] || [];
+
+      const nOld = normLabel(oldLabel);
+      const nNew = normLabel(newLabel);
+
+      let found = false;
+      for (const item of state.added[sec]){
+        if (normLabel(item.label) === nOld){
+          item.label = newLabel;
+          item.url = url || item.url || '#';
+          found = true;
+          break;
+        }
+      }
+      if (!found){
+        const remSet = new Set(state.removed[sec].map(normLabel));
+        if (!remSet.has(nOld)){
+          state.removed[sec].push(oldLabel);
+        }
+        state.added[sec].push({ label:newLabel, url:url || '#' });
+      }
+
+      state.removed[sec] = state.removed[sec].filter(l => normLabel(l) !== nNew);
+      state.added[sec].sort((a,b) => compareLabels(a.label, b.label));
+
+      saveState(state);
+
+      try{
+        const remote = await fetchRemoteConfig();
+        const merged = mergeStates(state, remote);
+        await syncRemote(merged);
+      }catch(e){
+        console.warn('sync rename failed', e);
+      }
+
+      wireHoverStatus();
+      closeModal('renameModal');
+      alert('Button renamed.');
+    }
+
+    function openMoveModal(){
+      fillSelect('moveFrom');
+      fillSelect('moveTo');
+      populateMoveList();
+      showModal('moveModal');
+    }
+    function populateMoveList(){
+      const sec  = document.getElementById('moveFrom').value;
+      const grid = sectionGrid(sec);
+      const list = document.getElementById('moveButton');
+      list.innerHTML = '';
+      if (!grid) return;
+      [...grid.querySelectorAll('.btn')].forEach(b=>{
+        const raw = b.textContent.trim();
+        const o = document.createElement('option');
+        o.value = normLabel(raw);
+        o.textContent = raw;
+        o.setAttribute('data-raw', raw);
+        list.appendChild(o);
+      });
+    }
+
+    async function confirmMove(){
+      const from = document.getElementById('moveFrom').value;
+      const to   = document.getElementById('moveTo').value;
+      const sel  = document.getElementById('moveButton');
+      if (!from || !to || !sel.value){ alert('Please choose sections and a button.'); return; }
+      if (from === to){ alert('Pick a different destination section.'); return; }
+
+      const rawLabel = sel.options[sel.selectedIndex].getAttribute('data-raw');
+      const nLabel   = normLabel(rawLabel);
+
+      const url = getButtonURL(from, rawLabel) || '#';
+
+      const fromGrid = sectionGrid(from);
+      const toGrid   = sectionGrid(to);
+      if (!fromGrid || !toGrid){ alert('Section not found.'); return; }
+      [...fromGrid.querySelectorAll('.btn')].forEach(b => {
+        if (normLabel(b.textContent) === nLabel) b.remove();
+      });
+      const newBtn = createBtn(rawLabel, url, true);
+      insertButtonSorted(toGrid, newBtn);
+
+      const state = loadState();
+      state.added   = state.added   || {};
+      state.removed = state.removed || {};
+      state.added[from]   = state.added[from]   || [];
+      state.added[to]     = state.added[to]     || [];
+      state.removed[from] = state.removed[from] || [];
+      state.removed[to]   = state.removed[to]   || [];
+
+      const fromIdx = state.added[from].findIndex(x => normLabel(x.label) == nLabel);
+      if (fromIdx >= 0){
+        state.added[from].splice(fromIdx, 1);
+      } else {
+        const remSet = new Set(state.removed[from].map(normLabel));
+        if (!remSet.has(nLabel)) state.removed[from].push(rawLabel);
+      }
+
+      state.removed[to] = state.removed[to].filter(l => normLabel(l) !== nLabel);
+
+      const toIdx = state.added[to].findIndex(x => normLabel(x.label) == nLabel);
+      if (toIdx >= 0){
+        state.added[to][toIdx].url = url || state.added[to][toIdx].url || '#';
+      } else {
+        state.added[to].push({ label: rawLabel, url: url || '#' });
+        state.added[to].sort((a,b)=> compareLabels(a.label, b.label));
+      }
+
+      saveState(state);
+
+      const remote = await fetchRemoteConfig();
+      const merged = mergeStates(state, remote);
+      await syncRemote(merged);
+
+      closeModal('moveModal');
+      alert('Button moved.');
+    }
+
+    async function confirmRemove(){
+      const sec = document.getElementById('removeSection').value;
+      const sel = document.getElementById('removeButton');
+      if (!sec || !sel.value) { alert('Pick a button to remove.'); return; }
+
+      const rawLabel = sel.options[sel.selectedIndex].getAttribute('data-raw');
+      const nLabel   = normLabel(rawLabel);
+
+      const grid = sectionGrid(sec);
+      if (!grid) { alert('Section not found.'); return; }
+
+      [...grid.querySelectorAll('.btn')].forEach(b => {
+        if (normLabel(b.textContent) === nLabel) b.remove();
+      });
+
+      const state = loadState();
+
+      if (state.added[sec]) {
+        state.added[sec] = state.added[sec].filter(x => normLabel(x.label) !== nLabel);
+      }
+
+      state.removed[sec] = state.removed[sec] || [];
+      const already = new Set(state.removed[sec].map(l => normLabel(l)));
+      if (!already.has(nLabel)) state.removed[sec].push(rawLabel);
+
+      saveState(state);
+      closeModal('removeModal');
+      alert('Button removed.');
+
+      const remote = await fetchRemoteConfig();
+      const merged = mergeStates(state, remote);
+      await syncRemote(merged);
+    }
+
+
+    const INVOICE_STORAGE_KEY = 'a1vip-invoices-v1';
+    const INVOICE_PRESET_KEY = 'a1vip-invoice-presets-v1';
+    const INVOICE_LINE_TYPE_OPTIONS = [
+      'Experience',
+      'Tickets',
+      'Travel / Transportation',
+      'VIP Add Ons',
+      'Parking'
+    ];
+    let currentInvoiceId = null;
+    let currentInvoiceSavedName = '';
+
+    function isTravelInvoiceType(type='invoice-ticket'){
+      return String(type || '').includes('travel');
+    }
+
+    function isPurchaseOrderType(type='invoice-ticket'){
+      return String(type || '').startsWith('po-');
+    }
+
+    function documentLabel(type='invoice-ticket'){
+      return isPurchaseOrderType(type) ? 'Purchase Order' : 'Invoice';
+    }
+
+    function documentNumberLabel(type='invoice-ticket'){
+      return documentLabel(type) + ' Number';
+    }
+
+    function documentTypeLabel(type='invoice-ticket'){
+      const area = isTravelInvoiceType(type) ? 'Travel / Experience' : 'Ticket / Experience';
+      return documentLabel(type) + ' - ' + area;
+    }
+
+    function invoiceLineTypeDefault(type='invoice-ticket'){
+      return isTravelInvoiceType(type) ? 'Travel / Transportation' : 'Tickets';
+    }
+
+    function lineTypeUsesSeating(lineType){
+      return String(lineType || '').toLowerCase() === 'tickets';
+    }
+
+    function invoiceBase(type='invoice-ticket'){
+      const today = new Date().toISOString().slice(0,10);
+      return {
+        id: 'inv-' + Date.now(),
+        type,
+        number: String(getNextInvoiceNumber()),
+        createdDate: today,
+        dueDate: today,
+        fulfillmentStatus: 'Pending',
+        externalReference: '',
+        inHandDate: '',
+        terms: isTravelInvoiceType(type) ? 'Net 30' : 'Net 0',
+        paymentType: 'Credit Card',
+        deliveryMethod: 'Mobile Transfer',
+        status: 'Unpaid',
+        clientCompany: '',
+        clientContact: '',
+        clientEmail: '',
+        clientPhone: '',
+        billingAddress: '',
+        shippingAddress: '',
+        createdBy: 'ja@a1entertainmentevents.com',
+        notes: '',
+        tax: 0,
+        shipping: 0,
+        credit: 0,
+        lines: [invoiceLineBase(type)]
+      };
+    }
+
+    function invoiceLineBase(type='invoice-ticket'){
+      return {
+        lineType: invoiceLineTypeDefault(type),
+        lineDate: '',
+        lineTime: '',
+        eventName: '',
+        venue: '',
+        location: '',
+        section: '',
+        row: '',
+        seats: '',
+        description: isTravelInvoiceType(type) ? 'Travel / experience item' : '',
+        qty: 1,
+        unitCost: 0
+      };
+    }
+
+    function loadInvoices(){
+      try { return JSON.parse(localStorage.getItem(INVOICE_STORAGE_KEY)) || []; }
+      catch(e){ return []; }
+    }
+    function saveInvoices(items){ localStorage.setItem(INVOICE_STORAGE_KEY, JSON.stringify(items)); }
+    function makePortableDoc(kind, payload){
+      return {
+        app: 'A1VIP Dashboard',
+        format: 'a1vip-document',
+        version: 1,
+        kind,
+        exportedAt: new Date().toISOString(),
+        payload
+      };
+    }
+    function downloadPortableDoc(filename, data){
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    async function parsePortableDoc(file){
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed || parsed.format !== 'a1vip-document' || !parsed.kind || !parsed.payload){
+        throw new Error('This file is not a valid A1VIP export.');
+      }
+      return parsed;
+    }
+
+    function loadInvoicePresets(){
+      const defaults = {
+        clientCompanies: [],
+        clientContacts: [],
+        clientEmails: [],
+        clientPhones: [],
+        terms: ['Net 0','Net 30'],
+        paymentTypes: ['Credit Card','Zelle','Venmo','Check','Wire','Other'],
+        deliveryMethods: ['Mobile Transfer','Email','Will Call','FedEx'],
+        eventNames: [],
+        venues: []
+      };
+      try {
+        const parsed = JSON.parse(localStorage.getItem(INVOICE_PRESET_KEY)) || {};
+        return Object.assign({}, defaults, parsed);
+      } catch(e){
+        return defaults;
+      }
+    }
+    function saveInvoicePresets(p){ localStorage.setItem(INVOICE_PRESET_KEY, JSON.stringify(p)); }
+    function addUnique(arr, value){
+      const v = String(value || '').trim();
+      if (!v) return;
+      if (!arr.some(x => String(x).toLowerCase() === v.toLowerCase())) arr.push(v);
+    }
+    function getNextInvoiceNumber(){
+      const nums = loadInvoices().map(x => parseInt(String(x.number || '').replace(/\D/g,''), 10)).filter(Number.isFinite);
+      return nums.length ? Math.max.apply(null, nums) + 1 : 4100;
+    }
+    function money(n){
+      const v = Number(n || 0);
+      return '$' + v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+    function parseNum(v){
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : 0;
+    }
+    function formatInvoiceTime(value){
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+      if (!match) return raw;
+      let hour = Number(match[1]);
+      const minute = match[2];
+      const suffix = hour >= 12 ? 'PM' : 'AM';
+      hour = hour % 12 || 12;
+      return `${hour}:${minute} ${suffix}`;
+    }
+    function formatInvoiceDate(value){
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) return raw;
+      return `${match[2]}-${match[3]}-${match[1]}`;
+    }
+    function safeFilenamePart(value, fallback='Document'){
+      const cleaned = String(value || '')
+        .trim()
+        .replace(/[\\/:*?"<>|]+/g, ' ')
+        .replace(/\s+/g, '_')
+        .replace(/^_+|_+$/g, '');
+      return cleaned || fallback;
+    }
+    function escHtml(str){
+      return String(str || '')
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;');
+    }
+    function nl2br(str){ return escHtml(str).replace(/\n/g, '<br>'); }
+    function invoiceLineAmount(line){ return parseNum(line.qty) * parseNum(line.unitCost); }
+    function invoiceSubtotal(invoice){ return (invoice.lines || []).reduce((sum, line) => sum + invoiceLineAmount(line), 0); }
+    function invoiceCredit(invoice){ return parseNum(invoice.credit ?? invoice.other) + parseNum(invoice.amountPaid); }
+    function invoiceTotal(invoice){ return invoiceSubtotal(invoice) + parseNum(invoice.tax) + parseNum(invoice.shipping) - invoiceCredit(invoice); }
+    function invoiceBalance(invoice){ return invoiceTotal(invoice); }
+    function invoiceLineDetailsHtml(line){
+      if (lineTypeUsesSeating(line.lineType)) {
+        const seatingBits = [
+          line.section ? 'Section: ' + escHtml(line.section) : '',
+          line.row ? 'Row: ' + escHtml(line.row) : '',
+          line.seats ? 'Seats: ' + escHtml(line.seats) : ''
+        ].filter(Boolean);
+        const seatingHtml = seatingBits.join('<br>');
+        const descHtml = line.description ? nl2br(line.description) : '';
+        return seatingHtml && descHtml ? seatingHtml + '<br><br>' + descHtml : (seatingHtml || descHtml || '&nbsp;');
+      }
+      return line.description ? nl2br(line.description) : '&nbsp;';
+    }
+
+    function openInvoiceMode(mode){
+      const editor = document.getElementById('invoiceEditor');
+      const history = document.getElementById('invoiceHistoryPanel');
+      const presets = document.getElementById('invoicePresetsPanel');
+      if (editor) editor.style.display = mode === 'editor' ? 'block' : 'none';
+      if (history) history.style.display = mode === 'history' ? 'block' : 'none';
+      if (presets) presets.style.display = mode === 'presets' ? 'block' : 'none';
+      if (mode === 'history') renderInvoiceHistory();
+      if (mode === 'presets') renderInvoicePresets();
+    }
+
+    function onInvoiceTypeChange(){
+      const invoice = collectInvoiceFromForm();
+      invoice.type = document.getElementById('invType').value || 'invoice-ticket';
+      invoice.lines = (invoice.lines || []).map(line => Object.assign(invoiceLineBase(invoice.type), line, {
+        lineType: line.lineType || invoiceLineTypeDefault(invoice.type)
+      }));
+      refreshDocumentLabels(invoice.type);
+      setInvoiceToForm(invoice);
+    }
+
+    function startNewInvoice(type){
+      currentInvoiceId = null;
+      currentInvoiceSavedName = '';
+      setInvoiceToForm(invoiceBase(type || (document.getElementById('invType')?.value || 'invoice-ticket')));
+      openInvoiceMode('editor');
+    }
+
+    function duplicateCurrentInvoice(){
+      const invoice = collectInvoiceFromForm();
+      invoice.id = 'inv-' + Date.now();
+      invoice.number = String(getNextInvoiceNumber());
+      invoice.savedName = '';
+      currentInvoiceId = null;
+      currentInvoiceSavedName = '';
+      setInvoiceToForm(invoice);
+    }
+
+    function copyBillingToShipping(){
+      const billing = document.getElementById('invBillingAddress');
+      const shipping = document.getElementById('invShippingAddress');
+      if (billing && shipping) shipping.value = billing.value;
+      refreshInvoicePreview();
+    }
+
+    function setFieldValue(id, value){
+      const el = document.getElementById(id);
+      if (el) el.value = value == null ? '' : value;
+    }
+
+    function refreshDocumentLabels(type){
+      const numberLabel = document.getElementById('invNumberLabel');
+      if (numberLabel){
+        numberLabel.childNodes[0].textContent = documentNumberLabel(type);
+      }
+    }
+
+    function setInvoiceToForm(invoice){
+      currentInvoiceId = invoice.id || null;
+      currentInvoiceSavedName = invoice.savedName || '';
+      setFieldValue('invType', invoice.type || 'invoice-ticket');
+      refreshDocumentLabels(invoice.type || 'invoice-ticket');
+      setFieldValue('invNumber', invoice.number || '');
+      setFieldValue('invCreated', invoice.createdDate || '');
+      setFieldValue('invDue', invoice.dueDate || '');
+      setFieldValue('invFulfillment', invoice.fulfillmentStatus || 'Pending');
+      setFieldValue('invExternalReference', invoice.externalReference || '');
+      setFieldValue('invInHandDate', invoice.inHandDate || invoice.externalDate || '');
+      setFieldValue('invTerms', invoice.terms || '');
+      setFieldValue('invPaymentType', invoice.paymentType || '');
+      setFieldValue('invDeliveryMethod', invoice.deliveryMethod || '');
+      setFieldValue('invStatus', invoice.status || 'Unpaid');
+      setFieldValue('invClientCompany', invoice.clientCompany || '');
+      setFieldValue('invClientContact', invoice.clientContact || '');
+      setFieldValue('invClientEmail', invoice.clientEmail || '');
+      setFieldValue('invClientPhone', invoice.clientPhone || '');
+      setFieldValue('invBillingAddress', invoice.billingAddress || '');
+      setFieldValue('invShippingAddress', invoice.shippingAddress || '');
+      setFieldValue('invCreatedBy', invoice.createdBy || '');
+      setFieldValue('invNotes', invoice.notes || '');
+      setFieldValue('invTax', invoice.tax ?? 0);
+      setFieldValue('invShipping', invoice.shipping ?? 0);
+      setFieldValue('invCredit', (invoice.credit ?? invoice.other ?? 0) + (invoice.amountPaid ?? 0));
+      renderLineItems(invoice.lines || [invoiceLineBase(invoice.type)]);
+      refreshInvoiceDatalists();
+      refreshInvoicePreview();
+    }
+
+    function renderLineItems(lines){
+      const wrap = document.getElementById('invoiceLines');
+      if (!wrap) return;
+      const type = document.getElementById('invType')?.value || 'invoice-ticket';
+      wrap.innerHTML = '';
+      (lines || []).forEach((line, idx) => {
+        const lineType = line.lineType || invoiceLineTypeDefault(type);
+        const showSeating = lineTypeUsesSeating(lineType);
+        const lineTypeOptionsHtml = INVOICE_LINE_TYPE_OPTIONS.map(option => `<option value="${escHtml(option)}"${option === lineType ? ' selected' : ''}>${escHtml(option)}</option>`).join('');
+        const seatingFieldsHtml = showSeating ? `
+            <label>Section<input type="text" data-line="${idx}" data-field="section" value="${escHtml(line.section || '')}" placeholder="Section"></label>
+            <label>Row<input type="text" data-line="${idx}" data-field="row" value="${escHtml(line.row || '')}" placeholder="Row"></label>
+            <label>Seats<input type="text" data-line="${idx}" data-field="seats" value="${escHtml(line.seats || '')}" placeholder="Seats"></label>
+        ` : '';
+        const lineEl = document.createElement('div');
+        lineEl.className = 'line-item';
+        lineEl.innerHTML = `
+          <div class="line-item-head">
+            <strong>Line Item ${idx + 1}</strong>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span class="line-item-total">${money(invoiceLineAmount(line))}</span>
+              <button type="button" class="cta ghost" onclick="removeLineItem(${idx})">Remove</button>
+            </div>
+          </div>
+          <div class="line-item-grid">
+            <label>Line Item Type
+              <select data-line="${idx}" data-field="lineType">
+                ${lineTypeOptionsHtml}
+              </select>
+            </label>
+            <label>Date<input type="date" data-line="${idx}" data-field="lineDate" value="${escHtml(line.lineDate || '')}"></label>
+            <label>Time<input type="time" data-line="${idx}" data-field="lineTime" value="${escHtml(line.lineTime || '')}"></label>
+            <label class="full">Event / Package Name<input list="eventNameList" type="text" data-line="${idx}" data-field="eventName" value="${escHtml(line.eventName || '')}" placeholder="Event or package"></label>
+            <label>Venue<input list="venueList" type="text" data-line="${idx}" data-field="venue" value="${escHtml(line.venue || '')}" placeholder="Venue"></label>
+            <label>Location<input type="text" data-line="${idx}" data-field="location" value="${escHtml(line.location || '')}" placeholder="City, State"></label>
+            ${seatingFieldsHtml}
+            <label>Qty<input type="number" min="0" step="1" data-line="${idx}" data-field="qty" value="${escHtml(line.qty ?? 1)}"></label>
+            <label>Unit Cost<input type="number" min="0" step="0.01" data-line="${idx}" data-field="unitCost" value="${escHtml(line.unitCost ?? 0)}"></label>
+            <label class="full">Description / Details<textarea style="${isTravelInvoiceType(type) ? 'min-height:160px;' : ''}" data-line="${idx}" data-field="description" placeholder="Description, inclusions, package notes, travel details, VIP add-ons, parking notes, etc.">${escHtml(line.description || '')}</textarea></label>
+          </div>
+        `;
+        wrap.appendChild(lineEl);
+      });
+      wrap.querySelectorAll('input, textarea, select').forEach(el => {
+        el.addEventListener('input', refreshInvoicePreview);
+        el.addEventListener('change', (event) => {
+          if (event.target?.dataset?.field === 'lineType') {
+            const invoice = collectInvoiceFromForm();
+            renderLineItems(invoice.lines);
+          }
+          refreshInvoicePreview();
+        });
+      });
+    }
+
+    function addLineItem(){
+      const invoice = collectInvoiceFromForm();
+      invoice.lines.push(invoiceLineBase(invoice.type));
+      renderLineItems(invoice.lines);
+      refreshInvoicePreview();
+    }
+
+    function removeLineItem(idx){
+      const invoice = collectInvoiceFromForm();
+      invoice.lines.splice(idx, 1);
+      if (!invoice.lines.length) invoice.lines.push(invoiceLineBase(invoice.type));
+      renderLineItems(invoice.lines);
+      refreshInvoicePreview();
+    }
+
+    function collectInvoiceFromForm(){
+      const invoice = {
+        id: currentInvoiceId || ('inv-' + Date.now()),
+        savedName: currentInvoiceSavedName || '',
+        type: document.getElementById('invType')?.value || 'invoice-ticket',
+        number: (document.getElementById('invNumber')?.value || '').trim() || String(getNextInvoiceNumber()),
+        createdDate: document.getElementById('invCreated')?.value || '',
+        dueDate: document.getElementById('invDue')?.value || '',
+        fulfillmentStatus: document.getElementById('invFulfillment')?.value || '',
+        externalReference: document.getElementById('invExternalReference')?.value || '',
+        inHandDate: document.getElementById('invInHandDate')?.value || '',
+        terms: document.getElementById('invTerms')?.value || '',
+        paymentType: document.getElementById('invPaymentType')?.value || '',
+        deliveryMethod: document.getElementById('invDeliveryMethod')?.value || '',
+        status: document.getElementById('invStatus')?.value || '',
+        clientCompany: document.getElementById('invClientCompany')?.value || '',
+        clientContact: document.getElementById('invClientContact')?.value || '',
+        clientEmail: document.getElementById('invClientEmail')?.value || '',
+        clientPhone: document.getElementById('invClientPhone')?.value || '',
+        billingAddress: document.getElementById('invBillingAddress')?.value || '',
+        shippingAddress: document.getElementById('invShippingAddress')?.value || '',
+        createdBy: document.getElementById('invCreatedBy')?.value || '',
+        notes: document.getElementById('invNotes')?.value || '',
+        tax: parseNum(document.getElementById('invTax')?.value),
+        shipping: parseNum(document.getElementById('invShipping')?.value),
+        credit: parseNum(document.getElementById('invCredit')?.value),
+        lines: []
+      };
+      const rows = {};
+      document.querySelectorAll('#invoiceLines [data-line]').forEach(el => {
+        const idx = el.dataset.line;
+        const field = el.dataset.field;
+        if (!rows[idx]) rows[idx] = invoiceLineBase(invoice.type);
+        rows[idx][field] = el.value;
+      });
+      invoice.lines = Object.keys(rows).sort((a,b) => Number(a) - Number(b)).map(key => {
+        const row = rows[key];
+        row.lineType = row.lineType || invoiceLineTypeDefault(invoice.type);
+        row.qty = parseNum(row.qty || 0);
+        row.unitCost = parseNum(row.unitCost || 0);
+        return row;
+      });
+      if (!invoice.lines.length) invoice.lines = [invoiceLineBase(invoice.type)];
+      return invoice;
+    }
+
+    function refreshInvoicePreview(){
+      const invoice = collectInvoiceFromForm();
+      setFieldValue('invNumber', invoice.number);
+      const preview = document.getElementById('invoicePreview');
+      if (!preview) return;
+      const subtotal = invoiceSubtotal(invoice);
+      const total = invoiceTotal(invoice);
+      const balance = invoiceBalance(invoice);
+      const credit = invoiceCredit(invoice);
+      const docLabel = documentLabel(invoice.type);
+      const fmtDateTime = (line) => {
+        const parts = [];
+        if (line.lineDate) parts.push(escHtml(formatInvoiceDate(line.lineDate)));
+        if (line.lineTime) parts.push(escHtml(formatInvoiceTime(line.lineTime)));
+        return parts.join('<br>') || '-';
+      };
+      const rows = invoice.lines.map(line => `
+        <tr>
+          <td>${fmtDateTime(line)}</td>
+          <td>
+            <strong>${escHtml(line.lineType || invoiceLineTypeDefault(invoice.type))}</strong><br>
+            ${escHtml(line.eventName || '') || '-'}${line.venue ? '<br>' + escHtml(line.venue || '') : ''}${line.location ? ' (' + escHtml(line.location || '') + ')' : ''}
+          </td>
+          <td>${invoiceLineDetailsHtml(line)}</td>
+          <td>${parseNum(line.qty)}</td>
+          <td>${money(line.unitCost)}</td>
+          <td>${money(invoiceLineAmount(line))}</td>
+        </tr>
+      `).join('');
+      const logoSrc = 'A1VIP_LOGO_WIDE_for_White_backgrounds_large.png';
+      preview.innerHTML = `
+        <div class="sky-top">
+          <div class="company-col">
+            <div><strong>A1 VIP Entertainment</strong></div>
+            <div>3246 Railroad Ave</div>
+            <div>Wantagh, New York 11793</div>
+            <div>United States</div>
+            <div>5168335911</div>
+            <div>email: Jaw@a1eei.com</div>
+          </div>
+          <div class="sky-logo-wrap">
+            <img src="${INVOICE_LOGO}" alt="A1 VIP Logo">
+          </div>
+        </div>
+
+        <div class="sky-created-row">
+          <div>
+            <div class="sky-section-title">${docLabel} Details</div>
+          </div>
+          <div class="created-by"><strong>Created By:</strong> ${escHtml(invoice.createdBy || '-')}</div>
+        </div>
+        <div class="sky-rule"></div>
+
+        <div class="sky-detail-grid">
+          <div><div class="label">${escHtml(documentNumberLabel(invoice.type))}</div><div class="value">${escHtml(invoice.number)}</div></div>
+          <div><div class="label">Date Created</div><div class="value">${escHtml(formatInvoiceDate(invoice.createdDate) || '-')}</div></div>
+          <div><div class="label">Due Date</div><div class="value">${escHtml(formatInvoiceDate(invoice.dueDate) || '-')}</div></div>
+          <div><div class="label">Fulfillment Status</div><div class="value">${escHtml(invoice.fulfillmentStatus || '-')}</div></div>
+          <div><div class="label">External Reference</div><div class="value">${escHtml(invoice.externalReference || '-')}</div></div>
+          <div><div class="label">In Hand Date</div><div class="value">${escHtml(formatInvoiceDate(invoice.inHandDate) || '-')}</div></div>
+        </div>
+
+        <div class="sky-customer">Customer: <span>${escHtml([invoice.clientContact, invoice.clientCompany].filter(Boolean).join(' ') || invoice.clientCompany || '-')}</span></div>
+        <div class="sky-rule"></div>
+
+        <div class="sky-three-col">
+          <div>
+            <div class="stack"><div class="label">Terms:</div><div class="value">${escHtml(invoice.terms || '-')}</div></div>
+            <div class="stack"><div class="label">Payment Type:</div><div class="value">${escHtml(invoice.paymentType || '-')}</div></div>
+            <div class="stack"><div class="label">Delivery Method:</div><div class="value">${escHtml(invoice.deliveryMethod || '-')}</div></div>
+            <div class="stack"><div class="label">Email:</div><div class="value">${escHtml(invoice.clientEmail || '-')}</div></div>
+          </div>
+          <div>
+            <div class="label">Billing Address</div>
+            <div class="value">${nl2br(invoice.billingAddress || '-')}</div>
+          </div>
+          <div>
+            <div class="label">Shipping Address</div>
+            <div class="value">${nl2br(invoice.shippingAddress || '-')}</div>
+          </div>
+        </div>
+
+        <div class="sky-section-title">Invoice Lines</div>
+        <div class="sky-rule"></div>
+        <div class="sky-lines-wrap invoice-section invoice-lines-section">
+          <table>
+            <thead>
+              <tr>
+                <th>Date / Time</th>
+                <th>Line Item / Event</th>
+                <th>Details</th>
+                <th>QTY</th>
+                <th>Unit Cost</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div class="sky-subtotal">Inventory Subtotal: ${money(subtotal)}</div>
+
+        <div class="label" style="font-size:18px;">Notes</div>
+        <div class="sky-notes">${invoice.notes ? nl2br(invoice.notes) : '&nbsp;'}</div>
+
+        <div class="sky-bottom">
+          <div class="sky-status-grid">
+            <div class="row"><span>Tax:</span><span>${money(invoice.tax)}</span></div>
+            <div class="row"><span>Shipping:</span><span>${money(invoice.shipping)}</span></div>
+            <div class="row"><span>Credit / Amount Paid:</span><span>-${money(credit).replace('$','')}</span></div>
+            <div class="row"><span class="strong">Marked as:</span><span class="strong">${escHtml(invoice.status || 'Unpaid')}</span></div>
+          </div>
+          <div class="sky-right-totals">
+            <div class="row grand"><span>Invoice Total:</span><span>${money(total)}</span></div>
+            <div class="row grand"><span>Outstanding Balance:</span><span>${money(balance)}</span></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function refreshInvoiceDatalists(){
+      const presets = loadInvoicePresets();
+      const mapping = {
+        clientCompanyList: presets.clientCompanies,
+        clientContactList: presets.clientContacts,
+        clientEmailList: presets.clientEmails,
+        clientPhoneList: presets.clientPhones,
+        termsList: presets.terms,
+        paymentTypeList: presets.paymentTypes,
+        deliveryMethodList: presets.deliveryMethods,
+        eventNameList: presets.eventNames,
+        venueList: presets.venues
+      };
+      Object.entries(mapping).forEach(([id, values]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = (values || []).map(v => `<option value="${escHtml(v)}"></option>`).join('');
+      });
+    }
+
+    function saveInvoice(){
+      const invoice = collectInvoiceFromForm();
+      const items = loadInvoices();
+      const duplicateNumber = items.find(item => item.number === invoice.number && item.id !== invoice.id);
+      if (duplicateNumber){
+        alert('That invoice number already exists in history. Please use a different number.');
+        return;
+      }
+      const idx = items.findIndex(item => item.id === invoice.id);
+      if (idx >= 0) items[idx] = invoice;
+      else items.unshift(invoice);
+      saveInvoices(items);
+      currentInvoiceId = invoice.id;
+
+      const presets = loadInvoicePresets();
+      addUnique(presets.clientCompanies, invoice.clientCompany);
+      addUnique(presets.clientContacts, invoice.clientContact);
+      addUnique(presets.clientEmails, invoice.clientEmail);
+      addUnique(presets.clientPhones, invoice.clientPhone);
+      addUnique(presets.terms, invoice.terms);
+      addUnique(presets.paymentTypes, invoice.paymentType);
+      addUnique(presets.deliveryMethods, invoice.deliveryMethod);
+      (invoice.lines || []).forEach(line => {
+        addUnique(presets.eventNames, line.eventName);
+        addUnique(presets.venues, line.venue);
+      });
+      saveInvoicePresets(presets);
+      refreshInvoiceDatalists();
+      refreshInvoicePreview();
+      renderInvoiceHistory();
+      alert('Invoice saved.');
+    }
+
+    function exportInvoiceFile(){
+      const invoice = collectInvoiceFromForm();
+      setFieldValue('invNumber', invoice.number);
+      const data = makePortableDoc('invoice', invoice);
+      const label = documentLabel(invoice.type);
+      const filename = `A1VIP_${safeFilenamePart(label)}_${safeFilenamePart(invoice.number, 'Draft')}.a1vip.json`;
+      downloadPortableDoc(filename, data);
+    }
+
+    async function handleInvoiceImport(event){
+      const file = event?.target?.files?.[0];
+      if (!file) return;
+      try{
+        const imported = await parsePortableDoc(file);
+        if (imported.kind !== 'invoice'){
+          throw new Error('This export file is not an invoice or purchase order.');
+        }
+        const invoice = Object.assign(invoiceBase(imported.payload?.type || 'invoice-ticket'), imported.payload || {});
+        invoice.lines = (invoice.lines && invoice.lines.length ? invoice.lines : [invoiceLineBase(invoice.type)]).map(line => Object.assign(invoiceLineBase(invoice.type), line));
+        setInvoiceToForm(invoice);
+        openInvoiceMode('editor');
+        showSection('invoices');
+        alert(`${documentLabel(invoice.type)} imported successfully.`);
+      }catch(error){
+        alert(error?.message || 'Unable to import that invoice file.');
+      }finally{
+        event.target.value = '';
+      }
+    }
+
+    function renderInvoiceHistory(){
+      const wrap = document.getElementById('invoiceHistoryList');
+      if (!wrap) return;
+      const items = loadInvoices();
+      if (!items.length){
+        wrap.innerHTML = '<div class="invoice-empty">No invoices saved yet.</div>';
+        return;
+      }
+      const query = (document.getElementById('invoiceHistorySearch')?.value || '').trim().toLowerCase();
+      const filtered = query
+        ? items.filter(item => [
+            item.savedName,
+            item.number,
+            item.clientCompany,
+            item.clientContact,
+            item.clientEmail,
+            item.status,
+            documentTypeLabel(item.type || 'invoice-ticket')
+          ].some(value => String(value || '').toLowerCase().includes(query)))
+        : items;
+      if (!filtered.length){
+        wrap.innerHTML = '<div class="invoice-empty">No invoices match your search.</div>';
+        return;
+      }
+      wrap.innerHTML = filtered.map(item => `
+        <div class="invoice-history-card">
+          <div class="invoice-history-head">
+            <div>
+              <strong>${escHtml(item.savedName || `${documentLabel(item.type)} #${item.number}`)}</strong>
+              <div style="margin-top:6px;color:#cbd5e1;">${escHtml(documentLabel(item.type))} #${escHtml(item.number)} · ${escHtml(item.clientCompany || 'No client')} · ${escHtml(documentTypeLabel(item.type || 'invoice-ticket'))}</div>
+            </div>
+            <span class="invoice-chip">${escHtml(item.status || 'Unpaid')}</span>
+          </div>
+          <div style="margin-top:10px;color:#cbd5e1;">
+            Created: ${escHtml(item.createdDate || '-')} · Due: ${escHtml(item.dueDate || '-')} · Total: ${money(invoiceTotal(item))}
+          </div>
+          <div class="invoice-toolbar" style="margin-top:12px;margin-bottom:0;">
+            <button class="btn" onclick="loadInvoiceFromHistory('${escHtml(item.id)}')">Open</button>
+            <button class="btn" onclick="renameInvoice('${escHtml(item.id)}')">Rename</button>
+            <button class="btn" onclick="duplicateInvoiceFromHistory('${escHtml(item.id)}')">Duplicate</button>
+            <button class="btn btn-remove" onclick="deleteInvoice('${escHtml(item.id)}')">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderInvoicePresets(){
+      const wrap = document.getElementById('invoicePresetsList');
+      if (!wrap) return;
+      const presets = loadInvoicePresets();
+      const cards = [
+        ['Client Companies', presets.clientCompanies],
+        ['Contacts', presets.clientContacts],
+        ['Emails', presets.clientEmails],
+        ['Phones', presets.clientPhones],
+        ['Terms', presets.terms],
+        ['Payment Types', presets.paymentTypes],
+        ['Delivery Methods', presets.deliveryMethods],
+        ['Event Names', presets.eventNames],
+        ['Venues', presets.venues]
+      ];
+      wrap.innerHTML = cards.map(([title, values]) => `
+        <div class="invoice-preset-card">
+          <strong>${escHtml(title)}</strong>
+          <div style="margin-top:8px;color:#cbd5e1;">${values && values.length ? values.map(v => escHtml(v)).join(' • ') : 'No saved values yet.'}</div>
+        </div>
+      `).join('');
+    }
+
+    function loadInvoiceFromHistory(id){
+      const invoice = loadInvoices().find(item => item.id === id);
+      if (!invoice) return;
+      setInvoiceToForm(invoice);
+      openInvoiceMode('editor');
+      showSection('invoices');
+    }
+
+    function duplicateInvoiceFromHistory(id){
+      const invoice = loadInvoices().find(item => item.id === id);
+      if (!invoice) return;
+      invoice.id = 'inv-' + Date.now();
+      invoice.number = String(getNextInvoiceNumber());
+      invoice.savedName = '';
+      currentInvoiceId = null;
+      currentInvoiceSavedName = '';
+      setInvoiceToForm(invoice);
+      openInvoiceMode('editor');
+      showSection('invoices');
+    }
+
+    function renameInvoice(id){
+      const items = loadInvoices();
+      const invoice = items.find(item => item.id === id);
+      if (!invoice) return;
+      const nextName = prompt('Enter a saved name for this invoice or purchase order.', invoice.savedName || `${documentLabel(invoice.type)} #${invoice.number}`);
+      if (nextName === null) return;
+      invoice.savedName = String(nextName || '').trim();
+      saveInvoices(items);
+      if (currentInvoiceId === id) currentInvoiceSavedName = invoice.savedName || '';
+      renderInvoiceHistory();
+    }
+
+    function deleteInvoice(id){
+      if (!confirm('Delete this invoice from history?')) return;
+      const items = loadInvoices().filter(item => item.id !== id);
+      saveInvoices(items);
+      renderInvoiceHistory();
+    }
+
+    function clearInvoiceHistory(){
+      if (!confirm('Clear all invoice history?')) return;
+      localStorage.removeItem(INVOICE_STORAGE_KEY);
+      renderInvoiceHistory();
+      startNewInvoice();
+    }
+
+    const LETTER_STORAGE_KEY = 'a1vip-form-letters-v1';
+    let currentLetterId = null;
+    let currentLetterSavedName = '';
+
+    function letterBase(){
+      return {
+        id: 'letter-' + Date.now(),
+        savedName: '',
+        to: '',
+        toEmail: '',
+        date: new Date().toISOString().slice(0,10),
+        from: 'John Anthony White',
+        subject: '',
+        body: ''
+      };
+    }
+
+    function loadLetters(){
+      try { return JSON.parse(localStorage.getItem(LETTER_STORAGE_KEY)) || []; }
+      catch(e){ return []; }
+    }
+
+    function saveLetters(items){
+      localStorage.setItem(LETTER_STORAGE_KEY, JSON.stringify(items));
+    }
+
+    function openLetterMode(mode){
+      const editor = document.getElementById('letterEditor');
+      const history = document.getElementById('letterHistoryPanel');
+      if (editor) editor.style.display = mode === 'editor' ? 'block' : 'none';
+      if (history) history.style.display = mode === 'history' ? 'block' : 'none';
+      if (mode === 'history') renderLetterHistory();
+    }
+
+    function setLetterField(id, value){
+      const el = document.getElementById(id);
+      if (el) el.value = value == null ? '' : value;
+    }
+
+    function setLetterToForm(letter){
+      currentLetterId = letter.id || null;
+      currentLetterSavedName = letter.savedName || '';
+      setLetterField('letterTo', letter.to);
+      setLetterField('letterToEmail', letter.toEmail);
+      setLetterField('letterDate', letter.date);
+      setLetterField('letterFrom', letter.from);
+      setLetterField('letterSubject', letter.subject);
+      setLetterField('letterBody', letter.body);
+      refreshLetterPreview();
+    }
+
+    function startNewLetter(){
+      currentLetterId = null;
+      currentLetterSavedName = '';
+      setLetterToForm(letterBase());
+      openLetterMode('editor');
+    }
+
+    function collectLetterFromForm(){
+      return {
+        id: currentLetterId || ('letter-' + Date.now()),
+        savedName: currentLetterSavedName || '',
+        to: document.getElementById('letterTo')?.value || '',
+        toEmail: document.getElementById('letterToEmail')?.value || '',
+        date: document.getElementById('letterDate')?.value || '',
+        from: document.getElementById('letterFrom')?.value || 'John Anthony White',
+        subject: document.getElementById('letterSubject')?.value || '',
+        body: document.getElementById('letterBody')?.value || ''
+      };
+    }
+
+    function saveLetter(){
+      const letter = collectLetterFromForm();
+      const items = loadLetters();
+      const idx = items.findIndex(item => item.id === letter.id);
+      if (idx >= 0) items[idx] = letter;
+      else items.unshift(letter);
+      saveLetters(items);
+      currentLetterId = letter.id;
+      refreshLetterPreview();
+      renderLetterHistory();
+      alert('Letter saved.');
+    }
+
+    function exportLetterFile(){
+      const letter = collectLetterFromForm();
+      const data = makePortableDoc('letter', letter);
+      const filename = `A1VIP_Letter_${safeFilenamePart(letter.subject || letter.to || letter.date, 'Letter')}.a1vip.json`;
+      downloadPortableDoc(filename, data);
+    }
+
+    async function handleLetterImport(event){
+      const file = event?.target?.files?.[0];
+      if (!file) return;
+      try{
+        const imported = await parsePortableDoc(file);
+        if (imported.kind !== 'letter'){
+          throw new Error('This export file is not a form letter.');
+        }
+        const letter = Object.assign(letterBase(), imported.payload || {});
+        setLetterToForm(letter);
+        openLetterMode('editor');
+        showSection('formLetter');
+        alert('Letter imported successfully.');
+      }catch(error){
+        alert(error?.message || 'Unable to import that letter file.');
+      }finally{
+        event.target.value = '';
+      }
+    }
+
+    function renderLetterHistory(){
+      const wrap = document.getElementById('letterHistoryList');
+      if (!wrap) return;
+      const items = loadLetters();
+      if (!items.length){
+        wrap.innerHTML = '<div class="invoice-empty">No letters saved yet.</div>';
+        return;
+      }
+      const query = (document.getElementById('letterHistorySearch')?.value || '').trim().toLowerCase();
+      const filtered = query
+        ? items.filter(item => [item.savedName, item.to, item.subject, item.date, item.toEmail].some(value => String(value || '').toLowerCase().includes(query)))
+        : items;
+      if (!filtered.length){
+        wrap.innerHTML = '<div class="invoice-empty">No letters match your search.</div>';
+        return;
+      }
+      wrap.innerHTML = filtered.map(item => `
+        <div class="invoice-history-card">
+          <div class="invoice-history-head">
+            <div>
+              <strong>${escHtml(item.savedName || item.subject || 'Untitled Letter')}</strong>
+              <div style="margin-top:6px;color:#cbd5e1;">${escHtml(item.to || 'No recipient')} ${item.toEmail ? '· ' + escHtml(item.toEmail) : ''}</div>
+            </div>
+            <span class="invoice-chip">${escHtml(formatInvoiceDate(item.date) || '-')}</span>
+          </div>
+          <div class="invoice-toolbar" style="margin-top:12px;margin-bottom:0;">
+            <button class="btn" onclick="loadLetterFromHistory('${escHtml(item.id)}')">Open</button>
+            <button class="btn" onclick="renameLetter('${escHtml(item.id)}')">Rename</button>
+            <button class="btn" onclick="printSavedLetter('${escHtml(item.id)}')">Print</button>
+            <button class="btn btn-remove" onclick="deleteLetter('${escHtml(item.id)}')">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function loadLetterFromHistory(id){
+      const letter = loadLetters().find(item => item.id === id);
+      if (!letter) return;
+      setLetterToForm(letter);
+      openLetterMode('editor');
+      showSection('formLetter');
+    }
+
+    function deleteLetter(id){
+      if (!confirm('Delete this letter from history?')) return;
+      const items = loadLetters().filter(item => item.id !== id);
+      saveLetters(items);
+      renderLetterHistory();
+    }
+
+    function renameLetter(id){
+      const items = loadLetters();
+      const letter = items.find(item => item.id === id);
+      if (!letter) return;
+      const nextName = prompt('Enter a saved name for this letter.', letter.savedName || letter.subject || 'Untitled Letter');
+      if (nextName === null) return;
+      letter.savedName = String(nextName || '').trim();
+      saveLetters(items);
+      if (currentLetterId === id) currentLetterSavedName = letter.savedName || '';
+      renderLetterHistory();
+    }
+
+    function clearLetterHistory(){
+      if (!confirm('Clear all saved letters?')) return;
+      localStorage.removeItem(LETTER_STORAGE_KEY);
+      renderLetterHistory();
+      startNewLetter();
+    }
+
+    function renderLetterPreviewHtml(letter){
+      return `
+        <div class="sky-top">
+          <div class="company-col">
+            <div><strong>A1 VIP Entertainment</strong></div>
+            <div>3246 Railroad Ave</div>
+            <div>Wantagh, New York 11793</div>
+            <div>United States</div>
+            <div>5168335911</div>
+            <div>email: Jaw@a1eei.com</div>
+          </div>
+          <div class="sky-logo-wrap">
+            <img src="${INVOICE_LOGO}" alt="A1 VIP Logo">
+          </div>
+        </div>
+
+        <div class="sky-created-row">
+          <div></div>
+          <div class="created-by" style="justify-self:end;text-align:right;"><strong>Date:</strong> ${escHtml(formatInvoiceDate(letter.date) || '-')}</div>
+        </div>
+        <div class="sky-rule"></div>
+
+        <div class="letter-meta">
+          <div class="letter-meta-row"><strong>To:</strong> ${escHtml(letter.to || '-')}</div>
+          <div class="letter-meta-row"><strong>Subject:</strong> ${escHtml(letter.subject || '-')}</div>
+        </div>
+
+        <div class="letter-body">${letter.body ? nl2br(letter.body) : '&nbsp;'}</div>
+
+        <div class="letter-signature">
+          <div>Sincerely,</div>
+          <div style="margin-top:14px;"><strong>${escHtml(letter.from || 'John Anthony White')}</strong></div>
+          <div>A1 VIP Entertainment</div>
+        </div>
+      `;
+    }
+
+    function refreshLetterPreview(){
+      const letter = collectLetterFromForm();
+      const preview = document.getElementById('letterPreview');
+      if (!preview) return;
+      preview.innerHTML = renderLetterPreviewHtml(letter);
+    }
+
+    function printLetter(){
+      refreshLetterPreview();
+      const original = document.getElementById('letterPreview');
+      if (!original){
+        alert('Letter preview not found');
+        return;
+      }
+      const letter = collectLetterFromForm();
+      openInvoicePrintFrame(original.outerHTML, `A1VIP Letter ${letter.subject || letter.to || ''}`.trim());
+    }
+
+    function printSavedLetter(id){
+      const letter = loadLetters().find(item => item.id === id);
+      if (!letter){
+        alert('Saved letter not found');
+        return;
+      }
+      const previewHtml = `<div id="letterPreview" class="invoice-preview">${renderLetterPreviewHtml(letter)}</div>`;
+      openInvoicePrintFrame(previewHtml, `A1VIP Letter ${letter.subject || letter.to || ''}`.trim());
+    }
+
+    function waitForImages(root){
+      const images = [...root.querySelectorAll('img')];
+      if (!images.length) return Promise.resolve();
+      return Promise.all(images.map(img => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        return new Promise(resolve => {
+          const done = () => resolve();
+          img.addEventListener('load', done, { once:true });
+          img.addEventListener('error', done, { once:true });
+        });
+      }));
+    }
+
+    function openInvoicePrintFrame(invoiceHtml, documentTitle='A1VIP Document'){
+      const existing = document.getElementById('invoicePrintFrame');
+      if (existing) existing.remove();
+      const frame = document.createElement('iframe');
+      frame.id = 'invoicePrintFrame';
+      frame.style.position = 'fixed';
+      frame.style.left = '-9999px';
+      frame.style.top = '0';
+      frame.style.width = '1200px';
+      frame.style.height = '1056px';
+      frame.style.border = '0';
+      frame.style.opacity = '0';
+      frame.style.pointerEvents = 'none';
+      document.body.appendChild(frame);
+      const doc = frame.contentWindow?.document;
+      if (!doc){
+        frame.remove();
+        return false;
+      }
+      const baseStyles = document.querySelector('style')?.textContent || '';
+      doc.open();
+      doc.write(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escHtml(documentTitle)}</title>
+  <style>
+    ${baseStyles}
+    body{margin:0;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif}
+    .print-wrap{width:816px;max-width:816px;margin:0 auto;padding:28px 36px;box-sizing:border-box}
+    .invoice-preview{background:#fff !important;color:#111 !important;min-height:auto !important;border-radius:0 !important;padding:0 !important}
+    .invoice-preview *{box-sizing:border-box}
+    .invoice-preview .sky-top{display:grid !important;grid-template-columns:minmax(0,1fr) 220px !important;gap:18px !important;align-items:start !important;margin-bottom:18px !important}
+    .invoice-preview .sky-top .company-col,.invoice-preview .sky-top .address-col{font-size:11px !important;line-height:1.35 !important}
+    .invoice-preview .sky-logo-wrap{display:flex !important;justify-content:flex-end !important;align-items:flex-start !important;width:220px !important;margin-left:auto !important}
+    .invoice-preview .sky-logo-wrap img{max-width:180px !important;max-height:120px !important;object-fit:contain !important}
+    .invoice-preview .sky-created-row{display:grid !important;grid-template-columns:1fr 1fr !important;align-items:end !important;margin-bottom:10px !important}
+    .invoice-preview .sky-created-row .created-by{justify-self:start !important;font-size:11px !important}
+    .invoice-preview .sky-detail-grid{display:grid !important;grid-template-columns:repeat(3,1fr) !important;gap:14px 24px !important;margin-bottom:12px !important}
+    .invoice-preview .sky-three-col{display:grid !important;grid-template-columns:1fr 1fr 1fr !important;gap:16px !important;margin:12px 0 16px !important}
+    .invoice-preview .sky-bottom{display:grid !important;grid-template-columns:1fr 240px !important;gap:14px !important;align-items:start !important;margin-top:10px !important}
+    img{max-width:100%;height:auto}
+    @page{size:letter portrait;margin:0}
+    .invoice-preview .sky-top,
+    .invoice-preview .sky-created-row,
+    .invoice-preview .sky-detail-grid,
+    .invoice-preview .sky-three-col,
+    .invoice-preview .sky-bottom{page-break-inside:avoid;break-inside:avoid}
+    .invoice-preview .invoice-lines-section{page-break-inside:auto;break-inside:auto}
+    .invoice-preview table{page-break-inside:auto}
+    .invoice-preview thead{display:table-header-group}
+    .invoice-preview tr{page-break-inside:avoid;break-inside:avoid}
+    @media print{
+      body{background:#fff}
+      .print-wrap{width:816px;max-width:816px;margin:0 auto;padding:28px 36px}
+    }
+  </style>
+</head>
+<body>
+  <div class="print-wrap">${invoiceHtml}</div>
+</body>
+</html>`);
+      doc.close();
+      setTimeout(() => {
+        try{
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+        }catch(e){}
+        setTimeout(() => frame.remove(), 2000);
+      }, 300);
+      return true;
+    }
+
+    async function downloadInvoicePdf(){
+      refreshInvoicePreview();
+      const invoice = collectInvoiceFromForm();
+      const original = document.getElementById("invoicePreview");
+      if (!original){
+        alert("Invoice preview not found");
+        return;
+      }
+      if (typeof html2pdf !== 'function'){
+        alert("PDF library not loaded yet. Refresh the page and try again.");
+        return;
+      }
+
+      const clone = original.cloneNode(true);
+      clone.style.fontSize = "13px";
+      clone.style.lineHeight = "1.3";
+      clone.style.transform = "scale(0.92)";
+      clone.style.transformOrigin = "top left";
+      clone.style.width = "888px";
+      clone.style.maxWidth = "816px";
+      clone.style.margin = "0 auto";
+      clone.style.padding = "40px 48px";
+      clone.style.background = "#ffffff";
+      clone.style.boxSizing = "border-box";
+
+      clone.querySelectorAll("h1, h2, h3, h4").forEach(el => {
+        el.style.fontSize = "90%";
+      });
+
+      const logo = clone.querySelector(".sky-logo-wrap img");
+      if (logo){
+        logo.style.width = "210px";
+        logo.style.maxWidth = "210px";
+        logo.style.height = "auto";
+      }
+
+      clone.querySelectorAll("*").forEach(el => {
+        el.style.boxSizing = "border-box";
+      });
+
+      const wrapper = document.createElement("div");
+      wrapper.style.position = "fixed";
+      wrapper.style.left = "-9999px";
+      wrapper.style.top = "0";
+      wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
+
+      await waitForImages(clone);
+
+      const contentHeight = clone.scrollHeight;
+      const PAGE_HEIGHT = 1056;
+      if (contentHeight > PAGE_HEIGHT){
+        const lines = clone.querySelector(".invoice-lines-section");
+        if (lines) lines.style.pageBreakAfter = "auto";
+
+        clone.querySelectorAll(".invoice-section").forEach(section => {
+          section.style.marginBottom = "12px";
+        });
+        clone.querySelectorAll("tr").forEach(row => {
+          row.style.pageBreakInside = "avoid";
+        });
+      }
+
+      html2pdf().set({
+        margin: 0,
+        filename: `A1VIP_${safeFilenamePart(documentLabel(invoice.type))}_${safeFilenamePart(invoice.number, 'Draft')}.pdf`,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: {
+          scale: 2,
+          useCORS: false,
+          allowTaint: true,
+          backgroundColor: "#ffffff"
+        },
+        jsPDF: {
+          unit: 'pt',
+          format: 'letter',
+          orientation: 'portrait'
+        },
+        pagebreak: {
+          mode: ['css', 'legacy']
+        }
+      }).from(clone).save().then(() => {
+        wrapper.remove();
+      }).catch((error) => {
+        wrapper.remove();
+        console.error('PDF export failed', error);
+        const msg = error && error.message ? error.message : String(error || 'Unknown error');
+        const usedFallback = openInvoicePrintFrame(original.outerHTML, `A1VIP ${documentLabel(invoice.type)} ${invoice.number}`);
+        if (!usedFallback){
+          alert('PDF export failed: ' + msg);
+        }
+      });
+    }
+
+    async function downloadLetterPdf(){
+      refreshLetterPreview();
+      const letter = collectLetterFromForm();
+      const original = document.getElementById("letterPreview");
+      if (!original){
+        alert("Letter preview not found");
+        return;
+      }
+      if (typeof html2pdf !== 'function'){
+        alert("PDF library not loaded yet. Refresh the page and try again.");
+        return;
+      }
+
+      const clone = original.cloneNode(true);
+      clone.style.fontSize = "13px";
+      clone.style.lineHeight = "1.45";
+      clone.style.width = "888px";
+      clone.style.maxWidth = "816px";
+      clone.style.margin = "0 auto";
+      clone.style.padding = "40px 48px";
+      clone.style.background = "#ffffff";
+      clone.style.boxSizing = "border-box";
+      clone.querySelectorAll("*").forEach(el => {
+        el.style.boxSizing = "border-box";
+      });
+
+      const wrapper = document.createElement("div");
+      wrapper.style.position = "fixed";
+      wrapper.style.left = "-9999px";
+      wrapper.style.top = "0";
+      wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
+
+      await waitForImages(clone);
+
+      html2pdf().set({
+        margin: 0,
+        filename: `A1VIP_Letter_${safeFilenamePart(letter.subject || letter.to || letter.date, 'Letter')}.pdf`,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: {
+          scale: 2,
+          useCORS: false,
+          allowTaint: true,
+          backgroundColor: "#ffffff"
+        },
+        jsPDF: {
+          unit: 'pt',
+          format: 'letter',
+          orientation: 'portrait'
+        },
+        pagebreak: {
+          mode: ['css', 'legacy']
+        }
+      }).from(clone).save().then(() => {
+        wrapper.remove();
+      }).catch((error) => {
+        wrapper.remove();
+        console.error('Letter PDF export failed', error);
+        const msg = error && error.message ? error.message : String(error || 'Unknown error');
+        const usedFallback = openInvoicePrintFrame(original.outerHTML, `A1VIP Letter ${letter.subject || letter.to || ''}`.trim());
+        if (!usedFallback){
+          alert('Letter PDF export failed: ' + msg);
+        }
+      });
+    }
+
+    function emailInvoice(){
+      const invoice = collectInvoiceFromForm();
+      const docLabel = documentLabel(invoice.type);
+      const subject = encodeURIComponent(`${docLabel} ${invoice.number} - ${invoice.clientCompany || 'A1 VIP Entertainment'}`);
+      const body = encodeURIComponent(
+        `Hello ${invoice.clientContact || ''},\n\n` +
+        `Please find ${docLabel.toLowerCase()} ${invoice.number} for ${invoice.clientCompany || ''}.\n` +
+        `${docLabel} total: ${money(invoiceTotal(invoice))}\n` +
+        `Outstanding balance: ${money(invoiceBalance(invoice))}\n\n` +
+        `Thank you,\nA1 VIP Entertainment`
+      );
+      const to = encodeURIComponent(invoice.clientEmail || '');
+      window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+    }
+
+    function emailLetter(){
+      const letter = collectLetterFromForm();
+      const to = encodeURIComponent(letter.toEmail || '');
+      const subject = encodeURIComponent(letter.subject || 'Form Letter');
+      const body = encodeURIComponent(
+        `${letter.to ? 'To: ' + letter.to + '\n\n' : ''}` +
+        `${letter.body || ''}\n\n` +
+        `Sincerely,\n${letter.from || 'John Anthony White'}\nA1 VIP Entertainment`
+      );
+      window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+    }
+
+    function bindInvoiceFieldListeners(){
+      [
+        'invNumber','invCreated','invDue','invFulfillment','invExternalReference','invInHandDate','invTerms','invPaymentType',
+        'invDeliveryMethod','invStatus','invClientCompany','invClientContact','invClientEmail','invClientPhone',
+        'invBillingAddress','invShippingAddress','invCreatedBy','invNotes','invTax','invShipping','invCredit'
+      ].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', refreshInvoicePreview);
+        el.addEventListener('change', refreshInvoicePreview);
+      });
+    }
+
+    function bindLetterFieldListeners(){
+      [
+        'letterTo','letterToEmail','letterDate','letterFrom','letterSubject','letterBody'
+      ].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', refreshLetterPreview);
+        el.addEventListener('change', refreshLetterPreview);
+      });
+    }
+
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('./sw.v4.js');
+
+          function showUpdatePrompt(waitingSW) {
+            const bar = document.createElement('div');
+            bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;padding:12px 16px;background:#111827;color:#fff;display:flex;gap:12px;align-items:center;justify-content:center;z-index:9999;border-top:1px solid rgba(148,163,184,.22)';
+            bar.innerHTML = `
+              <span>New update available.</span>
+              <button id="a1vip-update" style="background:#22d3ee;border:none;color:#0b1220;font-weight:800;border-radius:10px;padding:8px 12px;cursor:pointer;">Update</button>
+              <button id="a1vip-dismiss" style="background:transparent;border:1px solid rgba(148,163,184,.22);color:#e5e7eb;border-radius:10px;padding:8px 12px;cursor:pointer;">Later</button>
+            `;
+            document.body.appendChild(bar);
+
+            document.getElementById('a1vip-dismiss').onclick = () => bar.remove();
+            document.getElementById('a1vip-update').onclick = () => {
+              waitingSW.postMessage({ type: 'SKIP_WAITING' });
+            };
+
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              setTimeout(() => window.location.reload(), 100);
+            });
+          }
+
+          if (reg.waiting) showUpdatePrompt(reg.waiting);
+
+          reg.addEventListener('updatefound', () => {
+            const newSW = reg.installing;
+            if (!newSW) return;
+            newSW.addEventListener('statechange', () => {
+              if (newSW.state === 'installed' && reg.waiting) {
+                showUpdatePrompt(reg.waiting);
+              }
+            });
+          });
+
+          setInterval(() => reg.update().catch(()=>{}), 30 * 60 * 1000);
+        } catch (e) {
+          console.error('SW registration failed', e);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
