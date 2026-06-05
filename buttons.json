@@ -90,10 +90,6 @@
         "url": "https://www.governorsballmusicfestival.com/tickets"
       },
       {
-        "label": "hertz.com",
-        "url": "https://www.hertz.com/us/en/manage-profile/track-my-status"
-      },
-      {
         "label": "intake.charitybuzz.com",
         "url": "https://intake.charitybuzz.com/submissions"
       },
@@ -292,6 +288,10 @@
       {
         "label": "centerhillmarina.com",
         "url": "https://www.centerhillmarina.com/"
+      },
+      {
+        "label": "hertz.com",
+        "url": "https://www.hertz.com/us/en/manage-profile/track-my-status"
       },
       {
         "label": "marriott.com",
