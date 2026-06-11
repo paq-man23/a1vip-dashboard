@@ -146,10 +146,6 @@
         "url": "https://Rockjockcollectibles.com"
       },
       {
-        "label": "southwest.com",
-        "url": "https://www.southwest.com/loyalty/myaccount/"
-      },
-      {
         "label": "tickpick.com",
         "url": "https://www.tickpick.com/"
       },
@@ -316,6 +312,10 @@
       {
         "label": "resy Restuarant Reservation 5 stars",
         "url": "https://resy.com/cities/new-york-ny/events?seats=6&time=1730&list=collection_1031&date=2026-01-31"
+      },
+      {
+        "label": "southwest.com",
+        "url": "https://www.southwest.com/loyalty/myaccount/"
       },
       {
         "label": "Villa Rentals",
