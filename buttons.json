@@ -18,6 +18,10 @@
         "url": "https://app.squareup.com/login?lang_code=en-us"
       },
       {
+        "label": "allegiant.com",
+        "url": "https://www.allegiant.com"
+      },
+      {
         "label": "allegiantair.com",
         "url": "https://www.allegiantair.com/?password_updated=true"
       },
