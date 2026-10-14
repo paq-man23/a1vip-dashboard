@@ -33,3 +33,12 @@ Invoice editors now include a separate Skybox / Internal Details panel for Vendo
 The invoker invoice-history view enriches older imported invoices from immutable original records or the latest accepted source revision without rewriting stored documents. Edited invoice fields take precedence over report defaults and survive later saves. Source classification also handles resolved import copies. Duplicate/imported drafts created as a new A1 document receive a new database number.
 
 Invoice Total means gross subtotal plus tax and shipping; Outstanding Balance deducts credit/amount paid. Merely saving the derived report metadata does not create a false weekly-sync conflict, while genuine changes to business or bookkeeping fields remain protected.
+
+
+## Editable contact cards
+
+Customers and vendors share an editable Rolodex. Letter tabs use the imported last name, with company/display name as the fallback. Search covers contact details, type, tags, and notes. Add Customer/Add Vendor creates a shared contact without a Skybox ID. Save Contact persists changes across devices; phone and email links open the device's configured calling/email app. Photos are resized to JPEG and stored in a private, staff-only Supabase bucket.
+
+Staff changes overlay the latest Skybox contact, preserving imported originals and protecting locally added details from weekly imports. Unedited fields continue to receive Skybox updates. Simultaneous contact edits are rejected rather than overwriting another device's save.
+
+Invoice contact search shows clickable matches as you type. Selecting a contact fills the invoice fields. Saving an invoice does not automatically overwrite a contact: choose **Save invoice details to contact** to update the selected contact's changed name, company, email, phone, address, or payment preference. Existing invoices remain historical snapshots.

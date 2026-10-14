@@ -11,12 +11,12 @@
   function beginRecovery(id) {
     recoveryUserId = id;
     ready = false; invoices = []; presets = {}; versions.clear();
-    documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; contacts = [];
+    documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; contacts = []; contactVersions.clear();
     try { sessionStorage.setItem(RECOVERY_KEY, id); } catch {}
     window.dispatchEvent(new Event('a1-password-recovery'));
   }
   let invoices = [], presets = {}, versions = new Map();
-  let contacts = [];
+  let contacts = [], contactVersions = new Map();
   let documents = { letter: [], itinerary: [] }, documentVersions = new Map(), conflicts = [];
   const copy = value => JSON.parse(JSON.stringify(value));
   const check = result => { if (result.error) throw new Error(result.error.message); return result.data; };
@@ -49,7 +49,7 @@
     return client;
   }
   function clear() { user = null; ready = false; invoices = []; presets = {}; versions.clear();
-    documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; contacts = []; }
+    documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; contacts = []; contactVersions.clear(); }
   function requireReady() {
     if (!user || !ready || recoveryUserId) throw new Error('Sign in and load Supabase invoices before saving.');
     return client;
@@ -85,12 +85,13 @@
     }
     const contactRows = [];
     for (const kind of ['customer','vendor']) for (let offset = 0; ; offset += 500) {
-      const page = check(await client.from('a1_skybox_contacts').select('document').eq('kind',kind).order('source_id').range(offset,offset+499));
-      contactRows.push(...page.map(row => row.document));
+      const page = check(await client.from('a1_contacts').select('document,version').eq('kind',kind).order('id').range(offset,offset+499));
+      contactRows.push(...page);
       if (page.length < 500) break;
     }
     if (user?.id !== identity || recoveryUserId) throw new Error('Session changed. Sign in again.');
-    contacts = contactRows;
+    contacts = contactRows.map(row=>row.document);
+    contactVersions = new Map(contactRows.map(row=>[row.document.kind+':'+row.document.id,row.version||0]));
     invoices = rows.map(row => row.document);
     versions = new Map(rows.map(row => [row.id, row.version]));
     presets = {};
@@ -279,9 +280,31 @@
     }
     await refresh(); return result;
   }
+  async function saveContact(kind,id,patch,expectedVersion){
+    const c=requireReady(),identity=user.id;
+    const row=check(await c.rpc('a1_save_contact',{p_kind:kind,p_id:id,p_patch:patch,p_expected_version:expectedVersion}));
+    if(user?.id!==identity||recoveryUserId)throw new Error('Session changed. Refresh contacts to check the save.');
+    contacts=[row.document,...contacts.filter(item=>item.kind!==kind||item.id!==id)];
+    contactVersions.set(kind+':'+id,row.version);
+    return copy(row.document);
+  }
+  async function uploadContactPhoto(kind,id,blob){
+    const c=requireReady();
+    if(!['customer','vendor'].includes(kind)||!/^([0-9]+|[a-f0-9-]{36})$/.test(id)||blob.type!=='image/jpeg'||blob.size>524288)throw new Error('Invalid contact photo.');
+    const path=kind+'/'+id+'/'+crypto.randomUUID()+'.jpg';
+    check(await c.storage.from('a1-contact-photos').upload(path,blob,{contentType:'image/jpeg',upsert:false}));return path;
+  }
+  async function contactPhotoUrl(path){
+    const c=requireReady();if(!path)return '';
+    const data=check(await c.storage.from('a1-contact-photos').createSignedUrl(path,600));return data.signedUrl;
+  }
+  async function removeContactPhoto(path){
+    if(path)check(await requireReady().storage.from('a1-contact-photos').remove([path]));
+  }
   window.A1Data = {
     fetchSyncRuns: async () => { const c=requireReady(); return check(await c.from('a1_skybox_sync_runs').select('machine_label,started_at,finished_at,status,summary').order('started_at',{ascending:false}).limit(5)); },
-    importSkybox, contacts: () => copy(contacts),
+    importSkybox, contacts: () => copy(contacts), saveContact, uploadContactPhoto, contactPhotoUrl, removeContactPhoto,
+    contactVersion: (kind,id) => contactVersions.get(kind+':'+id) ?? 0,
     restore, login, refresh, save, remove, updateAccount, finishPasswordReset, requestPasswordReset, migrateLegacy, migrateAll, importRecords, browserBackup, saveDocument, removeDocument, resolveConflict,
     invoices: () => copy(invoices), presets: () => copy(presets),
     version: (kind, id) => kind === 'invoice' ? (versions.get(id) ?? null) : (documentVersions.get(kind + ':' + id) ?? null),

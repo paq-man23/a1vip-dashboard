@@ -19,11 +19,12 @@ function harness({ member = true, failSave = false, recoverySession = false, ini
     from: table => {
       const query = { select() { if (this.deleting) return Promise.resolve({ data: [{id:'deleted'}] }); return this; }, delete() { this.deleting = true; return this; }, eq(key, value) { filters.push([key,value]); return this; }, order() { return this; },
         maybeSingle: async () => ({ data: member ? { user_id: 'staff' } : null }),
-        range: async () => ({ data: ['a1_invoices','a1_invoice_history'].includes(table) ? rows : table === 'a1_skybox_contacts' ? contactRows : table === 'a1_documents' ? documentRows : table === 'a1_import_conflicts' ? conflictRows : [] }) };
+        range: async () => ({ data: ['a1_invoices','a1_invoice_history'].includes(table) ? rows : table === 'a1_contacts' ? contactRows : table === 'a1_documents' ? documentRows : table === 'a1_import_conflicts' ? conflictRows : [] }) };
       return query;
     },
     rpc: async (name, args) => {
       savedArgs = args; calls.push({ name, args });
+      if(name==='a1_save_contact'&&!failSave){const original=contactRows.find(row=>row.document.kind===args.p_kind&&row.document.id===args.p_id)?.document||{};return {data:{document:{...original,...args.p_patch,kind:args.p_kind,id:args.p_id},version:4}};}
       if(name==='a1_save_dashboard_invoice'&&!failSave)return {data:{id:args.p_document.id,document:{...args.p_document,number:'4101',autoNumber:false,numberAssignedByDB:true,origin:'a1'},version:1}};
       if (name === 'a1_import_skybox_batch') return {data:args.p_items.map(() => ({outcome:'imported'}))};
       if (name === 'a1_import_document') { const result = importResults.shift(); return result?.error ? { error: { message: result.error } } : { data: result || { outcome: 'imported' } }; }
@@ -229,4 +230,12 @@ test('new dashboard invoices receive their number from the database and return t
  const {data,calls}=harness();await data.restore();const saved=await data.save({id:'inv-fresh',autoNumber:true,number:''},{},null);
  assert.equal(calls.at(-1).name,'a1_save_dashboard_invoice');assert.equal(saved.number,'4101');assert.equal(saved.numberAssignedByDB,true);assert.equal(data.invoices()[0].number,'4101');
  await data.save(saved,{},1);assert.equal(calls.at(-1).name,'a1_save_invoice');assert.equal(calls.at(-1).args.p_expected_version,1);
+});
+
+test('contact saves send the loaded version and update the shared picker cache only after success',async()=>{
+ const {data,args}=harness({contactRows:[{document:{kind:'customer',id:'123',displayName:'Example',phone:'111'},version:2}]});await data.restore();assert.equal(data.contactVersion('customer','123'),2);
+ await data.saveContact('customer','123',{phone:'222'},2);assert.equal(args().p_expected_version,2);assert.equal(data.contacts()[0].phone,'222');assert.equal(data.contactVersion('customer','123'),4);await data.logout();assert.equal(data.contactVersion('customer','123'),0);
+});
+test('failed contact saves leave the shared contact unchanged',async()=>{
+ const {data}=harness({failSave:true,contactRows:[{document:{kind:'customer',id:'123',displayName:'Example',phone:'111'},version:2}]});await data.restore();await assert.rejects(data.saveContact('customer','123',{phone:'222'},2),/stale edit/);assert.equal(data.contacts()[0].phone,'111');assert.equal(data.contactVersion('customer','123'),2);
 });
