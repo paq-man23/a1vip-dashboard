@@ -12,11 +12,11 @@ function ui() {
   };
   let recovery = true, updated = false;
   const context = {
-    A1Data: { recovering: () => recovery, restore: async () => false,
+    A1Data: { conflicts: () => [], recovering: () => recovery, restore: async () => false,
       finishPasswordReset: async password => { assert.equal(password, 'new-password'); updated = true; recovery = false; return {}; } },
     document: { body: { classList: { add: value => classes.add(value), remove: value => classes.delete(value) } }, getElementById: node, addEventListener() {} },
     window: { addEventListener: (event, fn) => events.set(event, fn) },
-    localStorage: { removeItem() {} }, refreshInvoiceDatalists() {}, renderInvoiceHistory() {}, renderInvoicePresets() {}, startNewInvoice() {},
+    localStorage: { removeItem() {} }, refreshInvoiceDatalists() {}, renderInvoiceHistory() {}, renderInvoicePresets() {}, renderLetterHistory() {}, renderItineraryHistory() {}, startNewInvoice() {}, startNewLetter() {}, startNewItinerary() {},
   };
   vm.runInNewContext(script, context);
   return { context, node, events, classes, updated: () => updated };

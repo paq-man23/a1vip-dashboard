@@ -598,7 +598,7 @@
           <div class="invoice-toolbar">
             <button class="btn" onclick="refreshInvoiceHistory()">Refresh History</button>
             <button class="btn btn-remove" onclick="clearInvoiceHistory()">Clear History</button>
-            <button class="btn" onclick="migrateLocalInvoices()">Import Old Browser Invoices</button>
+            <button class="btn" onclick="migrateLocalInvoices()">Import This Computer’s Saved Documents</button>
           </div>
           <div class="invoice-form-grid" style="margin-bottom:14px;">
             <label class="full">Search Invoice History
@@ -680,8 +680,9 @@
 
         <div id="letterHistoryPanel" class="invoice-panel" style="display:none;">
           <div class="invoice-toolbar">
-            <button class="btn" onclick="renderLetterHistory()">Refresh History</button>
+            <button class="btn" onclick="refreshInvoiceHistory()">Refresh History</button>
             <button class="btn btn-remove" onclick="clearLetterHistory()">Clear History</button>
+            <button class="btn" onclick="migrateThisComputer()">Import This Computer’s Saved Documents</button>
           </div>
           <div class="invoice-form-grid" style="margin-bottom:14px;">
             <label class="full">Search Letter History
@@ -766,8 +767,9 @@
 
         <div id="itineraryHistoryPanel" class="invoice-panel" style="display:none;">
           <div class="invoice-toolbar">
-            <button class="btn" onclick="renderItineraryHistory()">Refresh History</button>
+            <button class="btn" onclick="refreshInvoiceHistory()">Refresh History</button>
             <button class="btn btn-remove" onclick="clearItineraryHistory()">Clear History</button>
+            <button class="btn" onclick="migrateThisComputer()">Import This Computer’s Saved Documents</button>
           </div>
           <div class="invoice-form-grid" style="margin-bottom:14px;">
             <label class="full">Search Itinerary History
@@ -781,6 +783,21 @@
     </div>
 
     <div id="admin" class="section" style="display:none;">
+      <div class="upload-card" style="margin-bottom:20px;">
+        <h3>Move Saved Documents to Shared History</h3>
+        <p>On each computer, use the same browser and dashboard address where the documents were saved. Import once, then access the documents from any signed-in device.</p>
+        <p>A test address cannot see documents saved at your normal dashboard address. Exported A1VIP files can also be imported below.</p>
+        <div class="invoice-toolbar">
+          <button class="btn" onclick="migrateThisComputer()">Import This Computer’s Saved Documents</button>
+          <button class="btn" onclick="exportBrowserBackup()">Export Browser Backup</button>
+          <button class="btn" onclick="document.getElementById('sharedDocumentImport').click()">Import Document Files</button>
+          <button class="btn" onclick="refreshInvoiceHistory()">Refresh Shared History</button>
+        </div>
+        <input id="sharedDocumentImport" type="file" multiple accept=".json,.a1vip.json,application/json" style="display:none;" onchange="importDocumentFiles(event)">
+        <p id="documentImportResult" role="status" aria-live="polite" style="white-space:pre-wrap;"></p>
+        <h4>Imports Needing Review</h4>
+        <div id="importConflictList"></div>
+      </div>
       <h3>Admin</h3>
       <div class="search-row">
         <input id="linkSearch" type="text" placeholder="Search buttons..." oninput="searchLinks()" />
@@ -1040,6 +1057,7 @@
     }
     function refreshCloudViews(){
       refreshInvoiceDatalists(); renderInvoiceHistory(); renderInvoicePresets();
+      renderLetterHistory(); renderItineraryHistory(); renderImportConflicts();
     }
     async function initializeAuth(){
       showLogin();
@@ -1061,7 +1079,7 @@
       err.textContent = 'Signing in and loading invoices…';
       try {
         await A1Data.login(document.getElementById('loginUser').value.trim(), document.getElementById('loginPass').value);
-        err.textContent = ''; hideLogin(); refreshCloudViews(); startNewInvoice();
+        err.textContent = ''; hideLogin(); refreshCloudViews(); startNewInvoice(); startNewLetter(); startNewItinerary();
       } catch(error) { showLogin(); err.textContent = error.message; }
       finally { button.disabled = false; }
     }
@@ -1104,16 +1122,71 @@
       try { await A1Data.refresh(); refreshCloudViews(); }
       catch(error) { alert('Could not refresh invoices: ' + error.message); }
     }
-    async function migrateLocalInvoices(){
-      if (!confirm('Copy this browser’s old invoices to shared Supabase history? Existing shared records will not be overwritten. Local copies will remain as a backup.')) return;
+    let importingDocuments = false;
+    function addImportReport(total, part){
+      for (const key of ['imported','skipped','conflicts','copied']) total[key] += part[key];
+      total.errors.push(...part.errors);
+    }
+    function showImportReport(result){
+      const text = `${result.imported} imported; ${result.skipped} already imported; ${result.copied} copies kept; ${result.conflicts} invoices need review; ${result.errors.length} errors.` +
+        (result.errors.length ? '\n' + result.errors.join('\n') : '') + '\nOriginal browser copies have been kept.';
+      document.getElementById('documentImportResult').textContent = text;
+      refreshCloudViews(); showSection('admin');
+    }
+    async function migrateLocalInvoices(){ return migrateThisComputer(); }
+    async function migrateThisComputer(){
+      if (importingDocuments) return;
+      if (!confirm('Import this browser’s saved invoices, travel invoices, letters, and trip itineraries into shared history? Local copies will remain as backups.')) return;
+      importingDocuments = true;
+      document.getElementById('documentImportResult').textContent = 'Importing saved documents…';
+      try { await A1Data.refresh(); showImportReport(await A1Data.migrateAll()); }
+      catch(error) { document.getElementById('documentImportResult').textContent = 'Import stopped: ' + error.message + '. Earlier completed imports remain saved; original browser copies remain.'; }
+      finally { importingDocuments = false; }
+    }
+    function exportBrowserBackup(){
+      try { downloadPortableDoc('A1VIP_Browser_Backup.a1vip.json', makePortableDoc('browser-backup', A1Data.browserBackup())); }
+      catch(error) { alert('Backup failed: ' + error.message); }
+    }
+    async function importDocumentFiles(event){
+      const files = Array.from(event.target.files || []);
+      if (!files.length || importingDocuments) return;
+      if (!confirm('Import these files into shared history on all devices? Existing records will not be overwritten.')) { event.target.value = ''; return; }
+      importingDocuments = true;
+      const summary = { imported:0, skipped:0, conflicts:0, copied:0, errors:[] };
       try {
         await A1Data.refresh();
-        const count = await A1Data.migrateLegacy();
-        refreshCloudViews(); alert(count + ' invoices copied to Supabase.');
-      } catch(error) { refreshCloudViews(); alert('Import stopped: ' + error.message + '. Local copies remain available.'); }
+        for (const file of files) {
+          try {
+            const doc = await parsePortableDoc(file);
+            if (doc.kind === 'browser-backup') {
+              for (const kind of ['invoice','letter','itinerary']) addImportReport(summary, await A1Data.importRecords(kind, doc.payload[kind] || [], doc.payload.presets || {}));
+            } else addImportReport(summary, await A1Data.importRecords(doc.kind, [doc.payload]));
+          } catch(error) { summary.errors.push(file.name + ': ' + error.message); }
+        }
+        await A1Data.refresh(); showImportReport(summary);
+      } catch(error) { document.getElementById('documentImportResult').textContent = 'Import stopped: ' + error.message + '. Earlier completed imports remain saved.'; }
+      finally { importingDocuments = false; event.target.value = ''; }
+    }
+    function renderImportConflicts(){
+      const wrap = document.getElementById('importConflictList');
+      if (!wrap) return;
+      const conflicts = A1Data.conflicts();
+      wrap.innerHTML = conflicts.length ? conflicts.map(item => `
+        <div class="invoice-history-card">
+          <strong>Invoice #${escHtml(item.document.number || '')} · ${escHtml(item.document.clientCompany || item.document.savedName || '')}</strong>
+          <p>${escHtml(item.reason)} The imported copy is preserved here. Open it and choose an unused invoice number before saving.</p>
+          <button class="btn" onclick="openImportConflict('${escHtml(item.source_hash)}')">Review Imported Invoice</button>
+        </div>`).join('') : '<p>No imports need review.</p>';
+    }
+    function openImportConflict(hash){
+      const item = A1Data.conflicts().find(item => item.source_hash === hash);
+      if (!item) return;
+      const invoice = Object.assign(invoiceBase(item.document.type), item.document, { id:'inv-' + crypto.randomUUID() });
+      setInvoiceToForm(invoice); currentImportConflictHash = hash;
+      openInvoiceMode('editor'); showSection('invoices');
     }
     window.addEventListener('a1-signed-out', () => {
-      showLogin(); refreshCloudViews(); startNewInvoice();
+      showLogin(); refreshCloudViews(); startNewInvoice(); startNewLetter(); startNewItinerary();
       document.getElementById('authCurrentPass').value = '';
       document.getElementById('authNewPass').value = '';
       document.getElementById('recoveryPassword').value = '';
@@ -2295,6 +2368,8 @@ function createBtn(label, url, isCustom=true){
       'Parking'
     ];
     let currentInvoiceId = null;
+    let currentInvoiceVersion = null;
+    let currentImportConflictHash = null;
     let currentInvoiceSavedName = '';
 
     function isTravelInvoiceType(type='invoice-ticket'){
@@ -2410,7 +2485,23 @@ function createBtn(label, url, isCustom=true){
       };
     }
 
-    function loadInvoices(){ return A1Data.invoices(); }
+    function normalizeSavedInvoice(invoice){
+      const result = Object.assign({}, invoice);
+      result.type = ({ ticket:'invoice-ticket', travel:'invoice-travel' })[result.type] || result.type || 'invoice-ticket';
+      result.lines = (Array.isArray(result.lines) ? result.lines : []).map(line => Object.assign({}, line, {
+        lineType: line.lineType || invoiceLineTypeDefault(result.type)
+      }));
+      if (result.credit == null && ('other' in result || 'amountPaid' in result)) {
+        const other = parseNum(result.other);
+        result.credit = parseNum(result.amountPaid);
+        if (other !== 0) result.lines.push(Object.assign(invoiceLineBase(result.type), {
+          lineType:'Experience', eventName:'Other charge', description:'Other charge from the original invoice', qty:1, unitCost:other
+        }));
+        delete result.other; delete result.amountPaid;
+      }
+      return result;
+    }
+    function loadInvoices(){ return A1Data.invoices().map(normalizeSavedInvoice); }
     function makePortableDoc(kind, payload){
       return {
         app: 'A1VIP Dashboard',
@@ -2567,6 +2658,7 @@ function createBtn(label, url, isCustom=true){
     }
 
     function startNewInvoice(type){
+      currentImportConflictHash = null;
       currentInvoiceId = null;
       currentInvoiceSavedName = '';
       setInvoiceToForm(invoiceBase(type || (document.getElementById('invType')?.value || 'invoice-ticket')));
@@ -2603,6 +2695,8 @@ function createBtn(label, url, isCustom=true){
     }
 
     function setInvoiceToForm(invoice){
+      invoice = normalizeSavedInvoice(invoice);
+      if (invoice.id !== currentInvoiceId) { currentImportConflictHash = null; currentInvoiceVersion = A1Data.version('invoice', invoice.id); }
       currentInvoiceId = invoice.id || null;
       currentInvoiceSavedName = invoice.savedName || '';
       setFieldValue('invType', invoice.type || 'invoice-ticket');
@@ -2942,12 +3036,16 @@ function createBtn(label, url, isCustom=true){
         addUnique(presets.eventNames, line.eventName);
         addUnique(presets.venues, line.venue);
       });
+      let savedToCloud = false;
       try {
-        await A1Data.save(invoice, presets);
+        await A1Data.save(invoice, presets, currentInvoiceVersion);
+        currentInvoiceVersion = A1Data.version('invoice', invoice.id);
+        savedToCloud = true;
+        if (currentImportConflictHash) { await A1Data.resolveConflict(currentImportConflictHash, invoice.id); currentImportConflictHash = null; }
         currentInvoiceId = invoice.id;
         refreshCloudViews(); refreshInvoicePreview();
         alert('Invoice saved to Supabase.');
-      } catch(error) { alert('Invoice was not saved: ' + error.message); }
+      } catch(error) { alert((savedToCloud ? 'Invoice saved, but import review could not be completed: ' : 'Invoice was not saved: ') + error.message); }
     }
 
     function exportInvoiceFile(){
@@ -2967,7 +3065,7 @@ function createBtn(label, url, isCustom=true){
         if (imported.kind !== 'invoice'){
           throw new Error('This export file is not an invoice or purchase order.');
         }
-        const invoice = Object.assign(invoiceBase(imported.payload?.type || 'invoice-ticket'), imported.payload || {});
+        const invoice = Object.assign(invoiceBase(imported.payload?.type || 'invoice-ticket'), normalizeSavedInvoice(imported.payload || {}), { id: 'inv-' + crypto.randomUUID() });
         invoice.lines = (invoice.lines && invoice.lines.length ? invoice.lines : [invoiceLineBase(invoice.type)]).map(line => Object.assign(invoiceLineBase(invoice.type), line));
         setInvoiceToForm(invoice);
         openInvoiceMode('editor');
@@ -3052,6 +3150,7 @@ function createBtn(label, url, isCustom=true){
     function loadInvoiceFromHistory(id){
       const invoice = loadInvoices().find(item => item.id === id);
       if (!invoice) return;
+      currentInvoiceVersion = A1Data.version('invoice', invoice.id);
       setInvoiceToForm(invoice);
       openInvoiceMode('editor');
       showSection('invoices');
@@ -3077,9 +3176,13 @@ function createBtn(label, url, isCustom=true){
       const nextName = prompt('Enter a saved name for this invoice or purchase order.', invoice.savedName || `${documentLabel(invoice.type)} #${invoice.number}`);
       if (nextName === null) return;
       invoice.savedName = String(nextName || '').trim();
+      const loadedVersion = A1Data.version('invoice', id);
       try {
-        await A1Data.save(invoice);
-        if (currentInvoiceId === id) currentInvoiceSavedName = invoice.savedName || '';
+        await A1Data.save(invoice, {}, loadedVersion);
+        if (currentInvoiceId === id) {
+          currentInvoiceSavedName = invoice.savedName || '';
+          if (currentInvoiceVersion === loadedVersion) currentInvoiceVersion = A1Data.version('invoice', id);
+        }
         renderInvoiceHistory();
       } catch(error) { alert('Rename failed: ' + error.message); }
     }
@@ -3100,11 +3203,12 @@ function createBtn(label, url, isCustom=true){
 
     const LETTER_STORAGE_KEY = 'a1vip-form-letters-v1';
     let currentLetterId = null;
+    let currentLetterVersion = null;
     let currentLetterSavedName = '';
 
     function letterBase(){
       return {
-        id: 'letter-' + Date.now(),
+        id: 'letter-' + crypto.randomUUID(),
         savedName: '',
         to: '',
         toEmail: '',
@@ -3115,14 +3219,7 @@ function createBtn(label, url, isCustom=true){
       };
     }
 
-    function loadLetters(){
-      try { return JSON.parse(localStorage.getItem(LETTER_STORAGE_KEY)) || []; }
-      catch(e){ return []; }
-    }
-
-    function saveLetters(items){
-      localStorage.setItem(LETTER_STORAGE_KEY, JSON.stringify(items));
-    }
+    function loadLetters(){ return A1Data.documents('letter'); }
 
     function openLetterMode(mode){
       const editor = document.getElementById('letterEditor');
@@ -3138,6 +3235,7 @@ function createBtn(label, url, isCustom=true){
     }
 
     function setLetterToForm(letter){
+      if (letter.id !== currentLetterId) currentLetterVersion = A1Data.version('letter', letter.id);
       currentLetterId = letter.id || null;
       currentLetterSavedName = letter.savedName || '';
       setLetterField('letterTo', letter.to);
@@ -3158,7 +3256,7 @@ function createBtn(label, url, isCustom=true){
 
     function collectLetterFromForm(){
       return {
-        id: currentLetterId || ('letter-' + Date.now()),
+        id: currentLetterId || ('letter-' + crypto.randomUUID()),
         savedName: currentLetterSavedName || '',
         to: document.getElementById('letterTo')?.value || '',
         toEmail: document.getElementById('letterToEmail')?.value || '',
@@ -3169,17 +3267,15 @@ function createBtn(label, url, isCustom=true){
       };
     }
 
-    function saveLetter(){
-      const letter = collectLetterFromForm();
-      const items = loadLetters();
-      const idx = items.findIndex(item => item.id === letter.id);
-      if (idx >= 0) items[idx] = letter;
-      else items.unshift(letter);
-      saveLetters(items);
-      currentLetterId = letter.id;
-      refreshLetterPreview();
-      renderLetterHistory();
-      alert('Letter saved.');
+    async function saveLetter(){
+      const document = collectLetterFromForm();
+      try {
+        await A1Data.saveDocument('letter', document, currentLetterVersion);
+        currentLetterVersion = A1Data.version('letter', document.id);
+        currentLetterId = document.id;
+        refreshLetterPreview(); renderLetterHistory();
+        alert('Letter saved to Supabase.');
+      } catch(error) { alert('Letter was not saved: ' + error.message); }
     }
 
     function exportLetterFile(){
@@ -3197,7 +3293,7 @@ function createBtn(label, url, isCustom=true){
         if (imported.kind !== 'letter'){
           throw new Error('This export file is not a form letter.');
         }
-        const letter = Object.assign(letterBase(), imported.payload || {});
+        const letter = Object.assign(letterBase(), imported.payload || {}, { id: 'letter-' + crypto.randomUUID() });
         setLetterToForm(letter);
         openLetterMode('editor');
         showSection('formLetter');
@@ -3247,44 +3343,50 @@ function createBtn(label, url, isCustom=true){
     function loadLetterFromHistory(id){
       const letter = loadLetters().find(item => item.id === id);
       if (!letter) return;
+      currentLetterVersion = A1Data.version('letter', letter.id);
       setLetterToForm(letter);
       openLetterMode('editor');
       showSection('formLetter');
     }
 
-    function deleteLetter(id){
-      if (!confirm('Delete this letter from history?')) return;
-      const items = loadLetters().filter(item => item.id !== id);
-      saveLetters(items);
-      renderLetterHistory();
+    async function deleteLetter(id){
+      if (!confirm('Delete this letter from shared history on all devices?')) return;
+      try { await A1Data.removeDocument('letter', id); renderLetterHistory(); }
+      catch(error) { alert('Delete failed: ' + error.message); }
     }
-
-    function renameLetter(id){
-      const items = loadLetters();
-      const letter = items.find(item => item.id === id);
-      if (!letter) return;
-      const nextName = prompt('Enter a saved name for this letter.', letter.savedName || letter.subject || 'Untitled Letter');
+    async function renameLetter(id){
+      const document = loadLetters().find(item => item.id === id);
+      if (!document) return;
+      const nextName = prompt('Enter a saved name.', document.savedName || '');
       if (nextName === null) return;
-      letter.savedName = String(nextName || '').trim();
-      saveLetters(items);
-      if (currentLetterId === id) currentLetterSavedName = letter.savedName || '';
-      renderLetterHistory();
+      document.savedName = nextName.trim();
+      const loadedVersion = A1Data.version('letter', id);
+      try {
+        await A1Data.saveDocument('letter', document, loadedVersion);
+        if (currentLetterId === id) {
+          currentLetterSavedName = document.savedName;
+          if (currentLetterVersion === loadedVersion) currentLetterVersion = A1Data.version('letter', id);
+        }
+        renderLetterHistory();
+      } catch(error) { alert('Rename failed: ' + error.message); }
     }
-
-    function clearLetterHistory(){
-      if (!confirm('Clear all saved letters?')) return;
-      localStorage.removeItem(LETTER_STORAGE_KEY);
-      renderLetterHistory();
-      startNewLetter();
+    async function clearLetterHistory(){
+      const snapshot = loadLetters();
+      if (!confirm('Delete all ' + snapshot.length + ' loaded letters from shared history on all devices?')) return;
+      try {
+        for (const document of snapshot) await A1Data.removeDocument('letter', document.id);
+        renderLetterHistory(); startNewLetter();
+      } catch(error) { renderLetterHistory(); alert('Clear stopped; some records may already be deleted: ' + error.message); }
     }
 
     const ITINERARY_STORAGE_KEY = 'a1vip-itineraries-v1';
     let currentItineraryId = null;
+    let currentItineraryVersion = null;
     let currentItinerarySavedName = '';
 
     function itineraryBase(){
       return {
-        id: 'itin-' + Date.now(),
+        id: 'itin-' + crypto.randomUUID(),
         savedName: '',
         talent: '',
         eventName: '',
@@ -3389,14 +3491,7 @@ function createBtn(label, url, isCustom=true){
       return normalized;
     }
 
-    function loadItineraries(){
-      try { return JSON.parse(localStorage.getItem(ITINERARY_STORAGE_KEY)) || []; }
-      catch(e){ return []; }
-    }
-
-    function saveItineraries(items){
-      localStorage.setItem(ITINERARY_STORAGE_KEY, JSON.stringify(items));
-    }
+    function loadItineraries(){ return A1Data.documents('itinerary'); }
 
     function openItineraryMode(mode){
       const editor = document.getElementById('itineraryEditor');
@@ -3587,6 +3682,7 @@ function createBtn(label, url, isCustom=true){
     }
 
     function setItineraryToForm(itinerary){
+      if (itinerary.id !== currentItineraryId) currentItineraryVersion = A1Data.version('itinerary', itinerary.id);
       itinerary = normalizeItinerary(itinerary);
       currentItineraryId = itinerary.id || null;
       currentItinerarySavedName = itinerary.savedName || '';
@@ -3635,7 +3731,7 @@ function createBtn(label, url, isCustom=true){
         rentalCars[idx][field] = el.value || '';
       });
       return {
-        id: currentItineraryId || ('itin-' + Date.now()),
+        id: currentItineraryId || ('itin-' + crypto.randomUUID()),
         savedName: currentItinerarySavedName || '',
         talent: document.getElementById('itinTalent')?.value || '',
         eventName: document.getElementById('itinEventName')?.value || '',
@@ -3694,17 +3790,15 @@ function createBtn(label, url, isCustom=true){
       refreshItineraryPreview();
     }
 
-    function saveItinerary(){
-      const itinerary = collectItineraryFromForm();
-      const items = loadItineraries();
-      const idx = items.findIndex(item => item.id === itinerary.id);
-      if (idx >= 0) items[idx] = itinerary;
-      else items.unshift(itinerary);
-      saveItineraries(items);
-      currentItineraryId = itinerary.id;
-      refreshItineraryPreview();
-      renderItineraryHistory();
-      alert('Itinerary saved.');
+    async function saveItinerary(){
+      const document = collectItineraryFromForm();
+      try {
+        await A1Data.saveDocument('itinerary', document, currentItineraryVersion);
+        currentItineraryVersion = A1Data.version('itinerary', document.id);
+        currentItineraryId = document.id;
+        refreshItineraryPreview(); renderItineraryHistory();
+        alert('Itinerary saved to Supabase.');
+      } catch(error) { alert('Itinerary was not saved: ' + error.message); }
     }
 
     function exportItineraryFile(){
@@ -3722,7 +3816,7 @@ function createBtn(label, url, isCustom=true){
         if (imported.kind !== 'itinerary'){
           throw new Error('This export file is not a trip / talent itinerary.');
         }
-        const itinerary = Object.assign(itineraryBase(), imported.payload || {});
+        const itinerary = Object.assign(itineraryBase(), imported.payload || {}, { id: 'itin-' + crypto.randomUUID() });
         setItineraryToForm(itinerary);
         openItineraryMode('editor');
         showSection('tripItinerary');
@@ -3772,35 +3866,40 @@ function createBtn(label, url, isCustom=true){
     function loadItineraryFromHistory(id){
       const itinerary = loadItineraries().find(item => item.id === id);
       if (!itinerary) return;
+      currentItineraryVersion = A1Data.version('itinerary', itinerary.id);
       setItineraryToForm(itinerary);
       openItineraryMode('editor');
       showSection('tripItinerary');
     }
 
-    function renameItinerary(id){
-      const items = loadItineraries();
-      const itinerary = items.find(item => item.id === id);
-      if (!itinerary) return;
-      const nextName = prompt('Enter a saved name for this itinerary.', itinerary.savedName || itinerary.talent || 'Untitled Itinerary');
+    async function deleteItinerary(id){
+      if (!confirm('Delete this itinerary from shared history on all devices?')) return;
+      try { await A1Data.removeDocument('itinerary', id); renderItineraryHistory(); }
+      catch(error) { alert('Delete failed: ' + error.message); }
+    }
+    async function renameItinerary(id){
+      const document = loadItineraries().find(item => item.id === id);
+      if (!document) return;
+      const nextName = prompt('Enter a saved name.', document.savedName || '');
       if (nextName === null) return;
-      itinerary.savedName = String(nextName || '').trim();
-      saveItineraries(items);
-      if (currentItineraryId === id) currentItinerarySavedName = itinerary.savedName || '';
-      renderItineraryHistory();
+      document.savedName = nextName.trim();
+      const loadedVersion = A1Data.version('itinerary', id);
+      try {
+        await A1Data.saveDocument('itinerary', document, loadedVersion);
+        if (currentItineraryId === id) {
+          currentItinerarySavedName = document.savedName;
+          if (currentItineraryVersion === loadedVersion) currentItineraryVersion = A1Data.version('itinerary', id);
+        }
+        renderItineraryHistory();
+      } catch(error) { alert('Rename failed: ' + error.message); }
     }
-
-    function deleteItinerary(id){
-      if (!confirm('Delete this itinerary from history?')) return;
-      const items = loadItineraries().filter(item => item.id !== id);
-      saveItineraries(items);
-      renderItineraryHistory();
-    }
-
-    function clearItineraryHistory(){
-      if (!confirm('Clear all saved itineraries?')) return;
-      localStorage.removeItem(ITINERARY_STORAGE_KEY);
-      renderItineraryHistory();
-      startNewItinerary();
+    async function clearItineraryHistory(){
+      const snapshot = loadItineraries();
+      if (!confirm('Delete all ' + snapshot.length + ' loaded itinerarys from shared history on all devices?')) return;
+      try {
+        for (const document of snapshot) await A1Data.removeDocument('itinerary', document.id);
+        renderItineraryHistory(); startNewItinerary();
+      } catch(error) { renderItineraryHistory(); alert('Clear stopped; some records may already be deleted: ' + error.message); }
     }
 
     function renderItineraryPreviewHtml(itinerary){

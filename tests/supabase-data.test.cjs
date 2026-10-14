@@ -2,8 +2,9 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-function harness({ member = true, failSave = false, recoverySession = false, initialMarker = null } = {}) {
+function harness({ member = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], conflictRows = [], importResults = [] } = {}) {
   let callback, savedArgs, loginArgs, resetArgs, updateArgs;
+  const calls = [], filters = [];
   const rows = [{ id: 'inv-one', version: 3, document: { id: 'inv-one', number: '4100', clientCompany: 'A1' } }];
   const client = {
     auth: {
@@ -16,13 +17,14 @@ function harness({ member = true, failSave = false, recoverySession = false, ini
       signOut: async () => { callback('SIGNED_OUT'); return {}; }
     },
     from: table => {
-      const query = { select() { return this; }, eq() { return this; }, order() { return this; },
+      const query = { select() { if (this.deleting) return Promise.resolve({ data: [{id:'deleted'}] }); return this; }, delete() { this.deleting = true; return this; }, eq(key, value) { filters.push([key,value]); return this; }, order() { return this; },
         maybeSingle: async () => ({ data: member ? { user_id: 'staff' } : null }),
-        range: async () => ({ data: table === 'a1_invoices' ? rows : [] }) };
+        range: async () => ({ data: table === 'a1_invoices' ? rows : table === 'a1_documents' ? documentRows : table === 'a1_import_conflicts' ? conflictRows : [] }) };
       return query;
     },
     rpc: async (name, args) => {
-      savedArgs = args;
+      savedArgs = args; calls.push({ name, args });
+      if (name === 'a1_import_document') { const result = importResults.shift(); return result?.error ? { error: { message: result.error } } : { data: result || { outcome: 'imported' } }; }
       return failSave ? { error: { message: 'stale edit' } } : { data: { id: args.p_document.id, document: args.p_document, version: 4 } };
     }
   };
@@ -32,7 +34,7 @@ function harness({ member = true, failSave = false, recoverySession = false, ini
   const window = { A1_SUPABASE_CONFIG: { url: 'https://test.supabase.co', publishableKey: 'public', adminAliases: { JAW: 'jaw@a1eei.com', JV: 'vollario@mac.com' }, passwordResetRedirect: 'https://a1dash.a1eei.com/reset-password.html' },
     supabase: { createClient: () => client }, dispatchEvent() {} };
   vm.runInNewContext(fs.readFileSync('a1-data.js','utf8'), { window, Event: class { constructor(type) { this.type = type; } }, sessionStorage: { getItem: key => session.get(key), setItem: (key, value) => session.set(key, value), removeItem: key => session.delete(key) }, localStorage: { getItem: key => storage.get(key) } });
-  return { data: window.A1Data, storage, args: () => savedArgs, loginArgs: () => loginArgs, resetArgs: () => resetArgs, updateArgs: () => updateArgs, authEvent: (event, value) => callback(event, value), session, window };
+  return { data: window.A1Data, storage, args: () => savedArgs, loginArgs: () => loginArgs, resetArgs: () => resetArgs, updateArgs: () => updateArgs, authEvent: (event, value) => callback(event, value), calls, filters, session, window };
 }
 test('approved staff restore invoice history; callers cannot mutate the cache', async () => {
   const { data } = harness(); await data.restore();
@@ -63,13 +65,13 @@ test('sign out drops loaded invoices and blocks subsequent saves', async () => {
   assert.equal(data.invoices().length, 0);
   await assert.rejects(data.save({ id: 'inv-new' }), /Sign in/);
 });
-test('legacy migration skips existing IDs and retains original browser backup', async () => {
-  const { data, storage, args } = harness(); await data.restore();
+test('legacy import reports conflicts and preserves the original browser backup', async () => {
+  const { data, storage, calls } = harness({ importResults: [{outcome:'conflict'}, {outcome:'imported'}] }); await data.restore();
   const legacy = JSON.stringify([{ id: 'inv-one', number: 'OLD' }, { id: 'inv-new', number: '4101' }]);
   storage.set('a1vip-invoices-v1', legacy);
-  assert.equal(await data.migrateLegacy(), 1);
-  assert.equal(data.invoices().find(item => item.id === 'inv-one').number, '4100');
-  assert.equal(args().p_expected_version, null);
+  const summary = await data.migrateLegacy();
+  assert.equal(summary.imported, 1); assert.equal(summary.conflicts, 1);
+  assert.equal(calls.filter(call => call.name === 'a1_import_document').length, 2);
   assert.equal(storage.get('a1vip-invoices-v1'), legacy);
 });
 test('missing configuration fails closed', async () => {
@@ -154,4 +156,56 @@ test('the new password is submitted and recovery is cleared after success', asyn
 test('ordinary sessions cannot invoke recovery password updates', async () => {
   const { data } = harness(); await data.restore();
   await assert.rejects(data.finishPasswordReset('replacement-password'), /valid password reset link/);
+});
+
+test('letters and complete travel itineraries are loaded from the shared database', async () => {
+  const trip = { id: 'itin-trip', hotelReservations:[{roomNumber:'123'}], rentalCars:[{company:'Example'}], flightDetails:[{flightNumber:'123'}] };
+  const { data } = harness({ documentRows:[{kind:'letter',id:'letter-one',version:2,document:{id:'letter-one',body:'Saved letter'}},{kind:'itinerary',id:'itin-trip',version:3,document:trip}] });
+  await data.restore();
+  assert.equal(data.documents('letter')[0].body, 'Saved letter');
+  assert.equal(data.documents('itinerary')[0].hotelReservations[0].roomNumber, '123');
+  const copy = data.documents('itinerary'); copy[0].flightDetails[0].flightNumber = 'changed';
+  assert.equal(data.documents('itinerary')[0].flightDetails[0].flightNumber, '123');
+});
+test('saving a shared letter uses its loaded version and a failed save preserves history', async () => {
+  const { data, args } = harness({ failSave:true, documentRows:[{kind:'letter',id:'letter-one',version:2,document:{id:'letter-one',body:'Original'}}] });
+  await data.restore();
+  await assert.rejects(data.saveDocument('letter', {id:'letter-one',body:'Edited'}), /stale edit/);
+  assert.equal(args().p_expected_version, 2);
+  assert.equal(data.documents('letter')[0].body, 'Original');
+});
+test('document deletion includes both kind and loaded version', async () => {
+  const { data, filters } = harness({ documentRows:[{kind:'itinerary',id:'itin-trip',version:4,document:{id:'itin-trip'}}] });
+  await data.restore(); await data.removeDocument('itinerary','itin-trip');
+  assert.ok(filters.some(([key,value]) => key==='kind' && value==='itinerary'));
+  assert.ok(filters.some(([key,value]) => key==='version' && value===4));
+  assert.equal(data.documents('itinerary').length, 0);
+});
+test('combined browser migration imports each category and continues past a failed record', async () => {
+  const { data, storage, calls } = harness({ importResults:[{outcome:'imported'},{error:'Invalid record'},{outcome:'skipped'},{outcome:'imported',copied:true}] });
+  await data.restore();
+  storage.set('a1vip-invoices-v1',JSON.stringify([{id:'inv-a',number:'1'},{id:'inv-b',number:'2'}]));
+  storage.set('a1vip-form-letters-v1',JSON.stringify([{id:'letter-a',body:'body'}]));
+  storage.set('a1vip-itineraries-v1',JSON.stringify([{id:'itin-a',flightDetails:[{flightNumber:'ABC'}]}]));
+  const result = await data.migrateAll();
+  assert.equal(result.imported, 2); assert.equal(result.skipped, 1); assert.equal(result.copied, 1); assert.equal(result.errors.length, 1);
+  assert.deepEqual(calls.map(call => call.args.p_kind), ['invoice','invoice','letter','itinerary']);
+  assert.equal(calls[3].args.p_document.flightDetails[0].flightNumber, 'ABC');
+  assert.ok(storage.has('a1vip-itineraries-v1'));
+});
+test('signout clears shared documents and imported conflicts', async () => {
+  const { data } = harness({ documentRows:[{kind:'letter',id:'letter-a',version:1,document:{id:'letter-a'}}], conflictRows:[{kind:'invoice',source_hash:'abc',document:{id:'inv-a'}}] });
+  await data.restore(); await data.logout();
+  assert.equal(data.documents('letter').length,0); assert.equal(data.conflicts().length,0);
+});
+test('an editor keeps its original version even after history refreshes to a newer version', async () => {
+  const { data, args } = harness({ documentRows:[{kind:'letter',id:'letter-a',version:5,document:{id:'letter-a',body:'New cloud version'}}] });
+  await data.restore();
+  await data.saveDocument('letter',{id:'letter-a',body:'Earlier draft'},2);
+  assert.equal(args().p_expected_version,2);
+});
+test('an explicit new-draft version does not turn into a cloud update', async () => {
+  const { data, args } = harness(); await data.restore();
+  await data.save({id:'inv-one',number:'4200'}, {}, null);
+  assert.equal(args().p_expected_version,null);
 });
