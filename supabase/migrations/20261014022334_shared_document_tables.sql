@@ -43,4 +43,3 @@ create policy staff_insert_imports on public.a1_document_imports for insert to a
 create policy staff_import_conflicts on public.a1_import_conflicts for all to authenticated
   using (exists(select 1 from public.a1_staff where user_id = (select auth.uid())))
   with check (exists(select 1 from public.a1_staff where user_id = (select auth.uid())));
-
