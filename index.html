@@ -353,6 +353,7 @@
     }
   </style>
 <link rel="stylesheet" href="./contacts.css">
+<link rel="stylesheet" href="./dashboard.css">
 </head>
 <body class="a1-locked">
 
@@ -397,7 +398,7 @@
 
   <header>
     <img src="A1VIP_LOGO_VERT_for _Black_backgrounds.png" alt="Logo">
-    <div class="title">A1 VIP<br/>Ticket<br/>Dashboard</div>
+    <div class="title"><span>A1 VIP</span><small>Dashboard</small></div>
     <div id="headerAccount" class="header-account" hidden>
       <span id="signedInUser" aria-live="polite"></span>
       <button class="header-password-btn" type="button" onclick="openAccountSettings()">Change Password</button>
@@ -407,7 +408,7 @@
 
   <div id="linkStatus" class="link-status"></div>
 
-  <div class="quick-link-bar">
+  <div class="quick-link-bar" data-admin-only hidden>
     <input id="quickLinkInput" type="url" placeholder="Paste or type a link (https://...)" />
     <button class="btn btn-quick-go" onclick="openQuickLink()">Go</button>
     <button class="btn btn-quick-add" onclick="addQuickLinkButton()">Add to Main</button>
@@ -415,17 +416,17 @@
 
   <nav class="top-tabs">
     <div class="tabs-scroller">
-      <button class="tab tab-main" onclick="showSection('main')">Main Links</button>
-      <button class="tab tab-luxury" onclick="showSection('luxury')">Luxury Suites</button>
-      <button class="tab tab-accounts" onclick="showSection('accounts')">Ticket Accounts</button>
-      <button class="tab tab-travel" onclick="showSection('travel')">Travel</button>
-      <button class="tab tab-social" onclick="showSection('social')">Social</button>
-      <button class="tab tab-invoices" onclick="showSection('invoices')">Invoices &amp; POs</button>
-      <button class="tab tab-invoices" onclick="showSection('customers')">Customers</button>
-      <button class="tab tab-invoices" onclick="showSection('vendors')">Vendors</button>
-      <button class="tab tab-letter" onclick="showSection('formLetter')">Form Letter</button>
-      <button class="tab tab-itinerary" onclick="showSection('tripItinerary')">Trip / Talent Itinerary</button>
-      <button class="tab tab-admin" onclick="showSection('admin')">Admin</button>
+      <button class="tab tab-main is-active" data-category="main" onclick="showSection('main')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/></svg><span class="tab-label">Main Links</span></button>
+      <button class="tab tab-luxury" data-category="luxury" onclick="showSection('luxury')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 6 4 4 5-7 5 7 4-4-2 13H5Z"/><path d="M6 15h12"/></svg><span class="tab-label">Suites</span></button>
+      <button class="tab tab-accounts" data-category="accounts" onclick="showSection('accounts')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 6h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4Z"/><path d="M15 6v3m0 3v2m0 3v1"/></svg><span class="tab-label">Ticket Accounts</span></button>
+      <button class="tab tab-travel" data-category="travel" onclick="showSection('travel')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6Z"/></svg><span class="tab-label">Travel</span></button>
+      <button class="tab tab-social" data-category="social" onclick="showSection('social')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 11a9 9 0 0 1-9 9 9 9 0 0 1-4-1l-5 2 2-5a9 9 0 0 1-1-4 9 9 0 0 1 17-1Z"/><path d="M8 11h8m-8 4h5"/></svg><span class="tab-label">Social</span></button>
+      <button class="tab tab-invoices" data-category="invoices" onclick="showSection('invoices')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H5v20h14V7Z"/><path d="M14 2v5h5M8 11h8m-8 4h8m-8 4h5"/></svg><span class="tab-label">Invoices &amp; POs</span></button>
+      <button class="tab tab-invoices" data-category="customers" onclick="showSection('customers')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="7" r="4"/><path d="M2 21v-3a7 7 0 0 1 14 0v3M17 3a4 4 0 0 1 0 8m2 3a6 6 0 0 1 3 5v2"/></svg><span class="tab-label">Customers</span></button>
+      <button class="tab tab-invoices" data-category="vendors" onclick="showSection('vendors')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V3h8v4M3 12h18m-9 0v4"/></svg><span class="tab-label">Vendors</span></button>
+      <button class="tab tab-letter" data-category="formLetter" onclick="showSection('formLetter')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 5 10 8L22 5"/></svg><span class="tab-label">Letters</span></button>
+      <button class="tab tab-itinerary" data-category="tripItinerary" onclick="showSection('tripItinerary')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m22 2-6 20-4-9-10-4Z"/><path d="m12 13 10-11"/></svg><span class="tab-label">Trips</span></button>
+      <button class="tab tab-admin" data-category="admin" data-admin-only hidden onclick="showSection('admin')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6Z"/><path d="m8 12 3 3 5-6"/></svg><span class="tab-label">Admin</span></button>
     </div>
   </nav>
 
@@ -633,7 +634,7 @@
           <div class="invoice-toolbar">
             <button class="btn" onclick="refreshInvoiceHistory()">Refresh History</button>
             <button class="btn btn-remove" onclick="clearInvoiceHistory()">Clear All History</button>
-            <button class="btn" onclick="migrateLocalInvoices()">Import This Computer’s Saved Documents</button>
+            <button class="btn" data-admin-only hidden onclick="migrateLocalInvoices()">Import This Computer’s Saved Documents</button>
           </div>
           <div class="invoice-form-grid" style="margin-bottom:14px;">
             <label class="full">Search Saved Documents
@@ -669,7 +670,7 @@
     </div>
 
     <div id="formLetter" class="section" style="display:none;">
-      <h3>Form Letter</h3>
+      <h3>Form Letters</h3>
       <div class="invoice-shell">
         <div class="invoice-subnav">
           <button class="cta cta-primary" onclick="openLetterMode('editor')">New / Edit Letter</button>
@@ -739,7 +740,7 @@
     </div>
 
     <div id="tripItinerary" class="section" style="display:none;">
-      <h3>Trip / Talent Itinerary</h3>
+      <h3>Trip Itineraries</h3>
       <div class="invoice-shell">
         <div class="invoice-subnav">
           <button class="cta cta-primary" onclick="openItineraryMode('editor')">New / Edit Itinerary</button>
@@ -836,12 +837,12 @@
 
     <div id="customers" class="section" style="display:none;">
       <h3>Customers</h3><p>Browse by last name or search. Edit contact cards to save phone numbers, notes, and photos across devices. Cards without a last name are indexed by company or display name.</p>
-      <div class="invoice-toolbar"><button class="btn" onclick="A1Contacts.add('customer')">Add Customer</button><button class="btn" onclick="refreshInvoiceHistory()">Refresh Contacts</button><button class="btn" onclick="showSection('admin')">Skybox Import</button></div>
+      <div class="invoice-toolbar"><button class="btn" onclick="A1Contacts.add('customer')">Add Customer</button><button class="btn" onclick="refreshInvoiceHistory()">Refresh Contacts</button><button class="btn" data-admin-only hidden onclick="showSection('admin')">Skybox Import</button></div>
       <input id="customerSearch" type="search" placeholder="Search name, phone, email, company, type, notes, or ID" oninput="A1Contacts.directory('customer')"><div id="customerDirectory" class="invoice-history-list"></div>
     </div>
     <div id="vendors" class="section" style="display:none;">
       <h3>Vendors</h3><p>Shared vendor contact cards. Add phone numbers, notes, photos, and contact details.</p>
-      <div class="invoice-toolbar"><button class="btn" onclick="A1Contacts.add('vendor')">Add Vendor</button><button class="btn" onclick="refreshInvoiceHistory()">Refresh Vendors</button><button class="btn" onclick="showSection('admin')">Skybox Import</button></div>
+      <div class="invoice-toolbar"><button class="btn" onclick="A1Contacts.add('vendor')">Add Vendor</button><button class="btn" onclick="refreshInvoiceHistory()">Refresh Vendors</button><button class="btn" data-admin-only hidden onclick="showSection('admin')">Skybox Import</button></div>
       <input id="vendorSearch" type="search" placeholder="Search name, phone, email, company, type, notes, or ID" oninput="A1Contacts.directory('vendor')"><div id="vendorDirectory" class="invoice-history-list"></div>
     </div>
     <div id="admin" class="section" style="display:none;">
@@ -1104,7 +1105,15 @@
     const INVOICE_LOGO = "./A1VIP_LOGO_WIDE_for_White_backgrounds_large.png";
     /* ===== Supabase staff authentication ===== */
     let authReady = Promise.resolve();
+    function refreshAdminAccess(clear=false){
+      const allowed=!clear&&typeof A1Data!=='undefined'&&A1Data.isAdmin?.()===true;
+      for(const element of document.querySelectorAll?.('[data-admin-only]')||[])element.hidden=!allowed;
+      if(!allowed){for(const id of ['admin','system','buttonManager','upload','domains']){
+        const panel=document.getElementById(id);if(panel?.style.display==='block'){panel.style.display='none';document.getElementById('main').style.display='block';}
+      }}
+    }
     function refreshAccountHeader(clear=false){
+      refreshAdminAccess(clear);
       const controls=document.getElementById('headerAccount'),label=document.getElementById('signedInUser');
       if(!controls||!label)return;
       const account=clear?null:A1Data.account?.();
@@ -1164,6 +1173,7 @@
       finally { button.disabled = false; }
     }
     function refreshCloudViews(){
+      refreshAccountHeader();
       refreshInvoiceDatalists(); renderInvoiceHistory(); renderInvoicePresets();
       renderLetterHistory(); renderItineraryHistory(); renderImportConflicts();
       if (window.A1SkyboxUI) window.A1SkyboxUI.render();
@@ -1563,7 +1573,7 @@
         ? currentSectionId === 'admin'
         : (adminSec && adminSec.style.display !== 'none');
 
-      const shouldShow = isAdminVisible && (systemAltDown || systemUnlocked);
+      const shouldShow = A1Data.isAdmin?.()===true && isAdminVisible && (systemAltDown || systemUnlocked);
       btn.style.display = shouldShow ? 'inline-flex' : 'none';
     }
 
@@ -1611,10 +1621,12 @@
     });
 
     function showSection(id){
+      if(['admin','system','buttonManager','upload','domains'].includes(id)&&A1Data.isAdmin?.()!==true){alert('Administrator access required.');return;}
       if(id==='purchases'){id='invoices';setInvoiceHistoryKind('purchase');openInvoiceMode('history');}
       document.querySelectorAll('.section').forEach(s=>s.style.display='none');
       const el = document.getElementById(id);
       if(el) el.style.display='block';
+      document.querySelectorAll('[data-category]').forEach(button=>{const active=button.dataset.category===id;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
       if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
     }
 

@@ -212,7 +212,7 @@
     if(typeof A1Data==='undefined'||typeof A1Data.contacts!=='function')return;
     directory('customer');directory('vendor');purchases();
     populatePickers();
-    if(typeof A1Data.authenticated==='function' && A1Data.authenticated())refreshSyncStatus();
+    if(A1Data.isAdmin?.()===true)refreshSyncStatus();
   }
   window.A1SkyboxUI={read,commit,download,render,refreshSyncStatus,choose,chooseBooking,populatePickers,directory,purchases,fill,saveInvoiceContact,clearInvoiceContact};
   window.addEventListener('a1-signed-out',()=>{reset();clearInvoiceContact();});

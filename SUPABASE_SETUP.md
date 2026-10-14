@@ -53,3 +53,10 @@ Browser data is tied to the original address, browser, and browser profile. loca
 Run `npm ci` then `npm test`. PGlite is a pinned development-only dependency for disposable Postgres validation; production remains a static browser app with Supabase. The local Postgres assertions cover repeat imports, changed local copies, invoice review/resolution, complete travel data, cross-account reads, and stale edit/delete rejection. The Supabase connector declined the rolled-back live import assertion; local Postgres assertions passed instead. Live read-only checks confirmed RLS and no anonymous table access. No customer records or test fixtures were imported into the live project by this work. Auth’s leaked-password-protection setting is currently disabled; database security advisors reported no table-policy issues.
 
 Before deployment, pull the branch and verify a form letter and complete itinerary saved in one browser are available after sign-in/Refresh History in another. Test repeat file imports and invoice conflicts. Then test the original-address browser import after deployment while retaining the old browser backups.
+
+
+### Admin roles
+
+`a1_staff.is_admin` is protected database state. Existing JAW and JV accounts are admins; new approved staff accounts default to nonadmin. Browser users cannot edit their membership or promote themselves. Admin permissions must be granted or revoked through a trusted database administration connection. Display names, public username aliases, and editable Auth user metadata never grant admin rights.
+
+The Admin and System screens, Skybox imports, browser document migration, conflict review, and folder-sync writes require admin rights. Invoice, letter, trip, and contact CRUD remains available to approved staff. Own-account password changes remain available through the header. Database guards enforce the current role on imports and sync even when a browser has stale role information.

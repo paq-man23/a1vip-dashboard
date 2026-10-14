@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-function harness({ member = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [] } = {}) {
+function harness({ member = true, admin = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [] } = {}) {
   let callback, savedArgs, loginArgs, resetArgs, updateArgs;
   const calls = [], filters = [];
   const rows = [{ id: 'inv-one', version: 3, document: { id: 'inv-one', number: '4100', clientCompany: 'A1' } }];
@@ -18,7 +18,7 @@ function harness({ member = true, failSave = false, recoverySession = false, ini
     },
     from: table => {
       const query = { select() { if (this.deleting) return Promise.resolve({ data: [{id:'deleted'}] }); return this; }, delete() { this.deleting = true; return this; }, eq(key, value) { filters.push([key,value]); return this; }, order() { return this; },
-        maybeSingle: async () => ({ data: member ? { user_id: 'staff' } : null }),
+        maybeSingle: async () => ({ data: member ? { user_id: 'staff',is_admin:admin } : null }),
         range: async () => ({ data: ['a1_invoices','a1_invoice_history'].includes(table) ? rows : table === 'a1_contacts' ? contactRows : table === 'a1_documents' ? documentRows : table === 'a1_import_conflicts' ? conflictRows : [] }) };
       return query;
     },
@@ -242,4 +242,8 @@ test('failed contact saves leave the shared contact unchanged',async()=>{
 
 test('header account identity resolves aliases only after staff authentication and clears on signout',async()=>{
  const {data}=harness();assert.equal(data.account(),null);await data.login('JV','test-password');assert.equal(data.account().name,'JV');assert.equal(data.account().email,'vollario@mac.com');await data.logout();assert.equal(data.account(),null);
+});
+
+test('admin access comes from the protected staff role, not the JAW/JV display alias',async()=>{
+ const {data}=harness({admin:false});await data.login('JV','test');assert.equal(data.account().name,'JV');assert.equal(data.isAdmin(),false);await assert.rejects(data.importSkybox([]),/Administrator access required/);await assert.rejects(data.resolveConflict('hash','id'),/Administrator access required/);assert.equal(data.authenticated(),true);
 });
