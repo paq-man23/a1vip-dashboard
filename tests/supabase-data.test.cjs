@@ -24,6 +24,7 @@ function harness({ member = true, admin = true, failSave = false, recoverySessio
     },
     rpc: async (name, args) => {
       savedArgs = args; calls.push({ name, args });
+      if(name==='a1_save_button_layout'&&!failSave)return {data:{state:args.p_state,version:args.p_expected_version+1}};
       if(name==='a1_save_contact'&&!failSave){const original=contactRows.find(row=>row.document.kind===args.p_kind&&row.document.id===args.p_id)?.document||{};return {data:{document:{...original,...args.p_patch,kind:args.p_kind,id:args.p_id},version:4}};}
       if(name==='a1_save_dashboard_invoice'&&!failSave)return {data:{id:args.p_document.id,document:{...args.p_document,number:'4101',autoNumber:false,numberAssignedByDB:true,origin:'a1'},version:1}};
       if (name === 'a1_import_skybox_batch') return {data:args.p_items.map(() => ({outcome:'imported'}))};
@@ -246,4 +247,12 @@ test('header account identity resolves aliases only after staff authentication a
 
 test('admin access comes from the protected staff role, not the JAW/JV display alias',async()=>{
  const {data}=harness({admin:false});await data.login('JV','test');assert.equal(data.account().name,'JV');assert.equal(data.isAdmin(),false);await assert.rejects(data.importSkybox([]),/Administrator access required/);await assert.rejects(data.resolveConflict('hash','id'),/Administrator access required/);assert.equal(data.authenticated(),true);
+});
+
+
+test('shared link saves use an admin session and an explicit cloud version',async()=>{
+ const {data,args}=harness();await data.restore();const saved=await data.saveButtonLayout({added:{main:[{label:'Example',url:'https://example.invalid'}]},removed:{},cloudVersion:3,pendingMoves:['local only']});assert.equal(args().p_expected_version,3);assert.equal(saved.cloudVersion,4);assert.equal(args().p_state.pendingMoves,undefined);await assert.rejects(data.saveButtonLayout({added:{},removed:{}}),/Refresh links/);await data.logout();await assert.rejects(data.saveButtonLayout({cloudVersion:4}),/Sign in/);
+});
+test('regular staff cannot save shared links even when using the JV alias',async()=>{
+ const {data,calls}=harness({admin:false});await data.login('JV','test');await assert.rejects(data.saveButtonLayout({cloudVersion:1}),/Administrator/);assert.equal(calls.filter(x=>x.name==='a1_save_button_layout').length,0);
 });

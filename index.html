@@ -1096,14 +1096,8 @@
 <script src="./skybox-ui.js"></script>
 <script>
     /* ===== Config ===== */
-    const CONFIG_URLS = [
-      'https://raw.githubusercontent.com/paq-man23/a1vip-dashboard/main/buttons.json',
-      'https://paq-man23.github.io/a1vip-dashboard/buttons.json'
-    ];
-    const SYNC_ENDPOINT = 'https://a1vip-sync.jviphone.workers.dev';
-    let buttonSyncSecret = '';
-    window.addEventListener('a1-signed-out',()=>{buttonSyncSecret='';});
     const STORAGE_KEY = 'a1vip-button-manager-v2';
+    let linksInitialized=false;
 
     /* === INVOICE LOGO ==== */
     const INVOICE_LOGO = "./A1VIP_LOGO_WIDE_for_White_backgrounds_large.png";
@@ -1182,6 +1176,7 @@
       refreshInvoiceDatalists(); renderInvoiceHistory(); renderInvoicePresets();
       renderLetterHistory(); renderItineraryHistory(); renderImportConflicts();
       if (window.A1SkyboxUI) window.A1SkyboxUI.render();
+      if(linksInitialized&&A1Data.authenticated?.())refreshFromRemoteIfChanged();
     }
     function requireLoginClient(){
       if (typeof A1Data === 'undefined') throw new Error('Login code could not load. Reload the page and check that the local server is running from the updated dashboard folder.');
@@ -1483,7 +1478,7 @@
 
     function resetDashboard(){
       if (!confirm('This will erase all custom buttons and sync a layout reset. Continue?')) return;
-      const empty = { added:{}, removed:{} };
+      const empty = { added:{}, removed:{},cloudVersion:loadState().cloudVersion };
       try{
         saveState(empty);
 
@@ -1855,16 +1850,8 @@ function createBtn(label, url, isCustom=true){
     }
 
     async function fetchRemoteConfig(){
-      for (const base of CONFIG_URLS) {
-        try {
-          const res = await fetch(`${base}?v=${Date.now()}`, { cache: 'no-store' });
-          if (res.ok) {
-            const json = await res.json();
-            return (json && typeof json === 'object') ? json : { added:{}, removed:{} };
-          }
-        } catch(_) {}
-      }
-      return { added:{}, removed:{} };
+      if(!window.A1Data?.authenticated?.())return {added:{},removed:{}};
+      return A1Data.fetchButtonLayout();
     }
 
     function normLabel(s){
@@ -1936,6 +1923,7 @@ function createBtn(label, url, isCustom=true){
         }
       }
 
+      if(remote?.cloudVersion!==undefined)merged.cloudVersion=remote.cloudVersion;
       return window.A1ButtonMoves?A1ButtonMoves.reconcile(merged,remote):merged;
     }
 
@@ -2010,12 +1998,25 @@ function createBtn(label, url, isCustom=true){
       window.A1ButtonMoves?.refresh();
     }
 
+    function receivedLayout(local,remote){
+      if(remote?.cloudVersion===undefined)return mergeStates(local,remote);
+      if(local.linkSyncFailed)return local;
+      if(local.cloudVersion===undefined&&window.A1Data?.isAdmin?.()&&Object.keys(local.added||{}).length){
+        const migrated=mergeStates(local,remote);
+        migrated.linkNeedsMigration=true;
+        return migrated;
+      }
+      const next=JSON.parse(JSON.stringify(remote));
+      next.pendingMoves=local.pendingMoves||[];
+      return window.A1ButtonMoves?A1ButtonMoves.reconcile(next,remote):next;
+    }
+
     const bc = 'BroadcastChannel' in window ? new BroadcastChannel('a1vip-sync') : null;
     function broadcastRefresh(){ bc && bc.postMessage({ type:'REFRESH_REMOTE' }); }
     bc && bc.addEventListener('message', async (ev)=>{
       if (ev.data?.type === 'REFRESH_REMOTE') {
         const remote = await fetchRemoteConfig();
-        const merged = mergeStates(loadState(), remote);
+        const merged = receivedLayout(loadState(), remote);
         saveState(merged);
         applyState(merged);
       }
@@ -2034,9 +2035,10 @@ function createBtn(label, url, isCustom=true){
         const sig = await fingerprint(remote);
         if (sig !== lastRemoteSig) {
           lastRemoteSig = sig;
-          const merged = mergeStates(loadState(), remote);
+          const merged = receivedLayout(loadState(), remote);
           saveState(merged);
           applyState(merged);
+          if(A1Data.isAdmin?.()&&!merged.linkSyncFailed&&(merged.linkNeedsMigration||merged.pendingMoves?.length))await syncRemote(merged);
         }
       }catch{}
     }
@@ -2047,9 +2049,11 @@ function createBtn(label, url, isCustom=true){
       const localState = loadState();
       const remote = await fetchRemoteConfig();
       lastRemoteSig = await fingerprint(remote);
-      const merged = mergeStates(localState, remote);
+      const merged = receivedLayout(localState, remote);
       saveState(merged);
       applyState(merged);
+      if(A1Data.isAdmin?.()&&!merged.linkSyncFailed&&(merged.linkNeedsMigration||merged.pendingMoves?.length))await syncRemote(merged);
+      linksInitialized=true;
       try{
         const savedColor = localStorage.getItem('a1vip-theme-color');
         if (savedColor){
@@ -2070,30 +2074,17 @@ function createBtn(label, url, isCustom=true){
     }
 
     async function syncRemote(state){
-      if(!SYNC_ENDPOINT) return;
-      if(!buttonSyncSecret){buttonSyncSecret=(prompt('Enter your button-list sync key. Cancel keeps button changes on this computer.')||'').trim();if(!buttonSyncSecret)return;}
       try{
-        const res = await fetch(SYNC_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type':'application/json', 'X-A1VIP-Secret': buttonSyncSecret },
-          body: JSON.stringify({added:state.added||{},removed:state.removed||{}})
-        });
-        const text = await res.text();
-        if (!res.ok) {
-          console.error('Sync failed', res.status, text);
-          alert(`Sync failed: ${res.status}\n${text}`);
-          return;
-        }
-        setTimeout(async ()=>{
-          const remote = await fetchRemoteConfig();
-          const merged = mergeStates(loadState(), remote);
-          saveState(merged);
-          applyState(merged);
-          broadcastRefresh();
-        }, 1200);
-      }catch(e){
-        console.warn('Remote sync error:', e);
-        alert('Remote sync error: ' + e.message);
+        if(!A1Data.isAdmin?.())throw new Error('Administrator access required.');
+        const remote=await A1Data.saveButtonLayout(state);
+        const local=loadState();delete local.linkSyncFailed;delete local.linkNeedsMigration;
+        const merged=receivedLayout(local,remote);
+        saveState(merged);applyState(merged);broadcastRefresh();
+      }catch(error){
+        const pending=loadState();pending.linkSyncFailed=true;saveState(pending);
+        console.warn('Link sync failed:',error);
+        alert('Link sync failed. Your changes remain on this computer. '+error.message);
+        throw error;
       }
     }
 
