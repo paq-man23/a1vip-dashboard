@@ -1,6 +1,7 @@
 /* Skybox review, shared contact directories, and purchase history. */
 (() => {
   const $ = id => document.getElementById(id);
+  let invoiceContact=null;
   let preview=[], busy=false; const pages={customer:0,vendor:0,purchase:0};
   const node=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
   function message(text){$('skyboxMessage').textContent=text;}
@@ -58,6 +59,7 @@
   const compareContacts=(a,b)=>String(a.displayName||a.name||a.company||'').localeCompare(String(b.displayName||b.name||b.company||''),undefined,{sensitivity:'base',numeric:true})||String(a.id).localeCompare(String(b.id));
   const matchesContact=(c,q)=>[c.displayName,c.name,c.company,c.email,c.phone,c.phone2,c.address,c.tags,c.type,c.id].some(v=>String(v||'').toLowerCase().includes(q));
   function directory(kind){
+    if(window.A1Contacts){window.A1Contacts.directory(kind);return;}
     const wrap=$(kind+'Directory');if(!wrap)return;wrap.replaceChildren();
     const q=($(kind+'Search').value||'').toLowerCase();
     const items=A1Data.contacts().filter(c=>c.kind===kind && matchesContact(c,q)).sort(compareContacts);
@@ -74,9 +76,23 @@
     for(const [label,delta] of [['Previous',-1],['Next',1]]){const b=node('button',label);b.className='btn';b.disabled=delta<0?pages[kind]===0:pages[kind]>=max;b.addEventListener('click',()=>{pages[kind]+=delta;kind==='purchase'?purchases():directory(kind);});wrap.append(b);}
   }
   function fill(c){
+    invoiceContact={contact:JSON.parse(JSON.stringify(c)),version:typeof A1Data.contactVersion==='function'?A1Data.contactVersion(c.kind,c.id):0};
+    if($('invoiceContactId'))$('invoiceContactId').value=c.id;if($('invoiceContactKind'))$('invoiceContactKind').value=c.kind;
     const map={invClientCompany:c.company||c.displayName,invClientContact:c.name||c.displayName,invClientEmail:c.email,invClientPhone:c.phone,invBillingAddress:c.address,invPaymentType:c.paymentMethod||''};
     for(const [id,value] of Object.entries(map))$(id).value=value||'';
     refreshInvoicePreview();
+  }
+  function clearInvoiceContact(){invoiceContact=null;if($('invoiceContactMessage'))$('invoiceContactMessage').textContent='';}
+  async function saveInvoiceContact(){
+    const status=$('invoiceContactMessage');
+    if(!invoiceContact){status.textContent='Select the saved customer or vendor you want to update first.';return;}
+    const selection=invoiceContact,c=selection.contact;
+    const map={company:['invClientCompany',c.company||c.displayName],name:['invClientContact',c.name||c.displayName],email:['invClientEmail',c.email||''],phone:['invClientPhone',c.phone||''],address:['invBillingAddress',c.address||''],paymentMethod:['invPaymentType',c.paymentMethod||'']};
+    const patch={};for(const [key,[id,original]] of Object.entries(map))if($(id).value!==original)patch[key]=$(id).value.trim();
+    if(!Object.keys(patch).length){status.textContent='No contact changes to save.';return;}
+    status.textContent='Saving contact details…';
+    try{const saved=await A1Data.saveContact(c.kind,c.id,patch,selection.version);if(invoiceContact===selection)invoiceContact={contact:saved,version:A1Data.contactVersion(c.kind,c.id)};populatePickers();directory(c.kind);status.textContent='Contact updated in Supabase. Save the invoice separately.';}
+    catch(error){status.textContent='Contact was not saved: '+error.message;}
   }
   function selected(picker){
     const [kind,id]=picker.value.split(':');
@@ -142,6 +158,17 @@
     }
     if(!matches){const empty=node('option','No matching contacts');empty.value='';empty.disabled=true;picker.append(empty);}
     picker.value=selectedValue;
+    const results=picker._contactResults;if(results){
+      results.replaceChildren();results.hidden=!query;
+      if(query){
+        const found=A1Data.contacts().filter(c=>(!picker.dataset.contactKind||c.kind===picker.dataset.contactKind)&&matchesContact(c,query)).sort(compareContacts);
+        results.append(node('p',found.length?found.length+' matches'+(found.length>30?' · Showing the first 30. Keep typing to narrow the results.':''):'No matching contacts.'));
+        for(const c of found.slice(0,30)){
+          const button=node('button',c.displayName+' · '+(c.name||c.company||c.email||'')+' · '+(c.kind==='vendor'?'Vendor':'Customer')+(c.type?' / '+c.type:'')+' · #'+c.id);button.type='button';
+          button.addEventListener('click',()=>{picker.value=c.kind+':'+c.id;picker.dispatchEvent(new Event('change',{bubbles:true}));picker._contactSearch.value='';updatePicker(picker);results.hidden=true;});results.append(button);
+        }
+      }
+    }
   }
   function populatePickers(){
     for(const picker of document.querySelectorAll('[data-contact-picker]')){
@@ -152,6 +179,8 @@
         search.style.cssText='width:100%;box-sizing:border-box;margin-bottom:6px;';
         search.addEventListener('input',()=>updatePicker(picker));
         picker.parentNode.insertBefore(search,picker);picker._contactSearch=search;
+        const results=node('div');results.className='contact-search-results';results.hidden=true;results.setAttribute('aria-live','polite');
+        picker.parentNode.insertBefore(results,picker);picker._contactResults=results;
       }
       updatePicker(picker);
     }
@@ -185,6 +214,6 @@
     populatePickers();
     if(typeof A1Data.authenticated==='function' && A1Data.authenticated())refreshSyncStatus();
   }
-  window.A1SkyboxUI={read,commit,download,render,refreshSyncStatus,choose,chooseBooking,populatePickers,directory,purchases};
-  window.addEventListener('a1-signed-out',reset);
+  window.A1SkyboxUI={read,commit,download,render,refreshSyncStatus,choose,chooseBooking,populatePickers,directory,purchases,fill,saveInvoiceContact,clearInvoiceContact};
+  window.addEventListener('a1-signed-out',()=>{reset();clearInvoiceContact();});
 })();

@@ -345,6 +345,7 @@
     break-inside: avoid;
     }
   </style>
+<link rel="stylesheet" href="./contacts.css">
 </head>
 <body class="a1-locked">
 
@@ -547,7 +548,9 @@
                   </select>
                 </label>
                 <label class="full">Saved Customer / Vendor
-                  <select id="sharedContactPicker" data-contact-picker onchange="A1SkyboxUI.choose()"><option value="">Choose a saved customer or vendor…</option></select>
+                  <input id="invoiceContactId" type="hidden"><input id="invoiceContactKind" type="hidden"><select id="sharedContactPicker" data-contact-picker onchange="A1SkyboxUI.choose()"><option value="">Choose a saved customer or vendor…</option></select>
+                  <button type="button" class="btn" onclick="A1SkyboxUI.saveInvoiceContact()">Save invoice details to contact</button>
+                  <span class="muted">Select a saved contact first. Invoice edits stay on the invoice until you save them to that contact.</span><span id="invoiceContactMessage" role="status"></span>
                 </label>
                 <label>Client / Company
                   <input id="invClientCompany" list="clientCompanyList" placeholder="Client / Company">
@@ -815,14 +818,14 @@
 
 
     <div id="customers" class="section" style="display:none;">
-      <h3>Customers</h3><p>Shared Skybox contacts. Import your customer export in Admin. Customer credit is reference information and does not change invoice balances.</p>
-      <div class="invoice-toolbar"><button class="btn" onclick="refreshInvoiceHistory()">Refresh Contacts</button><button class="btn" onclick="showSection('admin')">Skybox Import</button></div>
-      <input id="customerSearch" type="search" placeholder="Search name, email, company, or Skybox ID" oninput="A1SkyboxUI.directory('customer')"><div id="customerDirectory" class="invoice-history-list"></div>
+      <h3>Customers</h3><p>Browse by last name or search. Edit contact cards to save phone numbers, notes, and photos across devices. Cards without a last name are indexed by company or display name.</p>
+      <div class="invoice-toolbar"><button class="btn" onclick="A1Contacts.add('customer')">Add Customer</button><button class="btn" onclick="refreshInvoiceHistory()">Refresh Contacts</button><button class="btn" onclick="showSection('admin')">Skybox Import</button></div>
+      <input id="customerSearch" type="search" placeholder="Search name, phone, email, company, type, notes, or ID" oninput="A1Contacts.directory('customer')"><div id="customerDirectory" class="invoice-history-list"></div>
     </div>
     <div id="vendors" class="section" style="display:none;">
-      <h3>Vendors</h3><p>Shared vendor contacts, addresses, phone numbers, and tags from Skybox.</p>
-      <div class="invoice-toolbar"><button class="btn" onclick="refreshInvoiceHistory()">Refresh Vendors</button><button class="btn" onclick="showSection('admin')">Skybox Import</button></div>
-      <input id="vendorSearch" type="search" placeholder="Search name, email, company, phone, or Skybox ID" oninput="A1SkyboxUI.directory('vendor')"><div id="vendorDirectory" class="invoice-history-list"></div>
+      <h3>Vendors</h3><p>Shared vendor contact cards. Add phone numbers, notes, photos, and contact details.</p>
+      <div class="invoice-toolbar"><button class="btn" onclick="A1Contacts.add('vendor')">Add Vendor</button><button class="btn" onclick="refreshInvoiceHistory()">Refresh Vendors</button><button class="btn" onclick="showSection('admin')">Skybox Import</button></div>
+      <input id="vendorSearch" type="search" placeholder="Search name, phone, email, company, type, notes, or ID" oninput="A1Contacts.directory('vendor')"><div id="vendorDirectory" class="invoice-history-list"></div>
     </div>
     <div id="purchases" class="section" style="display:none;">
       <h3>Purchases / Purchase Orders</h3><p>Open imported Skybox purchases and saved A1 purchase orders.</p>
@@ -1067,6 +1070,7 @@
 <script src="./skybox-import.js"></script>
 <script src="./a1-history.js"></script>
 <script src="./a1-invoice-fields.js"></script>
+<script src="./a1-contacts.js"></script>
 <script src="./skybox-ui.js"></script>
 <script>
     /* ===== Config ===== */
@@ -2785,6 +2789,8 @@ function createBtn(label, url, isCustom=true){
     function setInvoiceToForm(invoice){
       const contactPicker=document.getElementById('sharedContactPicker');
       if(contactPicker)contactPicker.value='';
+      setFieldValue('invoiceContactId',invoice.contactId||'');setFieldValue('invoiceContactKind',invoice.contactKind||'');
+      if(window.A1SkyboxUI)A1SkyboxUI.clearInvoiceContact();
       invoice = normalizeSavedInvoice(invoice);
       currentInvoiceSnapshot=JSON.parse(JSON.stringify(invoice));
       currentInvoiceAutoNumber=invoice.autoNumber===true && A1Data.version('invoice',invoice.id)===null;
@@ -2911,6 +2917,8 @@ function createBtn(label, url, isCustom=true){
     function collectInvoiceFromForm(){
       const invoice = {
         ...currentInvoiceSnapshot,
+        contactId:document.getElementById('invoiceContactId')?.value||'',
+        contactKind:document.getElementById('invoiceContactKind')?.value||'',
         vendorId:document.getElementById('invVendorId')?.value||'',
         autoNumber:currentInvoiceAutoNumber,
         id: currentInvoiceId || ('inv-' + crypto.randomUUID()),
