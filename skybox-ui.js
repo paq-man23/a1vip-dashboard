@@ -138,11 +138,26 @@
       const card=node('div');card.className='invoice-history-card';card.append(node('strong',i.number+' · '+i.clientCompany));card.append(node('p',i.status+' · Outstanding balance: '+money(invoiceBalance(i))));const open=node('button','Open Purchase Order');open.className='btn';open.addEventListener('click',()=>loadInvoiceFromHistory(i.id));card.append(open);wrap.append(card);
     }pager(wrap,'purchase',max);
   }
+  async function refreshSyncStatus(){
+    const wrap=$('skyboxSyncStatus');if(!wrap||typeof A1Data.fetchSyncRuns!=='function')return;
+    try{
+      const rows=await A1Data.fetchSyncRuns();wrap.replaceChildren();
+      if(!rows.length){wrap.append(node('p','No Mac sync runs have reported yet. Download the helper and install it on the Mac holding the export folder.'));return;}
+      for(const row of rows){
+        const r=row.summary||{};const card=node('div');card.className='invoice-history-card';
+        card.append(node('strong',row.machine_label+' · '+row.status));
+        card.append(node('p',new Date(row.started_at).toLocaleString()));
+        card.append(node('p',r.message||`${r.imported||0} new · ${r.updated||0} updated · ${r.skipped||0} unchanged · ${r.conflicts||0} need review · ${(r.errors||[]).length} errors`));
+        if(r.errors?.length){const details=node('details');details.append(node('summary','Show sync errors'),node('p',r.errors.join('\n')));card.append(details);}wrap.append(card);
+      }
+    }catch(error){wrap.replaceChildren(node('p','Sync status could not load: '+error.message));}
+  }
   function render(){
     if(typeof A1Data==='undefined'||typeof A1Data.contacts!=='function')return;
     directory('customer');directory('vendor');purchases();
     populatePickers();
+    if(typeof A1Data.authenticated==='function' && A1Data.authenticated())refreshSyncStatus();
   }
-  window.A1SkyboxUI={read,commit,download,render,choose,chooseBooking,populatePickers,directory,purchases};
+  window.A1SkyboxUI={read,commit,download,render,refreshSyncStatus,choose,chooseBooking,populatePickers,directory,purchases};
   window.addEventListener('a1-signed-out',reset);
 })();

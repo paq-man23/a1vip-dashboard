@@ -3,3 +3,8 @@ supabase/.temp/
 supabase-changes.patch
 
 node_modules/
+
+mac-sync/config.json
+mac-sync/state.json
+mac-sync/sync.lock/
+mac-sync/logs/

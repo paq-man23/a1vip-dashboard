@@ -15,3 +15,12 @@ New A1 documents continue the existing numeric sequence, starting at 4100 when n
 Imports use 50-record batches. A row failure rolls back that row, while completed rows remain. Repeat source records skip safely even after a converted invoice has been edited. A changed original with the same Skybox kind/ID is flagged and does not overwrite the first import. Invoice-number collisions preserve the converted copy under Admin → Imports Needing Review. The original source records are immutable and accessible only to approved staff through RLS.
 
 The uploaded workbooks were used for local conversion/reconciliation checks only. They are not committed to the public repository or automatically imported into the live database. Automated tests use synthetic records and disposable Postgres; importing real records remains an explicit dashboard action.
+
+
+## Weekly Mac folder synchronization
+
+Admin also provides a Mac Folder Sync installer and shared run history. The installed helper watches `~/skyexport` every five minutes and imports new weekly exports while the Mac is awake, logged in, and online. A1 edits are protected: changed Skybox invoices update only when the stored A1 document still equals its last imported snapshot. Conflicting incoming copies remain in Imports Needing Review. The immutable first import and subsequent source revisions are retained. Updated customer/vendor snapshots feed the shared directory through a view that uses invoker RLS.
+
+The helper signs in with regular dashboard staff credentials, discards the entered password, and stores rotating session tokens in macOS Keychain through stdin rather than command-line arguments. It uses no service-role key. It records processed file hashes, waits for stable copies, uses batches of 50, prevents overlapping local runs, and retries incomplete imports. It chooses the newest modified export of each kind; previously seen source revisions safely skip. It never deletes export files or saved records missing from a later export.
+
+See `mac-sync/README.md` for setup, Node.js requirements, logs, removal, and native Mac verification. Publishing the installer does not activate it on JAW's computer.

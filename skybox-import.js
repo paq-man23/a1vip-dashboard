@@ -149,7 +149,7 @@
   function preview(sheets,existingContacts=[]) {
     const contacts=[...existingContacts];const results=[];
     for(const s of sheets.filter(s=>s.kind==='customer'||s.kind==='vendor'))for(const [i,r] of s.records.entries()) {
-      try{const d=contact(s.kind,r);const index=contacts.findIndex(c=>c.kind===d.kind&&c.id===d.id);if(index<0)contacts.push(d);results.push({kind:s.kind,sourceId:d.id,record:r,document:d,presets:presets(d),label:d.displayName,row:i+2,file:s.name});}
+      try{const d=contact(s.kind,r);const index=contacts.findIndex(c=>c.kind===d.kind&&c.id===d.id);if(index<0)contacts.push(d);else contacts[index]=d;results.push({kind:s.kind,sourceId:d.id,record:r,document:d,presets:presets(d),label:d.displayName,row:i+2,file:s.name});}
       catch(e){results.push({kind:s.kind,row:i+2,file:s.name,error:e.message});}
     }
     for(const s of sheets.filter(s=>s.kind==='invoice'||s.kind==='purchase'))for(const [i,r] of s.records.entries()) {

@@ -1,0 +1,8 @@
+{
+  "name":"a1vip-skybox-mac-sync",
+  "version":"1.0.0",
+  "private":true,
+  "type":"module",
+  "engines":{"node":">=22"},
+  "dependencies":{"@supabase/supabase-js":"2.99.1","@xmldom/xmldom":"0.9.12","fflate":"0.8.3"}
+}
