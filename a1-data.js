@@ -19,13 +19,28 @@
   let documents = { letter: [], itinerary: [] }, documentVersions = new Map(), conflicts = [];
   const copy = value => JSON.parse(JSON.stringify(value));
   const check = result => { if (result.error) throw new Error(result.error.message); return result.data; };
+  async function networkFetch(input, options = {}) {
+    const controller = new AbortController();
+    const externalSignal = options.signal;
+    let timedOut = false;
+    const onAbort = () => controller.abort();
+    if (externalSignal?.aborted) controller.abort();
+    else externalSignal?.addEventListener('abort', onAbort, { once:true });
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 15000);
+    try { return await fetch(input, { ...options, signal:controller.signal }); }
+    catch(error) {
+      if (timedOut) throw new Error('The login/data connection timed out. Check your internet connection and try again.');
+      throw error;
+    } finally { clearTimeout(timer); externalSignal?.removeEventListener('abort', onAbort); }
+  }
   function connect() {
     if (client) return client;
     const config = window.A1_SUPABASE_CONFIG || {};
-    if (!config.url || !config.publishableKey || !window.supabase) {
+    if (!config.url || !config.publishableKey) {
       throw new Error('Supabase is not configured yet. Contact the dashboard administrator.');
     }
-    client = window.supabase.createClient(config.url, config.publishableKey);
+    if (!window.supabase?.createClient) throw new Error('The login service could not load. Check your internet connection and reload this page.');
+    client = window.supabase.createClient(config.url, config.publishableKey, { global: { fetch:networkFetch } });
     client.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' && session?.user?.id) beginRecovery(session.user.id);
       if (event === 'SIGNED_OUT') { endRecovery(); clear(); window.dispatchEvent(new Event('a1-signed-out')); }

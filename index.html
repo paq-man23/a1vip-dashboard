@@ -1021,8 +1021,9 @@
       document.body.classList.add('a1-locked');
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('loginPass').value = '';
-      document.getElementById('normalLoginPanel').style.display = A1Data.recovering() ? 'none' : 'block';
-      document.getElementById('passwordRecoveryPanel').style.display = A1Data.recovering() ? 'block' : 'none';
+      const recovering = typeof A1Data !== 'undefined' && typeof A1Data.recovering === 'function' && A1Data.recovering();
+      document.getElementById('normalLoginPanel').style.display = recovering ? 'none' : 'block';
+      document.getElementById('passwordRecoveryPanel').style.display = recovering ? 'block' : 'none';
     }
     function hideLogin(){
       if (A1Data.recovering()) { showPasswordRecovery(); return; }
@@ -1059,9 +1060,23 @@
       refreshInvoiceDatalists(); renderInvoiceHistory(); renderInvoicePresets();
       renderLetterHistory(); renderItineraryHistory(); renderImportConflicts();
     }
-    async function initializeAuth(){
-      showLogin();
+    function requireLoginClient(){
+      if (typeof A1Data === 'undefined') throw new Error('Login code could not load. Reload the page and check that the local server is running from the updated dashboard folder.');
+      if (['restore','login','recovering','documents','conflicts','version'].some(name => typeof A1Data[name] !== 'function')) {
+        throw new Error('Login files are out of date. Refresh the page to load the updated dashboard files.');
+      }
+    }
+    async function waitForAuthStartup(){
+      let timer;
       try {
+        await Promise.race([authReady, new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Sign-in startup timed out. Close other local dashboard tabs, reload this page, and try again.')), 20000);
+        })]);
+      } finally { clearTimeout(timer); }
+    }
+    async function initializeAuth(){
+      try {
+        showLogin(); requireLoginClient();
         localStorage.removeItem('a1vip-auth-v1');
         localStorage.removeItem('a1vip-auth-override');
         if (await A1Data.restore()) { hideLogin(); refreshCloudViews(); }
@@ -1071,13 +1086,14 @@
       }
     }
     async function handleLogin(){
-      await authReady;
       const button = document.getElementById('loginButton');
       if (button.disabled) return;
       button.disabled = true;
       const err = document.getElementById('loginError');
-      err.textContent = 'Signing in and loading invoices…';
+      err.textContent = 'Checking sign-in…';
       try {
+        await waitForAuthStartup(); requireLoginClient();
+        err.textContent = 'Signing in and loading shared documents…';
         await A1Data.login(document.getElementById('loginUser').value.trim(), document.getElementById('loginPass').value);
         err.textContent = ''; hideLogin(); refreshCloudViews(); startNewInvoice(); startNewLetter(); startNewItinerary();
       } catch(error) { showLogin(); err.textContent = error.message; }
@@ -1104,12 +1120,12 @@
       } catch(error) { setAuthMessage(error.message); }
     }
     async function requestPasswordReset(signedIn){
-      await authReady;
       const button = document.getElementById(signedIn ? 'signedInResetButton' : 'forgotPasswordButton');
       if (button.disabled) return;
       button.disabled = true;
       const message = 'If this account exists, a password reset link will be emailed. Check your inbox and spam folder.';
       try {
+        await waitForAuthStartup(); requireLoginClient();
         await A1Data.requestPasswordReset(document.getElementById('loginUser').value.trim() || 'JAW');
         if (signedIn) setAuthMessage(message, '#4ade80');
         else document.getElementById('loginError').textContent = message;
