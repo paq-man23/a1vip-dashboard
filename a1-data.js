@@ -306,7 +306,18 @@
   async function removeContactPhoto(path){
     if(path)check(await requireReady().storage.from('a1-contact-photos').remove([path]));
   }
+  async function fetchButtonLayout(){
+    const row=check(await requireReady().from('a1_button_layout').select('state,version').eq('id',true).single());
+    return {...copy(row.state),cloudVersion:row.version};
+  }
+  async function saveButtonLayout(state){
+    const c=requireAdmin();
+    if(!Number.isSafeInteger(state.cloudVersion))throw new Error('Refresh links before saving.');
+    const row=check(await c.rpc('a1_save_button_layout',{p_state:{added:state.added||{},removed:state.removed||{}},p_expected_version:state.cloudVersion}));
+    return {...copy(row.state),cloudVersion:row.version};
+  }
   window.A1Data = {
+    fetchButtonLayout,saveButtonLayout,
     fetchSyncRuns: async () => { const c=requireAdmin(); return check(await c.from('a1_skybox_sync_runs').select('machine_label,started_at,finished_at,status,summary').order('started_at',{ascending:false}).limit(5)); },
     isAdmin: () => !!user && ready && admin && !recoveryUserId,
     importSkybox, contacts: () => copy(contacts), saveContact, uploadContactPhoto, contactPhotoUrl, removeContactPhoto,
