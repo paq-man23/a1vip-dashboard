@@ -1089,6 +1089,7 @@
 <script src="./vendor/fflate-0.8.3.js"></script>
 <script src="./skybox-import.js"></script>
 <script src="./a1-history.js"></script>
+<script src="./private-links.js"></script>
 <script src="./button-moves.js"></script>
 <script src="./a1-invoice-fields.js"></script>
 <script src="./a1-contacts.js"></script>
@@ -1850,22 +1851,7 @@ function createBtn(label, url, isCustom=true){
     }
 
     function refreshPrivateTicketAccountButtons(){
-      const grid = sectionGrid('accounts');
-      if (!grid) return;
-      grid.querySelectorAll('.private-link-btn').forEach(btn => btn.remove());
-      [...grid.querySelectorAll(':scope > .btn')].forEach(btn => {
-        const url = getBtnURL(btn);
-        if (!/^https?:\/\//i.test(url || '')) return;
-        const label = (btn.getAttribute('data-label') || btn.textContent || '').trim();
-        const privateBtn = document.createElement('button');
-        privateBtn.type = 'button';
-        privateBtn.className = 'private-link-btn';
-        privateBtn.textContent = 'Private';
-        privateBtn.title = `Open ${label || 'link'} with the A1VIP Private Open Shortcut`;
-        privateBtn.setAttribute('aria-label', `Open ${label || 'link'} in private window`);
-        privateBtn.addEventListener('click', () => openPrivateShortcut(url, label));
-        btn.insertAdjacentElement('afterend', privateBtn);
-      });
+      window.A1PrivateLinks?.refresh();
     }
 
     async function fetchRemoteConfig(){
