@@ -82,3 +82,10 @@ test('startup timeout unlocks the login button and provides recovery steps', asy
   assert.equal(node('loginButton').disabled, false);
   assert.match(node('loginError').textContent, /startup timed out/);
 });
+
+test('saved-session loading hides credential fields and announces that the user is already signed in',()=>{
+ const {context,node,events}=ui();context.A1Data.recovering=()=>false;context.showLogin(true);assert.equal(node('normalLoginPanel').style.display,'none');assert.equal(node('sessionLoadingPanel').style.display,'block');events.get('a1-restoring-session')();assert.match(node('sessionLoadingMessage').textContent,/Already signed in/);
+});
+test('restore failure returns to the login form with a visible error',async()=>{
+ const {context,node}=ui();context.A1Data.recovering=()=>false;context.A1Data.restore=async()=>{throw Error('Connection failed');};await context.initializeAuth();assert.equal(node('normalLoginPanel').style.display,'block');assert.equal(node('sessionLoadingPanel').style.display,'none');assert.equal(node('loginError').textContent,'Connection failed');
+});
