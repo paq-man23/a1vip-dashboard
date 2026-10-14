@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-function harness({ member = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], conflictRows = [], importResults = [] } = {}) {
+function harness({ member = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [] } = {}) {
   let callback, savedArgs, loginArgs, resetArgs, updateArgs;
   const calls = [], filters = [];
   const rows = [{ id: 'inv-one', version: 3, document: { id: 'inv-one', number: '4100', clientCompany: 'A1' } }];
@@ -19,11 +19,12 @@ function harness({ member = true, failSave = false, recoverySession = false, ini
     from: table => {
       const query = { select() { if (this.deleting) return Promise.resolve({ data: [{id:'deleted'}] }); return this; }, delete() { this.deleting = true; return this; }, eq(key, value) { filters.push([key,value]); return this; }, order() { return this; },
         maybeSingle: async () => ({ data: member ? { user_id: 'staff' } : null }),
-        range: async () => ({ data: table === 'a1_invoices' ? rows : table === 'a1_documents' ? documentRows : table === 'a1_import_conflicts' ? conflictRows : [] }) };
+        range: async () => ({ data: table === 'a1_invoices' ? rows : table === 'a1_skybox_records' ? contactRows : table === 'a1_documents' ? documentRows : table === 'a1_import_conflicts' ? conflictRows : [] }) };
       return query;
     },
     rpc: async (name, args) => {
       savedArgs = args; calls.push({ name, args });
+      if (name === 'a1_import_skybox_batch') return {data:args.p_items.map(() => ({outcome:'imported'}))};
       if (name === 'a1_import_document') { const result = importResults.shift(); return result?.error ? { error: { message: result.error } } : { data: result || { outcome: 'imported' } }; }
       return failSave ? { error: { message: 'stale edit' } } : { data: { id: args.p_document.id, document: args.p_document, version: 4 } };
     }
@@ -208,4 +209,17 @@ test('an explicit new-draft version does not turn into a cloud update', async ()
   const { data, args } = harness(); await data.restore();
   await data.save({id:'inv-one',number:'4200'}, {}, null);
   assert.equal(args().p_expected_version,null);
+});
+
+test('shared imported contacts are copied and cleared on signout', async () => {
+  const {data}=harness({contactRows:[{document:{id:'123',kind:'vendor',displayName:'Example'}}]});await data.restore();
+  const c=data.contacts();assert.equal(c[0].displayName,'Example');c[0].displayName='Altered';assert.equal(data.contacts()[0].displayName,'Example');
+  await data.logout();assert.equal(data.contacts().length,0);await assert.rejects(data.importSkybox([]),/Sign in/);
+});
+
+test('Skybox imports use batches of 50 and report progress without importing invalid previews', async () => {
+ const {data,calls}=harness();await data.restore();const items=Array.from({length:51},(_,i)=>({kind:'vendor',sourceId:String(i+1),record:{},document:{},presets:{}}));const progress=[];
+ const result=await data.importSkybox(items,(done,total)=>progress.push([done,total]));assert.equal(result.imported,51);assert.deepEqual(progress,[[50,51],[51,51]]);
+ assert.deepEqual(calls.filter(c=>c.name==='a1_import_skybox_batch').map(c=>c.args.p_items.length),[50,1]);
+ await assert.rejects(data.importSkybox([{error:'bad data'}]),/blocked preview/);
 });

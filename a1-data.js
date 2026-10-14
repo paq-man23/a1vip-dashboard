@@ -11,11 +11,12 @@
   function beginRecovery(id) {
     recoveryUserId = id;
     ready = false; invoices = []; presets = {}; versions.clear();
-    documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = [];
+    documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; contacts = [];
     try { sessionStorage.setItem(RECOVERY_KEY, id); } catch {}
     window.dispatchEvent(new Event('a1-password-recovery'));
   }
   let invoices = [], presets = {}, versions = new Map();
+  let contacts = [];
   let documents = { letter: [], itinerary: [] }, documentVersions = new Map(), conflicts = [];
   const copy = value => JSON.parse(JSON.stringify(value));
   const check = result => { if (result.error) throw new Error(result.error.message); return result.data; };
@@ -48,7 +49,7 @@
     return client;
   }
   function clear() { user = null; ready = false; invoices = []; presets = {}; versions.clear();
-    documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; }
+    documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; contacts = []; }
   function requireReady() {
     if (!user || !ready || recoveryUserId) throw new Error('Sign in and load Supabase invoices before saving.');
     return client;
@@ -82,7 +83,14 @@
       conflictRows.push(...page);
       if (page.length < 500) break;
     }
+    const contactRows = [];
+    for (const kind of ['customer','vendor']) for (let offset = 0; ; offset += 500) {
+      const page = check(await client.from('a1_skybox_records').select('document').eq('kind',kind).order('source_id').range(offset,offset+499));
+      contactRows.push(...page.map(row => row.document));
+      if (page.length < 500) break;
+    }
     if (user?.id !== identity || recoveryUserId) throw new Error('Session changed. Sign in again.');
+    contacts = contactRows;
     invoices = rows.map(row => row.document);
     versions = new Map(rows.map(row => [row.id, row.version]));
     presets = {};
@@ -248,7 +256,30 @@
     await refresh();
     return result;
   }
+  async function importSkybox(items, progress = () => {}) {
+    const c = requireReady(), identity = user.id;
+    const result = { imported:0, skipped:0, conflicts:0, changed:0, errors:[] };
+    for (let offset=0;offset<items.length;offset+=50) {
+      if (user?.id !== identity || recoveryUserId) throw new Error('Session changed. Sign in again before importing.');
+      const batch=items.slice(offset,offset+50);
+      if(batch.some(item=>item.error))throw new Error('Fix blocked preview records before importing.');
+      const rows=check(await c.rpc('a1_import_skybox_batch',{p_items:batch.map(({kind,sourceId,record,document,presets})=>({kind,sourceId,record,document,presets}))}));
+      if(!Array.isArray(rows)||rows.length!==batch.length)throw new Error('Import response was incomplete. Refresh and retry the same files.');
+      rows.forEach((row,index)=>{
+        const item=batch[index];
+        if (row.outcome === 'conflict') result.conflicts++;
+        else if (row.outcome === 'changed') { result.changed++; result.errors.push(item.kind+' '+item.sourceId+': '+row.reason); }
+        else if (row.outcome === 'error') result.errors.push(item.kind+' '+item.sourceId+': '+row.reason);
+        else if (row.outcome === 'skipped') result.skipped++;
+        else if(row.outcome==='imported')result.imported++;
+        else result.errors.push(item.kind+' '+item.sourceId+': Unknown import result. Refresh and retry.');
+      });
+      progress(Math.min(offset+50,items.length),items.length);
+    }
+    await refresh(); return result;
+  }
   window.A1Data = {
+    importSkybox, contacts: () => copy(contacts),
     restore, login, refresh, save, remove, updateAccount, finishPasswordReset, requestPasswordReset, migrateLegacy, migrateAll, importRecords, browserBackup, saveDocument, removeDocument, resolveConflict,
     invoices: () => copy(invoices), presets: () => copy(presets),
     version: (kind, id) => kind === 'invoice' ? (versions.get(id) ?? null) : (documentVersions.get(kind + ':' + id) ?? null),

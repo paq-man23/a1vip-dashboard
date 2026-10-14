@@ -1,0 +1,17 @@
+# Skybox migration
+
+The dashboard's Admin → Import from Skybox reads the original customer, vendor, invoice, and purchase Excel (.xlsx) or CSV exports. Files are parsed locally. Nothing is uploaded until staff reviews the preview and chooses Import Reviewed Records.
+
+Select all four export files together so customer/vendor information is available during document conversion. Required Skybox headings are detected automatically. Download Full Review includes every converted record, original source field, warning, and validation error; the dashboard shows the first 30 records. Files are limited to 15 MB, 20,000 rows per sheet, and 60 MB of extracted workbook XML. Blank or duplicate headings and invalid essential financial values block import.
+
+Customers and Vendors have searchable shared directories and an invoice editor picker. Same-name contacts stay separate by source ID. An invoice/purchase name is linked only when exactly one matching contact exists. Customer credit remains reference information; it is not silently applied to invoice balances. Vendors can populate new purchase orders.
+
+Invoice reports lack sale quantities, seating, individual sale prices, and tax breakdowns. Converted invoices explicitly contain one summary line rather than fabricated ticket details. Skybox Invoice Total is the gross total; the report's shipping is separated without increasing that total. Credit / Amount Paid is the total-minus-outstanding-balance adjustment, not an itemized payment ledger. Void records retain Void status, including negative exported balances. Literal `Invalid date` event values remain blank with a review warning. Original source fields, including internal report fields, are retained privately in the shared archive; internal purchase notes are not copied onto customer-facing documents.
+
+Purchases become `po-ticket` documents. Ticket Cost is the total ticket cost, so unit cost is Ticket Cost / Ticket Qty. Non-Inventory Cost is a separate line. Purchase Total must match these components. Fractional unit prices can be needed to retain the exported total. Purchase-order numbers use `SB-PO-<Purchase ID>`; historical invoice numbers retain their Skybox Invoice ID.
+
+New A1 documents continue the existing numeric sequence, starting at 4100 when no A1 invoices exist. Imported Skybox IDs never advance this sequence. Invoice History offers a year filter, newest/oldest ordering, and 50-record pages. Duplicate numbers are still rejected by the database rather than overwriting another invoice; refresh history before saving if another device has used the proposed number.
+
+Imports use 50-record batches. A row failure rolls back that row, while completed rows remain. Repeat source records skip safely even after a converted invoice has been edited. A changed original with the same Skybox kind/ID is flagged and does not overwrite the first import. Invoice-number collisions preserve the converted copy under Admin → Imports Needing Review. The original source records are immutable and accessible only to approved staff through RLS.
+
+The uploaded workbooks were used for local conversion/reconciliation checks only. They are not committed to the public repository or automatically imported into the live database. Automated tests use synthetic records and disposable Postgres; importing real records remains an explicit dashboard action.
