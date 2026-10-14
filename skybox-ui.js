@@ -87,9 +87,10 @@
     field.value=lines.join('\n');
   }
   function choose(target='invoice'){
-    const picker=$(target==='invoice'?'sharedContactPicker':target==='letter'?'letterContactPicker':target==='talent'?'itineraryTalentPicker':'itineraryContactPicker');
+    const picker=$(target==='invoice'?'sharedContactPicker':target==='vendor'?'invoiceVendorPicker':target==='letter'?'letterContactPicker':target==='talent'?'itineraryTalentPicker':'itineraryContactPicker');
     const c=selected(picker);if(!c)return;
     if(target==='invoice')fill(c);
+    else if(target==='vendor'){$('invVendor').value=c.displayName;$('invVendorId').value=c.id;}
     else if(target==='letter'){
       $('letterTo').value=c.name||c.displayName;$('letterToEmail').value=c.email||'';refreshLetterPreview();
     }else if(target==='talent'){
