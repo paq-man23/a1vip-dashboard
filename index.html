@@ -546,7 +546,7 @@
                   </select>
                 </label>
                 <label class="full">Saved Customer / Vendor
-                  <select id="sharedContactPicker" onchange="A1SkyboxUI.choose()"><option value="">Choose a saved customer or vendor…</option></select>
+                  <select id="sharedContactPicker" data-contact-picker onchange="A1SkyboxUI.choose()"><option value="">Choose a saved customer or vendor…</option></select>
                 </label>
                 <label>Client / Company
                   <input id="invClientCompany" list="clientCompanyList" placeholder="Client / Company">
@@ -663,6 +663,9 @@
           <div class="invoice-layout">
             <div class="invoice-panel" style="padding:14px;">
               <div class="invoice-form-grid">
+                <label class="full">Saved Customer / Vendor
+                  <select id="letterContactPicker" data-contact-picker onchange="A1SkyboxUI.choose('letter')"><option value="">Choose a saved customer or vendor…</option></select>
+                </label>
                 <label>To
                   <input id="letterTo" type="text" placeholder="Recipient name or company">
                 </label>
@@ -730,6 +733,9 @@
           <div class="invoice-layout">
             <div class="invoice-panel" style="padding:14px;">
               <div class="invoice-form-grid">
+                <label class="full">Talent from Saved Contacts
+                  <select id="itineraryTalentPicker" data-contact-picker onchange="A1SkyboxUI.choose('talent')"><option value="">Choose a saved customer or vendor…</option></select>
+                </label>
                 <label>Talent
                   <input id="itinTalent" type="text" placeholder="Talent name">
                 </label>
@@ -747,6 +753,10 @@
                 </label>
                 <label>Date of Event
                   <input id="itinEventDate" type="date">
+                </label>
+                <label class="full">Add Saved Customer / Vendor to Trip Contacts
+                  <select id="itineraryContactPicker" data-contact-picker onchange="A1SkyboxUI.choose('itinerary')"><option value="">Choose a saved customer or vendor…</option></select>
+                  <span class="muted">Adds their name, phone numbers, email, and available address. You can add multiple contacts, then save the itinerary.</span>
                 </label>
                 <label class="full">Event Contacts
                   <textarea id="itinEventContacts" placeholder="Names of event contacts"></textarea>
@@ -3293,6 +3303,7 @@ function createBtn(label, url, isCustom=true){
     }
 
     function setLetterToForm(letter){
+      const picker=document.getElementById('letterContactPicker');if(picker)picker.value='';
       if (letter.id !== currentLetterId) currentLetterVersion = A1Data.version('letter', letter.id);
       currentLetterId = letter.id || null;
       currentLetterSavedName = letter.savedName || '';
@@ -3577,6 +3588,9 @@ function createBtn(label, url, isCustom=true){
             <button type="button" class="cta ghost" onclick="removeHotelReservation(${idx})">Remove</button>
           </div>
           <div class="line-item-grid">
+            <label class="full">Saved Vendor
+              <select data-contact-picker data-contact-kind="vendor" onchange="A1SkyboxUI.chooseBooking(this,'hotel',${idx})"><option value="">Choose a saved vendor…</option></select>
+            </label>
             <label>Guest / Group
               <select data-hotel-line="${idx}" data-field="guestType">
                 <option value="Talent"${entry.guestType === 'Talent' ? ' selected' : ''}>Talent</option>
@@ -3616,6 +3630,7 @@ function createBtn(label, url, isCustom=true){
         `;
         wrap.appendChild(card);
       });
+      if(window.A1SkyboxUI)window.A1SkyboxUI.populatePickers();
       wrap.querySelectorAll('input, textarea, select').forEach(el => {
         el.addEventListener('input', refreshItineraryPreview);
         el.addEventListener('change', refreshItineraryPreview);
@@ -3635,6 +3650,9 @@ function createBtn(label, url, isCustom=true){
             <button type="button" class="cta ghost" onclick="removeFlightDetail(${idx})">Remove</button>
           </div>
           <div class="line-item-grid">
+            <label class="full">Saved Vendor
+              <select data-contact-picker data-contact-kind="vendor" onchange="A1SkyboxUI.chooseBooking(this,'flight',${idx})"><option value="">Choose a saved vendor…</option></select>
+            </label>
             <label>Traveler / Group
               <select data-flight-line="${idx}" data-field="travelerType">
                 <option value="Team"${entry.travelerType === 'Team' ? ' selected' : ''}>Team</option>
@@ -3673,6 +3691,7 @@ function createBtn(label, url, isCustom=true){
         `;
         wrap.appendChild(card);
       });
+      if(window.A1SkyboxUI)window.A1SkyboxUI.populatePickers();
       wrap.querySelectorAll('input, textarea, select').forEach(el => {
         el.addEventListener('input', refreshItineraryPreview);
         el.addEventListener('change', refreshItineraryPreview);
@@ -3692,6 +3711,9 @@ function createBtn(label, url, isCustom=true){
             <button type="button" class="cta ghost" onclick="removeRentalCar(${idx})">Remove</button>
           </div>
           <div class="line-item-grid">
+            <label class="full">Saved Vendor
+              <select data-contact-picker data-contact-kind="vendor" onchange="A1SkyboxUI.chooseBooking(this,'car',${idx})"><option value="">Choose a saved vendor…</option></select>
+            </label>
             <label>Traveler / Group
               <select data-car-line="${idx}" data-field="travelerType">
                 <option value="Team"${entry.travelerType === 'Team' ? ' selected' : ''}>Team</option>
@@ -3733,6 +3755,7 @@ function createBtn(label, url, isCustom=true){
         `;
         wrap.appendChild(card);
       });
+      if(window.A1SkyboxUI)window.A1SkyboxUI.populatePickers();
       wrap.querySelectorAll('input, textarea, select').forEach(el => {
         el.addEventListener('input', refreshItineraryPreview);
         el.addEventListener('change', refreshItineraryPreview);
@@ -3740,6 +3763,7 @@ function createBtn(label, url, isCustom=true){
     }
 
     function setItineraryToForm(itinerary){
+      ['itineraryTalentPicker','itineraryContactPicker'].forEach(id=>{const picker=document.getElementById(id);if(picker)picker.value='';});
       if (itinerary.id !== currentItineraryId) currentItineraryVersion = A1Data.version('itinerary', itinerary.id);
       itinerary = normalizeItinerary(itinerary);
       currentItineraryId = itinerary.id || null;

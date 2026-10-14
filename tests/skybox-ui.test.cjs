@@ -1,10 +1,10 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const S=require('../skybox-import');
-function ui(){
- const nodes=new Map();class Node{constructor(){this.value='';this.children=[];this.disabled=false;this.style={};this.files=[];}append(...values){this.children.push(...values);}replaceChildren(...values){this.children=values;}addEventListener(){}click(){}}
+function ui(contacts=[]){
+ const nodes=new Map();class Node{constructor(){this.dataset={};this.value='';this.children=[];this.disabled=false;this.style={};this.files=[];}append(...values){this.children.push(...values);}replaceChildren(...values){this.children=values;}addEventListener(){}click(){}}
  const node=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};let imports=0;
  const window={addEventListener(){}};
- vm.runInNewContext(fs.readFileSync('skybox-ui.js','utf8'),{window,document:{getElementById:node,createElement:()=>new Node()},A1Skybox:S,A1Data:{contacts:()=>[],importSkybox:async()=>{imports++;return {imported:1,skipped:0,conflicts:0,changed:0,errors:[]};}},money:value=>'$'+value,confirm:()=>false});
+ vm.runInNewContext(fs.readFileSync('skybox-ui.js','utf8'),{window,document:{getElementById:node,createElement:()=>new Node(),querySelector:node,querySelectorAll:()=>Array.from(nodes.values()).filter(n=>n.isPicker)},A1Skybox:S,A1Data:{contacts:()=>contacts,importSkybox:async()=>{imports++;return {imported:1,skipped:0,conflicts:0,changed:0,errors:[]};}},refreshInvoicePreview(){},refreshLetterPreview(){},refreshItineraryPreview(){},money:value=>'$'+value,confirm:()=>false});
  return {api:window.A1SkyboxUI,node,imports:()=>imports};
 }
 test('file selection previews source rows even when the input is reset; preview never writes data',async()=>{
@@ -17,4 +17,26 @@ test('file selection previews source rows even when the input is reset; preview 
 test('invalid export headings block import and display a useful error',async()=>{
  const {api,node,imports}=ui();await api.read({target:{files:[{name:'bad.csv',size:10,text:async()=> 'Wrong,Headings\n1,2'}]}});
  assert.equal(node('skyboxCommit').disabled,true);assert.match(node('skyboxMessage').textContent,/does not match/);assert.equal(imports(),0);
+});
+
+const savedContact={kind:'vendor',id:'123',displayName:'Example Vendor',name:'Contact Name',company:'Example Company',email:'contact@example.invalid',phone:'111',phone2:'222',address:'Street\nCity'};
+test('letter picker fills recipient and email without touching the letter body',()=>{
+ const {api,node}=ui([savedContact]);node('letterContactPicker').value='vendor:123';node('letterBody').value='Existing letter';api.choose('letter');
+ assert.equal(node('letterTo').value,'Contact Name');assert.equal(node('letterToEmail').value,'contact@example.invalid');assert.equal(node('letterBody').value,'Existing letter');
+});
+test('trip pickers add multiple contacts without duplicating or erasing existing details',()=>{
+ const {api,node}=ui([savedContact]);node('itinOtherContactInfo').value='Existing travel notes';
+ for(let i=0;i<2;i++){node('itineraryContactPicker').value='vendor:123';api.choose('itinerary');}
+ assert.equal(node('itinEventContacts').value,'Contact Name (Example Company)');assert.match(node('itinContactPhones').value,/111 \/ 222/);assert.match(node('itinOtherContactInfo').value,/Existing travel notes/);assert.match(node('itinOtherContactInfo').value,/contact@example.invalid/);
+ node('itineraryTalentPicker').value='vendor:123';api.choose('talent');assert.equal(node('itinTalent').value,'Contact Name');
+});
+test('booking vendor selection preserves reservations and appends contact details once',()=>{
+ const {api,node}=ui([savedContact]);const picker={value:'vendor:123'};
+ const notes=node('[data-car-line="0"][data-field="notes"]');notes.value='Existing pickup notes';api.chooseBooking(picker,'car',0);api.chooseBooking(picker,'car',0);
+ assert.equal(node('[data-car-line="0"][data-field="company"]').value,'Example Company');assert.equal(notes.value.split('\n').length,2);assert.match(notes.value,/Existing pickup notes/);assert.match(notes.value,/contact@example.invalid/);
+});
+test('all pickers use shared contacts and booking pickers restrict choices to vendors',()=>{
+ const {api,node}=ui([savedContact,{...savedContact,kind:'customer',id:'456'}]);
+ const all=node('all');all.isPicker=true;const vendors=node('vendors');vendors.isPicker=true;vendors.dataset.contactKind='vendor';api.populatePickers();
+ assert.equal(all.children.length,3);assert.equal(vendors.children.length,2);assert.equal(vendors.children[1].label,'Vendors');
 });

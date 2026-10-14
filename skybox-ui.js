@@ -76,7 +76,59 @@
     for(const [id,value] of Object.entries(map))$(id).value=value||'';
     refreshInvoicePreview();
   }
-  function choose(){const [kind,id]=$('sharedContactPicker').value.split(':');const c=A1Data.contacts().find(c=>c.kind===kind&&c.id===id);if(c)fill(c);}
+  function selected(picker){
+    const [kind,id]=picker.value.split(':');
+    return A1Data.contacts().find(c=>c.kind===kind&&c.id===id);
+  }
+  function appendLine(id,value){
+    const field=$(id);if(!field||!value)return;
+    const lines=field.value.split('\n').filter(Boolean);
+    if(!lines.includes(value))lines.push(value);
+    field.value=lines.join('\n');
+  }
+  function choose(target='invoice'){
+    const picker=$(target==='invoice'?'sharedContactPicker':target==='letter'?'letterContactPicker':target==='talent'?'itineraryTalentPicker':'itineraryContactPicker');
+    const c=selected(picker);if(!c)return;
+    if(target==='invoice')fill(c);
+    else if(target==='letter'){
+      $('letterTo').value=c.name||c.displayName;$('letterToEmail').value=c.email||'';refreshLetterPreview();
+    }else if(target==='talent'){
+      $('itinTalent').value=c.name||c.displayName;refreshItineraryPreview();
+    }else{
+      const name=c.name||c.displayName;
+      const label=c.company&&c.company!==name?name+' ('+c.company+')':name;
+      appendLine('itinEventContacts',label);
+      const phones=[c.phone,c.phone2].filter(Boolean).join(' / ');
+      if(phones)appendLine('itinContactPhones',label+': '+phones);
+      const other=[c.email,c.address?.replaceAll('\n',', ')].filter(Boolean).join(' · ');
+      if(other)appendLine('itinOtherContactInfo',label+': '+other);
+      picker.value='';refreshItineraryPreview();
+    }
+  }
+  function chooseBooking(picker,kind,index){
+    const c=selected(picker);if(!c)return;
+    const selectors={hotel:['hotel','hotelLocation'],car:['car','company'],flight:['flight','airline']};
+    const [line,field]=selectors[kind]||[];if(!line)return;
+    const name=document.querySelector(`[data-${line}-line="${index}"][data-field="${field}"]`);
+    if(name)name.value=c.company||c.displayName;
+    const notes=document.querySelector(`[data-${line}-line="${index}"][data-field="notes"]`);
+    const contact=[c.name,c.email,c.phone,c.phone2].filter(Boolean).join(' · ');
+    if(notes&&contact&&!notes.value.split('\n').includes(contact))notes.value=[notes.value,contact].filter(Boolean).join('\n');
+    refreshItineraryPreview();
+  }
+  function populatePickers(){
+    for(const picker of document.querySelectorAll('[data-contact-picker]')){
+      const selectedValue=picker.value;picker.replaceChildren();
+      const placeholder=node('option',picker.dataset.contactKind==='vendor'?'Choose a saved vendor…':'Choose a saved customer or vendor…');placeholder.value='';picker.append(placeholder);
+      for(const kind of ['customer','vendor']){
+        if(picker.dataset.contactKind&&picker.dataset.contactKind!==kind)continue;
+        const group=node('optgroup');group.label=kind==='vendor'?'Vendors':'Customers';
+        for(const c of A1Data.contacts().filter(c=>c.kind===kind)){
+          const option=node('option',c.displayName+' · '+(c.name||c.email||c.id));option.value=kind+':'+c.id;group.append(option);
+        }picker.append(group);
+      }picker.value=selectedValue;
+    }
+  }
   function purchases(){
     const wrap=$('purchaseDirectory');if(!wrap)return;wrap.replaceChildren();
     const q=($('purchaseSearch').value||'').toLowerCase();
@@ -89,9 +141,8 @@
   function render(){
     if(typeof A1Data==='undefined'||typeof A1Data.contacts!=='function')return;
     directory('customer');directory('vendor');purchases();
-    const picker=$('sharedContactPicker');if(!picker)return;const selected=picker.value;picker.replaceChildren();const placeholder=node('option','Choose a saved customer or vendor…');placeholder.value='';picker.append(placeholder);
-    for(const kind of ['customer','vendor']){const group=node('optgroup');group.label=kind==='vendor'?'Vendors':'Customers';for(const c of A1Data.contacts().filter(c=>c.kind===kind)){const option=node('option',c.displayName+' · '+(c.name||c.email||c.id));option.value=kind+':'+c.id;group.append(option);}picker.append(group);}picker.value=selected;
+    populatePickers();
   }
-  window.A1SkyboxUI={read,commit,download,render,choose,directory,purchases};
+  window.A1SkyboxUI={read,commit,download,render,choose,chooseBooking,populatePickers,directory,purchases};
   window.addEventListener('a1-signed-out',reset);
 })();
