@@ -8,9 +8,9 @@
   }
   function years(items){return [...new Set(items.map(year))].sort((a,b)=>a==='Unknown'?1:b==='Unknown'?-1:b.localeCompare(a));}
   const origin=item=>item.origin==='skybox'||text(item.id).startsWith('inv-skybox-')?'skybox':'a1';
-  function filter(items,query='',selectedYear='',order='newest',selectedOrigin=''){
+  function filter(items,query='',selectedYear='',order='newest',selectedOrigin='',selectedKind=''){
     const q=text(query).trim().toLowerCase();
-    return items.filter(i=>(!selectedOrigin||origin(i)===selectedOrigin)&&(!selectedYear||year(i)===selectedYear)&&(!q||[i.savedName,i.number,i.clientCompany,i.clientContact,i.clientEmail,i.status,i.type].some(v=>text(v).toLowerCase().includes(q))))
+    return items.filter(i=>(!selectedKind||(String(i.type||'').startsWith('po-')?'purchase':'invoice')===selectedKind)&&(!selectedOrigin||origin(i)===selectedOrigin)&&(!selectedYear||year(i)===selectedYear)&&(!q||[i.savedName,i.number,i.clientCompany,i.clientContact,i.clientEmail,i.status,i.type].some(v=>text(v).toLowerCase().includes(q))))
       .sort((a,b)=>{
         const ad=year(a)==='Unknown'?'':a.createdDate,bd=year(b)==='Unknown'?'':b.createdDate;
         if(!ad&&bd)return 1;if(ad&&!bd)return -1;

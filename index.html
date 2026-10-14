@@ -268,6 +268,9 @@
     .invoice-toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
     .invoice-toolbar .btn{padding:12px 14px;min-height:auto}
     .invoice-layout{display:grid;grid-template-columns:minmax(320px,1.1fr) minmax(320px,.9fr);gap:16px}
+    .document-kind-switch{display:flex;flex-wrap:wrap;gap:6px;padding:6px;background:#0b1627;border:1px solid #293b52;border-radius:12px;margin-bottom:16px;width:fit-content}
+    .document-kind-switch button{border:0;background:transparent;color:#b2c1d5;border-radius:8px;padding:11px 16px;font-weight:700;cursor:pointer}
+    .document-kind-switch button.active{background:#86efac;color:#082619}.document-kind-switch button:focus-visible{outline:2px solid #86efac;outline-offset:2px}
     .invoice-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
     .invoice-form-grid label,.invoice-lines label,.invoice-history-card strong,.invoice-preview strong{font-weight:700}
     .invoice-form-grid input,.invoice-form-grid select,.invoice-form-grid textarea,.invoice-lines input,.invoice-lines select,.invoice-lines textarea{
@@ -417,10 +420,9 @@
       <button class="tab tab-accounts" onclick="showSection('accounts')">Ticket Accounts</button>
       <button class="tab tab-travel" onclick="showSection('travel')">Travel</button>
       <button class="tab tab-social" onclick="showSection('social')">Social</button>
-      <button class="tab tab-invoices" onclick="showSection('invoices')">Invoices</button>
+      <button class="tab tab-invoices" onclick="showSection('invoices')">Invoices &amp; POs</button>
       <button class="tab tab-invoices" onclick="showSection('customers')">Customers</button>
       <button class="tab tab-invoices" onclick="showSection('vendors')">Vendors</button>
-      <button class="tab tab-invoices" onclick="showSection('purchases')">Purchases</button>
       <button class="tab tab-letter" onclick="showSection('formLetter')">Form Letter</button>
       <button class="tab tab-itinerary" onclick="showSection('tripItinerary')">Trip / Talent Itinerary</button>
       <button class="tab tab-admin" onclick="showSection('admin')">Admin</button>
@@ -475,23 +477,24 @@
     </div>
 
     <div id="invoices" class="section" style="display:none;">
-      <h3>Invoices</h3>
+      <h3>Invoices &amp; Purchase Orders</h3>
       <div class="invoice-shell">
         <div class="invoice-subnav">
-          <button class="cta cta-primary" onclick="openInvoiceMode('editor')">New / Edit Invoice</button>
-          <button class="cta cta-secondary" onclick="openInvoiceMode('history')">Invoice History</button>
+          <button class="cta cta-primary" onclick="openInvoiceMode('editor')">Editor</button>
+          <button class="cta cta-primary" onclick="startWorkspaceDocument('invoice')">New Invoice</button>
+          <button class="cta cta-primary" onclick="startWorkspaceDocument('purchase')">New Purchase Order</button>
+          <button class="cta cta-secondary" onclick="openInvoiceMode('history')">Saved Documents</button>
           <button class="cta ghost" onclick="openInvoiceMode('presets')">Saved Clients / Presets</button>
         </div>
 
         <div id="invoiceEditor" class="invoice-panel">
           <div class="invoice-toolbar">
-            <button class="btn" onclick="startNewInvoice()">New Invoice</button>
-            <button class="btn" onclick="saveInvoice()">Save Invoice</button>
+            <button id="documentSaveButton" class="btn" onclick="saveInvoice()">Save Invoice</button>
             <button class="btn" onclick="exportInvoiceFile()">Export File</button>
             <button class="btn" onclick="document.getElementById('invoiceImportInput').click()">Import File</button>
             <button class="btn" onclick="duplicateCurrentInvoice()">Duplicate</button>
             <button class="btn" onclick="downloadInvoicePdf()">Save PDF</button>
-            <button class="btn" onclick="emailInvoice()">Email Invoice</button>
+            <button id="documentEmailButton" class="btn" onclick="emailInvoice()">Email Invoice</button>
           </div>
           <input id="invoiceImportInput" type="file" accept=".json,.a1vip.json,application/json" style="display:none;" onchange="handleInvoiceImport(event)">
 
@@ -621,18 +624,24 @@
         </div>
 
         <div id="invoiceHistoryPanel" class="invoice-panel" style="display:none;">
+          <input id="invoiceHistoryKind" type="hidden" value="">
+          <div class="document-kind-switch" role="group" aria-label="Filter saved document type">
+            <button type="button" class="active" data-history-kind="" aria-pressed="true" onclick="setInvoiceHistoryKind('')">All Documents</button>
+            <button type="button" data-history-kind="invoice" aria-pressed="false" onclick="setInvoiceHistoryKind('invoice')">Invoices</button>
+            <button type="button" data-history-kind="purchase" aria-pressed="false" onclick="setInvoiceHistoryKind('purchase')">Purchase Orders</button>
+          </div>
           <div class="invoice-toolbar">
             <button class="btn" onclick="refreshInvoiceHistory()">Refresh History</button>
-            <button class="btn btn-remove" onclick="clearInvoiceHistory()">Clear History</button>
+            <button class="btn btn-remove" onclick="clearInvoiceHistory()">Clear All History</button>
             <button class="btn" onclick="migrateLocalInvoices()">Import This Computer’s Saved Documents</button>
           </div>
           <div class="invoice-form-grid" style="margin-bottom:14px;">
-            <label class="full">Search Invoice History
-              <input id="invoiceHistorySearch" type="search" placeholder="Search invoice #, client, status, or type..." oninput="invoiceHistoryPage=0;renderInvoiceHistory()">
+            <label class="full">Search Saved Documents
+              <input id="invoiceHistorySearch" type="search" placeholder="Search invoice / PO #, customer, vendor, or status..." oninput="invoiceHistoryPage=0;renderInvoiceHistory()">
             </label>
           </div>
           <div class="invoice-form-grid" style="margin-bottom:14px;">
-            <label>Invoice Year <select id="invoiceHistoryYear" onchange="invoiceHistoryPage=0;renderInvoiceHistory()"><option value="">All Years</option></select></label>
+            <label>Document Year <select id="invoiceHistoryYear" onchange="invoiceHistoryPage=0;renderInvoiceHistory()"><option value="">All Years</option></select></label>
             <label>Created In <select id="invoiceHistoryOrigin" onchange="invoiceHistoryPage=0;renderInvoiceHistory()"><option value="">All Sources</option><option value="skybox">Skybox</option><option value="a1">A1 Dashboard</option></select></label>
             <label>Sort <select id="invoiceHistoryOrder" onchange="invoiceHistoryPage=0;renderInvoiceHistory()"><option value="newest">Newest First</option><option value="oldest">Oldest First</option></select></label>
           </div>
@@ -835,12 +844,6 @@
       <div class="invoice-toolbar"><button class="btn" onclick="A1Contacts.add('vendor')">Add Vendor</button><button class="btn" onclick="refreshInvoiceHistory()">Refresh Vendors</button><button class="btn" onclick="showSection('admin')">Skybox Import</button></div>
       <input id="vendorSearch" type="search" placeholder="Search name, phone, email, company, type, notes, or ID" oninput="A1Contacts.directory('vendor')"><div id="vendorDirectory" class="invoice-history-list"></div>
     </div>
-    <div id="purchases" class="section" style="display:none;">
-      <h3>Purchases / Purchase Orders</h3><p>Open imported Skybox purchases and saved A1 purchase orders.</p>
-      <div class="invoice-toolbar"><button class="btn" onclick="refreshInvoiceHistory()">Refresh Purchases</button><button class="btn" onclick="showSection('admin')">Skybox Import</button></div>
-      <input id="purchaseSearch" type="search" placeholder="Search PO number, vendor, or status" oninput="A1SkyboxUI.purchases()"><div id="purchaseDirectory" class="invoice-history-list"></div>
-    </div>
-
     <div id="admin" class="section" style="display:none;">
       <div class="upload-card" style="margin-bottom:20px;">
         <h3>Import from Skybox</h3>
@@ -1608,6 +1611,7 @@
     });
 
     function showSection(id){
+      if(id==='purchases'){id='invoices';setInvoiceHistoryKind('purchase');openInvoiceMode('history');}
       document.querySelectorAll('.section').forEach(s=>s.style.display='none');
       const el = document.getElementById(id);
       if(el) el.style.display='block';
@@ -2760,6 +2764,19 @@ function createBtn(label, url, isCustom=true){
       return line.description ? nl2br(line.description) : '&nbsp;';
     }
 
+    function setInvoiceHistoryKind(kind){
+      if(!['','invoice','purchase'].includes(kind))return;
+      document.getElementById('invoiceHistoryKind').value=kind;
+      document.querySelectorAll('[data-history-kind]').forEach(button=>{
+        const active=button.dataset.historyKind===kind;
+        button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));
+      });
+      invoiceHistoryPage=0;renderInvoiceHistory();
+    }
+    function startWorkspaceDocument(kind){
+      const area=isTravelInvoiceType(document.getElementById('invType').value)?'travel':'ticket';
+      setInvoiceHistoryKind(kind);startNewInvoice((kind==='purchase'?'po-':'invoice-')+area);showSection('invoices');
+    }
     function openInvoiceMode(mode){
       const editor = document.getElementById('invoiceEditor');
       const history = document.getElementById('invoiceHistoryPanel');
@@ -2816,6 +2833,8 @@ function createBtn(label, url, isCustom=true){
       if (numberLabel){
         numberLabel.childNodes[0].textContent = documentNumberLabel(type);
       }
+      const save=document.getElementById('documentSaveButton'),email=document.getElementById('documentEmailButton');
+      if(save)save.textContent='Save '+documentLabel(type);if(email)email.textContent='Email '+documentLabel(type);
     }
 
     function renderInvoiceInternalFields(invoice){
@@ -3235,12 +3254,11 @@ function createBtn(label, url, isCustom=true){
 
     let invoiceHistoryPage = 0;
     function renderInvoiceHistory(){
-      if (window.A1SkyboxUI) window.A1SkyboxUI.purchases();
       const wrap = document.getElementById('invoiceHistoryList');
       if (!wrap) return;
       const items = loadInvoices();
       if (!items.length){
-        wrap.innerHTML = '<div class="invoice-empty">No invoices saved yet.</div>';
+        wrap.innerHTML = '<div class="invoice-empty">No invoices or purchase orders saved yet.</div>';
         return;
       }
       const query = (document.getElementById('invoiceHistorySearch')?.value || '').trim().toLowerCase();
@@ -3250,13 +3268,13 @@ function createBtn(label, url, isCustom=true){
         yearSelect.innerHTML='<option value="">All Years</option>'+A1History.years(items).map(year=>`<option value="${escHtml(year)}">${escHtml(year)}</option>`).join('');
         yearSelect.value=selectedYear;
       }
-      const filtered = A1History.filter(items,query,selectedYear,document.getElementById('invoiceHistoryOrder')?.value || 'newest',document.getElementById('invoiceHistoryOrigin')?.value || '');
+      const filtered = A1History.filter(items,query,selectedYear,document.getElementById('invoiceHistoryOrder')?.value || 'newest',document.getElementById('invoiceHistoryOrigin')?.value || '',document.getElementById('invoiceHistoryKind')?.value || '');
       const lastPage=Math.max(0,Math.ceil(filtered.length/50)-1);
       invoiceHistoryPage=Math.min(invoiceHistoryPage,lastPage);
       const pager=document.getElementById('invoiceHistoryPager');
       if(pager)pager.innerHTML=`<span>${filtered.length} documents · Page ${invoiceHistoryPage+1} of ${lastPage+1}</span><button class="btn" ${invoiceHistoryPage===0?'disabled':''} onclick="invoiceHistoryPage--;renderInvoiceHistory()">Previous</button><button class="btn" ${invoiceHistoryPage>=lastPage?'disabled':''} onclick="invoiceHistoryPage++;renderInvoiceHistory()">Next</button>`;
       if (!filtered.length){
-        wrap.innerHTML = '<div class="invoice-empty">No invoices match your search.</div>';
+        wrap.innerHTML = '<div class="invoice-empty">No documents match these filters.</div>';
         return;
       }
       wrap.innerHTML = filtered.slice(invoiceHistoryPage*50,invoiceHistoryPage*50+50).map(item => `
@@ -3351,7 +3369,7 @@ function createBtn(label, url, isCustom=true){
     }
     async function clearInvoiceHistory(){
       const snapshot = loadInvoices();
-      if (!confirm('Delete all ' + snapshot.length + ' loaded invoices from shared history on all devices?')) return;
+      if (!confirm('Delete all ' + snapshot.length + ' loaded invoices and purchase orders from shared history on all devices, including documents hidden by filters?')) return;
       try {
         for (const invoice of snapshot) await A1Data.remove(invoice.id);
         renderInvoiceHistory(); startNewInvoice();
