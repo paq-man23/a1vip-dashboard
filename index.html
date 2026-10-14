@@ -351,6 +351,7 @@
   <!-- Login Screen -->
   <div id="loginScreen" class="login-screen" style="display:flex;">
     <div class="login-card">
+      <div id="normalLoginPanel">
       <h2>A1 VIP Login</h2>
       <p>Enter your credentials to access the dashboard.</p>
       <label>
@@ -366,6 +367,22 @@
         <button class="login-btn" id="forgotPasswordButton" onclick="requestPasswordReset(false)">Forgot Password</button>
       </div>
       <div id="loginError" class="login-error"></div>
+      </div>
+      <form id="passwordRecoveryPanel" style="display:none;" onsubmit="finishPasswordReset(event)">
+        <h2>Choose a new password</h2>
+        <p>Your reset link is valid. Enter and confirm your new password.</p>
+        <label>New password
+          <input id="recoveryPassword" type="password" autocomplete="new-password" minlength="8" required>
+        </label>
+        <label>Confirm new password
+          <input id="recoveryConfirm" type="password" autocomplete="new-password" minlength="8" required>
+        </label>
+        <div class="login-actions">
+          <button id="recoverySaveButton" class="login-btn" type="submit">Save Password</button>
+          <button class="login-btn" type="button" onclick="logout()">Cancel</button>
+        </div>
+        <div id="recoveryMessage" class="login-error" role="status" aria-live="polite"></div>
+      </form>
     </div>
   </div>
 
@@ -987,11 +1004,39 @@
       document.body.classList.add('a1-locked');
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('loginPass').value = '';
+      document.getElementById('normalLoginPanel').style.display = A1Data.recovering() ? 'none' : 'block';
+      document.getElementById('passwordRecoveryPanel').style.display = A1Data.recovering() ? 'block' : 'none';
     }
     function hideLogin(){
+      if (A1Data.recovering()) { showPasswordRecovery(); return; }
       document.body.classList.remove('a1-locked');
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('loginPass').value = '';
+    }
+    function showPasswordRecovery(){
+      showLogin();
+      document.getElementById('normalLoginPanel').style.display = 'none';
+      document.getElementById('passwordRecoveryPanel').style.display = 'block';
+    }
+    window.addEventListener('a1-password-recovery', showPasswordRecovery);
+    async function finishPasswordReset(event){
+      event.preventDefault();
+      const password = document.getElementById('recoveryPassword');
+      const confirmation = document.getElementById('recoveryConfirm');
+      const message = document.getElementById('recoveryMessage');
+      const button = document.getElementById('recoverySaveButton');
+      if (button.disabled) return;
+      if (password.value !== confirmation.value) { message.textContent = 'The passwords do not match.'; return; }
+      button.disabled = true; message.textContent = 'Saving your password…';
+      try {
+        const result = await A1Data.finishPasswordReset(password.value);
+        password.value = ''; confirmation.value = '';
+        showLogin();
+        document.getElementById('loginError').textContent = result.signOutFailed
+          ? 'Password updated. Close this page and sign in with the new password.'
+          : 'Password updated. Sign in with your new password.';
+      } catch(error) { message.textContent = error.message; }
+      finally { button.disabled = false; }
     }
     function refreshCloudViews(){
       refreshInvoiceDatalists(); renderInvoiceHistory(); renderInvoicePresets();
@@ -1002,6 +1047,7 @@
         localStorage.removeItem('a1vip-auth-v1');
         localStorage.removeItem('a1vip-auth-override');
         if (await A1Data.restore()) { hideLogin(); refreshCloudViews(); }
+        else if (A1Data.recovering()) showPasswordRecovery();
       } catch(error) {
         document.getElementById('loginError').textContent = error.message;
       }
@@ -1070,6 +1116,8 @@
       showLogin(); refreshCloudViews(); startNewInvoice();
       document.getElementById('authCurrentPass').value = '';
       document.getElementById('authNewPass').value = '';
+      document.getElementById('recoveryPassword').value = '';
+      document.getElementById('recoveryConfirm').value = '';
     });
     document.addEventListener('DOMContentLoaded', () => {
       authReady = initializeAuth();

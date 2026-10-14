@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-function harness({ member = true, failSave = false } = {}) {
+function harness({ member = true, failSave = false, recoverySession = false, initialMarker = null } = {}) {
   let callback, savedArgs, loginArgs, resetArgs, updateArgs;
   const rows = [{ id: 'inv-one', version: 3, document: { id: 'inv-one', number: '4100', clientCompany: 'A1' } }];
   const client = {
@@ -10,7 +10,7 @@ function harness({ member = true, failSave = false } = {}) {
       onAuthStateChange: fn => { callback = fn; },
       resetPasswordForEmail: async (email, options) => { resetArgs = { email, options }; return {}; },
       updateUser: async args => { updateArgs = args; return {}; },
-      getSession: async () => ({ data: { session: {} } }),
+      getSession: async () => { if (recoverySession) callback('PASSWORD_RECOVERY', { user: { id: 'staff' } }); return { data: { session: {} } }; },
       getUser: async () => ({ data: { user: { id: 'staff', email: 'staff@example.com' } } }),
       signInWithPassword: async args => { loginArgs = args; return { data: { user: { id: 'staff', email: args.email } } }; },
       signOut: async () => { callback('SIGNED_OUT'); return {}; }
@@ -27,10 +27,12 @@ function harness({ member = true, failSave = false } = {}) {
     }
   };
   const storage = new Map();
+  const session = new Map();
+  if (initialMarker) session.set('a1vip-password-recovery', initialMarker);
   const window = { A1_SUPABASE_CONFIG: { url: 'https://test.supabase.co', publishableKey: 'public', adminAliases: { JAW: 'jaw@a1eei.com', JV: 'vollario@mac.com' }, passwordResetRedirect: 'https://a1dash.a1eei.com/reset-password.html' },
     supabase: { createClient: () => client }, dispatchEvent() {} };
-  vm.runInNewContext(fs.readFileSync('a1-data.js','utf8'), { window, Event: class {}, localStorage: { getItem: key => storage.get(key) } });
-  return { data: window.A1Data, storage, args: () => savedArgs, loginArgs: () => loginArgs, resetArgs: () => resetArgs, updateArgs: () => updateArgs, window };
+  vm.runInNewContext(fs.readFileSync('a1-data.js','utf8'), { window, Event: class { constructor(type) { this.type = type; } }, sessionStorage: { getItem: key => session.get(key), setItem: (key, value) => session.set(key, value), removeItem: key => session.delete(key) }, localStorage: { getItem: key => storage.get(key) } });
+  return { data: window.A1Data, storage, args: () => savedArgs, loginArgs: () => loginArgs, resetArgs: () => resetArgs, updateArgs: () => updateArgs, authEvent: (event, value) => callback(event, value), session, window };
 }
 test('approved staff restore invoice history; callers cannot mutate the cache', async () => {
   const { data } = harness(); await data.restore();
@@ -119,4 +121,37 @@ test('unknown usernames cannot authenticate through an admin alias', async () =>
   const { data } = harness();
   await assert.rejects(data.login('other-admin', 'password'), /Invalid username/);
   assert.equal(data.authenticated(), false);
+});
+
+test('an emailed recovery session does not restore ordinary dashboard access', async () => {
+  const { data } = harness({ recoverySession: true });
+  assert.equal(await data.restore(), false);
+  assert.equal(data.recovering(), true);
+  assert.equal(data.authenticated(), false);
+  assert.equal(data.invoices().length, 0);
+  await assert.rejects(data.save({ id: 'inv-new' }), /Sign in/);
+  await assert.rejects(data.refresh(), /Choose your new password/);
+});
+test('recovery arriving in an already signed-in page clears invoice access', async () => {
+  const { data, authEvent } = harness(); await data.restore();
+  authEvent('PASSWORD_RECOVERY', { user: { id: 'staff' } });
+  assert.equal(data.authenticated(), false);
+  assert.equal(data.invoices().length, 0);
+});
+test('reloading a pending recovery stays in password reset mode', async () => {
+  const { data } = harness({ initialMarker: 'staff' });
+  assert.equal(await data.restore(), false);
+  assert.equal(data.recovering(), true);
+});
+test('the new password is submitted and recovery is cleared after success', async () => {
+  const { data, updateArgs, session } = harness({ recoverySession: true }); await data.restore();
+  await data.finishPasswordReset('replacement-password');
+  assert.equal(updateArgs().password, 'replacement-password');
+  assert.equal(data.recovering(), false);
+  assert.equal(data.authenticated(), false);
+  assert.equal(session.has('a1vip-password-recovery'), false);
+});
+test('ordinary sessions cannot invoke recovery password updates', async () => {
+  const { data } = harness(); await data.restore();
+  await assert.rejects(data.finishPasswordReset('replacement-password'), /valid password reset link/);
 });

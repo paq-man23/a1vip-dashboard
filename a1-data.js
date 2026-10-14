@@ -1,6 +1,19 @@
 /* Supabase-backed A1 staff invoices. No invoice/password data is cached locally. */
 (() => {
   let client, user, ready = false;
+  let recoveryUserId = null;
+  const RECOVERY_KEY = 'a1vip-password-recovery';
+  try { recoveryUserId = sessionStorage.getItem(RECOVERY_KEY) || null; } catch {}
+  function endRecovery() {
+    recoveryUserId = null;
+    try { sessionStorage.removeItem(RECOVERY_KEY); } catch {}
+  }
+  function beginRecovery(id) {
+    recoveryUserId = id;
+    ready = false; invoices = []; presets = {}; versions.clear();
+    try { sessionStorage.setItem(RECOVERY_KEY, id); } catch {}
+    window.dispatchEvent(new Event('a1-password-recovery'));
+  }
   let invoices = [], presets = {}, versions = new Map();
   const copy = value => JSON.parse(JSON.stringify(value));
   const check = result => { if (result.error) throw new Error(result.error.message); return result.data; };
@@ -11,17 +24,19 @@
       throw new Error('Supabase is not configured yet. Contact the dashboard administrator.');
     }
     client = window.supabase.createClient(config.url, config.publishableKey);
-    client.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') { clear(); window.dispatchEvent(new Event('a1-signed-out')); }
+    client.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' && session?.user?.id) beginRecovery(session.user.id);
+      if (event === 'SIGNED_OUT') { endRecovery(); clear(); window.dispatchEvent(new Event('a1-signed-out')); }
     });
     return client;
   }
   function clear() { user = null; ready = false; invoices = []; presets = {}; versions.clear(); }
   function requireReady() {
-    if (!user || !ready) throw new Error('Sign in and load Supabase invoices before saving.');
+    if (!user || !ready || recoveryUserId) throw new Error('Sign in and load Supabase invoices before saving.');
     return client;
   }
   async function refresh() {
+    if (recoveryUserId) throw new Error('Choose your new password before accessing invoices.');
     if (!user) throw new Error('Please sign in first.');
     const identity = user.id;
     const member = check(await client.from('a1_staff').select('user_id').eq('user_id', identity).maybeSingle());
@@ -38,7 +53,7 @@
       values.push(...page);
       if (page.length < 500) break;
     }
-    if (user?.id !== identity) throw new Error('Session changed. Sign in again.');
+    if (user?.id !== identity || recoveryUserId) throw new Error('Session changed. Sign in again.');
     invoices = rows.map(row => row.document);
     versions = new Map(rows.map(row => [row.id, row.version]));
     presets = {};
@@ -49,10 +64,12 @@
     clear();
     const c = connect();
     const session = check(await c.auth.getSession());
-    if (!session.session) return false;
+    if (!session.session) { endRecovery(); return false; }
     const data = check(await c.auth.getUser());
     if (!data.user) return false;
     user = data.user;
+    if (recoveryUserId === user.id) { beginRecovery(user.id); return false; }
+    endRecovery();
     await refresh();
     return true;
   }
@@ -69,6 +86,7 @@
     return email;
   }
   async function login(identifier, password) {
+    if (recoveryUserId) throw new Error('Finish resetting your password or cancel the reset first.');
     clear();
     const email = loginEmail(identifier);
     const data = check(await connect().auth.signInWithPassword({ email, password }));
@@ -104,6 +122,18 @@
     check(await client.auth.signInWithPassword({ email: user.email, password: currentPassword }));
     check(await client.auth.updateUser({ password }));
   }
+  async function finishPasswordReset(password) {
+    if (!recoveryUserId) throw new Error('Open a valid password reset link first.');
+    const c = connect();
+    const data = check(await c.auth.getUser());
+    if (!data.user || data.user.id !== recoveryUserId) throw new Error('Your reset link has expired. Request a new one.');
+    check(await c.auth.updateUser({ password }));
+    endRecovery(); clear();
+    // A sign-out failure must not report a successfully changed password as failed.
+    const result = await c.auth.signOut({ scope: 'local' });
+    window.dispatchEvent(new Event('a1-signed-out'));
+    return { signOutFailed: !!result.error };
+  }
   async function requestPasswordReset(identifier) {
     const email = user && ready ? user.email : loginEmail(identifier);
     const redirectTo = window.A1_SUPABASE_CONFIG?.passwordResetRedirect;
@@ -124,9 +154,10 @@
     return count;
   }
   window.A1Data = {
-    restore, login, refresh, save, remove, updateAccount, requestPasswordReset, migrateLegacy,
+    restore, login, refresh, save, remove, updateAccount, finishPasswordReset, requestPasswordReset, migrateLegacy,
     invoices: () => copy(invoices), presets: () => copy(presets),
-    logout: async () => { const c = connect(); check(await c.auth.signOut()); clear(); },
-    authenticated: () => !!user && ready
+    logout: async () => { const c = connect(); check(await c.auth.signOut()); endRecovery(); clear(); },
+    recovering: () => !!recoveryUserId,
+    authenticated: () => !!user && ready && !recoveryUserId
   };
 })();

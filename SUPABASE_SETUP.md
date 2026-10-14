@@ -30,10 +30,12 @@ New invoice writes require a successful cloud save; failures do not report succe
 
 ## Checks
 
-Run `node --test tests/supabase-data.test.cjs` and JavaScript syntax checks. The service worker bypasses Supabase and all non-GET requests and uses fresh configuration/data scripts.
+Run `node --test tests/*.test.cjs` and JavaScript syntax checks. The service worker bypasses Supabase and all non-GET requests and uses fresh configuration/data scripts.
 
 The current public repository also contains historical HTML backups with the old browser login, and a separate public shared secret for the button-sync worker. This change removes the old login from the active app but does not rewrite repository history or change that external worker. The old password must not be reused for Supabase; review the backup routes and worker authentication separately. Database RLS, rather than the browser login overlay, protects invoice records.
 
-## JV account setup
+## Recovery redirect behavior
 
-The JV alias is configured, but the latest Auth check found no account for vollario@mac.com. Account creation is pending via Authentication > Users, followed by explicit a1_staff approval. No JV account or privileged provisioning endpoint was created: automatic approval review rejected the temporary helper approach. Both confirmed approved accounts will have the same shared invoice access; aliases alone confer no permissions.
+A reset link establishes a Supabase recovery session before the user chooses a new password. Both the dedicated recovery page and the main dashboard handle that state. The main dashboard keeps its login overlay locked and presents a new-password/confirmation form instead of opening invoice access. The pending state survives a refresh in the same tab. After the password is saved, the page returns to ordinary login.
+
+For local testing, set passwordResetRedirect locally to http://localhost:8000/reset-password.html and allow that exact URL in Supabase Auth URL Configuration. If a redirect URL is not allowed, Supabase may send the user to the configured Site URL instead. Request a fresh reset email after changing configuration, then verify the form, mismatched passwords, and sign-in with the replacement password. Never commit the localhost configuration for production.
