@@ -12,3 +12,8 @@ test('origin filtering combines with year and search, including resolved Skybox 
  const items=[{id:'inv-skybox-invoice-1',number:'1',createdDate:'2026-01-01',clientCompany:'Example'},{id:'inv-resolved-copy',origin:'skybox',number:'2',createdDate:'2025-01-01'},{id:'inv-a1-copy',origin:'a1',skybox:{'Invoice ID':'1'},number:'4100',createdDate:'2026-01-02'}];
  assert.equal(H.filter(items,'','','newest','skybox').length,2);assert.deepEqual(H.filter(items,'Example','2026','newest','skybox').map(i=>i.id),['inv-skybox-invoice-1']);assert.deepEqual(H.filter(items,'','','newest','a1').map(i=>i.id),['inv-a1-copy']);
 });
+
+test('shared history switches between invoices and purchase orders while retaining year, source and search filters',()=>{
+ const items=[{id:'invoice',type:'invoice-ticket',number:'4100',createdDate:'2026-01-01',clientCompany:'Example'},{id:'purchase',type:'po-ticket',origin:'skybox',number:'SB-PO-1',createdDate:'2026-02-01',clientCompany:'Example'},{id:'travel',type:'po-travel',number:'4101',createdDate:'2025-01-01',clientCompany:'Other'}];
+ assert.equal(H.filter(items).length,3);assert.deepEqual(H.filter(items,'','','newest','','invoice').map(i=>i.id),['invoice']);assert.deepEqual(H.filter(items,'','','newest','','purchase').map(i=>i.id),['purchase','travel']);assert.deepEqual(H.filter(items,'Example','2026','newest','skybox','purchase').map(i=>i.id),['purchase']);assert.equal(H.filter(items,'Example','2026','newest','a1','purchase').length,0);
+});
