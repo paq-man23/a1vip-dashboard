@@ -19,11 +19,12 @@ function harness({ member = true, failSave = false, recoverySession = false, ini
     from: table => {
       const query = { select() { if (this.deleting) return Promise.resolve({ data: [{id:'deleted'}] }); return this; }, delete() { this.deleting = true; return this; }, eq(key, value) { filters.push([key,value]); return this; }, order() { return this; },
         maybeSingle: async () => ({ data: member ? { user_id: 'staff' } : null }),
-        range: async () => ({ data: table === 'a1_invoices' ? rows : table === 'a1_skybox_contacts' ? contactRows : table === 'a1_documents' ? documentRows : table === 'a1_import_conflicts' ? conflictRows : [] }) };
+        range: async () => ({ data: ['a1_invoices','a1_invoice_history'].includes(table) ? rows : table === 'a1_skybox_contacts' ? contactRows : table === 'a1_documents' ? documentRows : table === 'a1_import_conflicts' ? conflictRows : [] }) };
       return query;
     },
     rpc: async (name, args) => {
       savedArgs = args; calls.push({ name, args });
+      if(name==='a1_save_dashboard_invoice'&&!failSave)return {data:{id:args.p_document.id,document:{...args.p_document,number:'4101',autoNumber:false,numberAssignedByDB:true,origin:'a1'},version:1}};
       if (name === 'a1_import_skybox_batch') return {data:args.p_items.map(() => ({outcome:'imported'}))};
       if (name === 'a1_import_document') { const result = importResults.shift(); return result?.error ? { error: { message: result.error } } : { data: result || { outcome: 'imported' } }; }
       return failSave ? { error: { message: 'stale edit' } } : { data: { id: args.p_document.id, document: args.p_document, version: 4 } };
@@ -222,4 +223,10 @@ test('Skybox imports use batches of 50 and report progress without importing inv
  const result=await data.importSkybox(items,(done,total)=>progress.push([done,total]));assert.equal(result.imported,51);assert.deepEqual(progress,[[50,51],[51,51]]);
  assert.deepEqual(calls.filter(c=>c.name==='a1_import_skybox_batch').map(c=>c.args.p_items.length),[50,1]);
  await assert.rejects(data.importSkybox([{error:'bad data'}]),/blocked preview/);
+});
+
+test('new dashboard invoices receive their number from the database and return the saved document',async()=>{
+ const {data,calls}=harness();await data.restore();const saved=await data.save({id:'inv-fresh',autoNumber:true,number:''},{},null);
+ assert.equal(calls.at(-1).name,'a1_save_dashboard_invoice');assert.equal(saved.number,'4101');assert.equal(saved.numberAssignedByDB,true);assert.equal(data.invoices()[0].number,'4101');
+ await data.save(saved,{},1);assert.equal(calls.at(-1).name,'a1_save_invoice');assert.equal(calls.at(-1).args.p_expected_version,1);
 });

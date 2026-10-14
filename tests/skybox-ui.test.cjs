@@ -40,3 +40,6 @@ test('all pickers use shared contacts and booking pickers restrict choices to ve
  const all=node('all');all.isPicker=true;const vendors=node('vendors');vendors.isPicker=true;vendors.dataset.contactKind='vendor';api.populatePickers();
  assert.equal(all.children.length,3);assert.equal(vendors.children.length,2);assert.equal(vendors.children[1].label,'Vendors');
 });
+test('invoice vendor selection fills vendor fields without replacing the customer',()=>{
+ const {api,node}=ui([savedContact]);node('invoiceVendorPicker').value='vendor:123';node('invClientCompany').value='Invoice customer';api.choose('vendor');assert.equal(node('invVendor').value,'Example Vendor');assert.equal(node('invVendorId').value,'123');assert.equal(node('invClientCompany').value,'Invoice customer');
+});

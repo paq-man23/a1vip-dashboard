@@ -10,7 +10,7 @@ Invoice reports lack sale quantities, seating, individual sale prices, and tax b
 
 Purchases become `po-ticket` documents. Ticket Cost is the total ticket cost, so unit cost is Ticket Cost / Ticket Qty. Non-Inventory Cost is a separate line. Purchase Total must match these components. Fractional unit prices can be needed to retain the exported total. Purchase-order numbers use `SB-PO-<Purchase ID>`; historical invoice numbers retain their Skybox Invoice ID.
 
-New A1 documents continue the existing numeric sequence, starting at 4100 when no A1 invoices exist. Imported Skybox IDs never advance this sequence. Invoice History offers a year filter, newest/oldest ordering, and 50-record pages. Duplicate numbers are still rejected by the database rather than overwriting another invoice; refresh history before saving if another device has used the proposed number.
+New A1 documents receive their permanent incremental number from a Supabase sequence on the first successful Save, starting above the highest existing A1 numeric number (or at 4100). Skybox imports retain their original numbers and do not advance that initial seed. The sequence skips occupied numbers, does not reuse deleted assigned numbers, and can have gaps after failed transactions. Repeating the same first-save request returns its existing number instead of allocating another. Assigned numbers are immutable. Invoice History combines an All Sources / Skybox / A1 Dashboard filter with year filtering, newest/oldest ordering, and 50-record pages.
 
 Imports use 50-record batches. A row failure rolls back that row, while completed rows remain. Repeat source records skip safely even after a converted invoice has been edited. A changed original with the same Skybox kind/ID is flagged and does not overwrite the first import. Invoice-number collisions preserve the converted copy under Admin → Imports Needing Review. The original source records are immutable and accessible only to approved staff through RLS.
 
@@ -24,3 +24,12 @@ Admin also provides a Mac Folder Sync installer and shared run history. The inst
 The helper signs in with regular dashboard staff credentials, discards the entered password, and stores rotating session tokens in macOS Keychain through stdin rather than command-line arguments. It uses no service-role key. It records processed file hashes, waits for stable copies, uses batches of 50, prevents overlapping local runs, and retries incomplete imports. It chooses the newest modified export of each kind; previously seen source revisions safely skip. It never deletes export files or saved records missing from a later export.
 
 See `mac-sync/README.md` for setup, Node.js requirements, logs, removal, and native Mac verification. Publishing the installer does not activate it on JAW's computer.
+
+
+## Skybox invoice fields
+
+Invoice editors now include a separate Skybox / Internal Details panel for Vendor, Payment Reference, Non-Inventory Costs, COGS, Inventory P&L, Inventory Tags, Ticket Sales, Inventory Margin, Consignment, PO Tags, and Internal Notes. A saved-vendor selector fills the Vendor field independently of the invoice customer. Original Skybox Report Fields shows all export columns read-only. These bookkeeping fields do not alter customer totals and are excluded from the customer preview/PDF and email body.
+
+The invoker invoice-history view enriches older imported invoices from immutable original records or the latest accepted source revision without rewriting stored documents. Edited invoice fields take precedence over report defaults and survive later saves. Source classification also handles resolved import copies. Duplicate/imported drafts created as a new A1 document receive a new database number.
+
+Invoice Total means gross subtotal plus tax and shipping; Outstanding Balance deducts credit/amount paid. Merely saving the derived report metadata does not create a false weekly-sync conflict, while genuine changes to business or bookkeeping fields remain protected.

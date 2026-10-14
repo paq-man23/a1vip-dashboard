@@ -62,7 +62,7 @@
     if (!member) { clear(); throw new Error('This account has not been approved for the A1 Dashboard.'); }
     const rows = [];
     for (let offset = 0; ; offset += 500) {
-      const page = check(await client.from('a1_invoices').select('id,document,version').order('id').range(offset, offset + 499));
+      const page = check(await client.from('a1_invoice_history').select('id,document,version,origin').order('id').range(offset, offset + 499));
       rows.push(...page);
       if (page.length < 500) break;
     }
@@ -139,11 +139,11 @@
   }
   async function save(document, presetValues = {}, expectedVersion = undefined) {
     const c = requireReady(), identity = user.id;
-    const row = check(await c.rpc('a1_save_invoice', {
-      p_document: document,
-      p_expected_version: expectedVersion === undefined ? (versions.get(document.id) ?? null) : expectedVersion,
-      p_presets: presetValues
-    }));
+    const version=expectedVersion === undefined ? (versions.get(document.id) ?? null) : expectedVersion;
+    const autoCreate=version===null && document.autoNumber===true;
+    const args={p_document:document,p_presets:presetValues};
+    if(!autoCreate)args.p_expected_version=version;
+    const row=check(await c.rpc(autoCreate?'a1_save_dashboard_invoice':'a1_save_invoice',args));
     if (user?.id !== identity) throw new Error('Session changed. Reload invoices to check the save.');
     versions.set(row.id, row.version);
     invoices = [row.document, ...invoices.filter(item => item.id !== row.id)];
@@ -151,6 +151,7 @@
       const merged = new Set([...(presets[category] || []), ...values]);
       presets[category] = [...merged];
     }
+    return copy(row.document);
   }
   async function remove(id) {
     const c = requireReady(), identity = user.id;

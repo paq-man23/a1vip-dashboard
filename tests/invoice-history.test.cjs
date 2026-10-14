@@ -7,3 +7,8 @@ test('history filters by year and sorts newest or oldest without mutating origin
  const items=[{id:'a',number:'4100',createdDate:'2025-12-31',clientCompany:'Example'},{id:'b',number:'4101',createdDate:'2026-01-01'},{id:'c',number:'4102',createdDate:'2026-03-01'},{id:'d',number:'4103',createdDate:''}];
  assert.deepEqual(H.years(items),['2026','2025','Unknown']);assert.deepEqual(H.filter(items,'','2026').map(i=>i.id),['c','b']);assert.deepEqual(H.filter(items,'','2026','oldest').map(i=>i.id),['b','c']);assert.deepEqual(H.filter(items,'Example').map(i=>i.id),['a']);assert.deepEqual(H.filter(items).map(i=>i.id),['c','b','a','d']);assert.equal(items[0].id,'a');
 });
+
+test('origin filtering combines with year and search, including resolved Skybox copies',()=>{
+ const items=[{id:'inv-skybox-invoice-1',number:'1',createdDate:'2026-01-01',clientCompany:'Example'},{id:'inv-resolved-copy',origin:'skybox',number:'2',createdDate:'2025-01-01'},{id:'inv-a1-copy',origin:'a1',skybox:{'Invoice ID':'1'},number:'4100',createdDate:'2026-01-02'}];
+ assert.equal(H.filter(items,'','','newest','skybox').length,2);assert.deepEqual(H.filter(items,'Example','2026','newest','skybox').map(i=>i.id),['inv-skybox-invoice-1']);assert.deepEqual(H.filter(items,'','','newest','a1').map(i=>i.id),['inv-a1-copy']);
+});

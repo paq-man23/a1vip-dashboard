@@ -498,7 +498,7 @@
                   </select>
                 </label>
                 <label id="invNumberLabel">Invoice Number
-                  <input id="invNumber" type="text" placeholder="Auto generated if blank">
+                  <input id="invNumber" type="text" placeholder="Assigned by Supabase when saved" readonly>
                 </label>
                 <label>Date Created
                   <input id="invCreated" type="date">
@@ -508,6 +508,7 @@
                 </label>
                 <label>Fulfillment Status
                   <select id="invFulfillment">
+                    <option value="">Not specified</option>
                     <option>Pending</option>
                     <option>In Hand</option>
                     <option>Delivered</option>
@@ -580,6 +581,13 @@
                 <button class="cta ghost" onclick="refreshInvoicePreview()">Refresh Preview</button>
               </div>
 
+              <details class="invoice-panel" style="margin-top:16px;padding:12px;">
+                <summary>Skybox / Internal Details</summary>
+                <p>Vendor, payment reference, costs, profit figures, and tags are saved with the invoice. These fields do not change invoice totals or appear in customer PDFs or emails.</p>
+                <label>Saved Vendor <select id="invoiceVendorPicker" data-contact-picker data-contact-kind="vendor" onchange="A1SkyboxUI.choose('vendor')"><option value="">Choose a saved vendor…</option></select></label>
+                <input id="invVendorId" type="hidden"><div id="invoiceInternalFields" class="invoice-form-grid"></div>
+                <details><summary>Original Skybox Report Fields</summary><div id="invoiceOriginalFields" class="invoice-form-grid"></div></details>
+              </details>
               <div id="invoiceLines" class="invoice-lines" style="margin-top:16px;"></div>
 
               <div class="invoice-form-grid" style="margin-top:16px;">
@@ -614,6 +622,7 @@
           </div>
           <div class="invoice-form-grid" style="margin-bottom:14px;">
             <label>Invoice Year <select id="invoiceHistoryYear" onchange="invoiceHistoryPage=0;renderInvoiceHistory()"><option value="">All Years</option></select></label>
+            <label>Created In <select id="invoiceHistoryOrigin" onchange="invoiceHistoryPage=0;renderInvoiceHistory()"><option value="">All Sources</option><option value="skybox">Skybox</option><option value="a1">A1 Dashboard</option></select></label>
             <label>Sort <select id="invoiceHistoryOrder" onchange="invoiceHistoryPage=0;renderInvoiceHistory()"><option value="newest">Newest First</option><option value="oldest">Oldest First</option></select></label>
           </div>
           <div id="invoiceHistoryPager" class="invoice-toolbar"></div>
@@ -1057,6 +1066,7 @@
 <script src="./vendor/fflate-0.8.3.js"></script>
 <script src="./skybox-import.js"></script>
 <script src="./a1-history.js"></script>
+<script src="./a1-invoice-fields.js"></script>
 <script src="./skybox-ui.js"></script>
 <script>
     /* ===== Config ===== */
@@ -1253,7 +1263,7 @@
     function openImportConflict(hash){
       const item = A1Data.conflicts().find(item => item.source_hash === hash);
       if (!item) return;
-      const invoice = Object.assign(invoiceBase(item.document.type), item.document, { id:'inv-' + crypto.randomUUID() });
+      const invoice = Object.assign(invoiceBase(item.document.type), item.document, { id:'inv-' + crypto.randomUUID(),origin:'skybox',autoNumber:false,numberAssignedByDB:false });
       setInvoiceToForm(invoice); currentImportConflictHash = hash;
       openInvoiceMode('editor'); showSection('invoices');
     }
@@ -2439,6 +2449,7 @@ function createBtn(label, url, isCustom=true){
       'VIP Add Ons',
       'Parking'
     ];
+    let currentInvoiceSnapshot = {}, currentInvoiceAutoNumber = false, invoiceSaveInFlight = false;
     let currentInvoiceId = null;
     let currentInvoiceVersion = null;
     let currentImportConflictHash = null;
@@ -2513,8 +2524,9 @@ function createBtn(label, url, isCustom=true){
       const today = new Date().toISOString().slice(0,10);
       return {
         id: 'inv-' + crypto.randomUUID(),
+        origin:'a1', autoNumber:true,
         type,
-        number: String(getNextInvoiceNumber()),
+        number:'',
         createdDate: today,
         dueDate: today,
         fulfillmentStatus: 'Pending',
@@ -2571,6 +2583,7 @@ function createBtn(label, url, isCustom=true){
         }));
         delete result.other; delete result.amountPaid;
       }
+      if(typeof A1InvoiceFields!=='undefined')return A1InvoiceFields.enrich(result);
       return result;
     }
     function loadInvoices(){ return A1Data.invoices().map(normalizeSavedInvoice); }
@@ -2687,8 +2700,8 @@ function createBtn(label, url, isCustom=true){
     function invoiceLineAmount(line){ return parseNum(line.qty) * parseNum(line.unitCost); }
     function invoiceSubtotal(invoice){ return (invoice.lines || []).reduce((sum, line) => sum + invoiceLineAmount(line), 0); }
     function invoiceCredit(invoice){ return parseNum(invoice.credit ?? invoice.other) + parseNum(invoice.amountPaid); }
-    function invoiceTotal(invoice){ return invoiceSubtotal(invoice) + parseNum(invoice.tax) + parseNum(invoice.shipping) - invoiceCredit(invoice); }
-    function invoiceBalance(invoice){ return invoiceTotal(invoice); }
+    function invoiceTotal(invoice){ return invoiceSubtotal(invoice) + parseNum(invoice.tax) + parseNum(invoice.shipping); }
+    function invoiceBalance(invoice){ return invoiceTotal(invoice) - invoiceCredit(invoice); }
     function invoiceLineDetailsHtml(line){
       if (lineTypeUsesSeating(line.lineType)) {
         const seatingBits = [
@@ -2735,7 +2748,7 @@ function createBtn(label, url, isCustom=true){
     function duplicateCurrentInvoice(){
       const invoice = collectInvoiceFromForm();
       invoice.id = 'inv-' + crypto.randomUUID();
-      invoice.number = String(getNextInvoiceNumber());
+      invoice.number = ''; invoice.autoNumber = true; invoice.numberAssignedByDB = false; invoice.origin = 'a1';
       invoice.savedName = '';
       currentInvoiceId = null;
       currentInvoiceSavedName = '';
@@ -2761,19 +2774,34 @@ function createBtn(label, url, isCustom=true){
       }
     }
 
+    function renderInvoiceInternalFields(invoice){
+      const wrap=document.getElementById('invoiceInternalFields');
+      if(wrap){
+        wrap.innerHTML=A1InvoiceFields.fields.map(([key,label,id])=>`<label>${escHtml(label)}<${key==='internalNotes'?'textarea':'input'} id="${id}"${key==='internalNotes'?'':` type="text" value="${escHtml(String(invoice[key]??''))}"`}>${key==='internalNotes'?escHtml(String(invoice[key]??''))+'</textarea>':''}</label>`).join('');
+      }
+      const original=document.getElementById('invoiceOriginalFields');
+      if(original)original.innerHTML=invoice.skybox&&Object.keys(invoice.skybox).length?Object.entries(invoice.skybox).map(([key,value])=>`<label>${escHtml(key)}<textarea readonly>${escHtml(String(value??''))}</textarea></label>`).join(''):'<p>No original Skybox report is attached to this A1-created invoice.</p>';
+    }
     function setInvoiceToForm(invoice){
       const contactPicker=document.getElementById('sharedContactPicker');
       if(contactPicker)contactPicker.value='';
       invoice = normalizeSavedInvoice(invoice);
+      currentInvoiceSnapshot=JSON.parse(JSON.stringify(invoice));
+      currentInvoiceAutoNumber=invoice.autoNumber===true && A1Data.version('invoice',invoice.id)===null;
       if (invoice.id !== currentInvoiceId) { currentImportConflictHash = null; currentInvoiceVersion = A1Data.version('invoice', invoice.id); }
       currentInvoiceId = invoice.id || null;
       currentInvoiceSavedName = invoice.savedName || '';
       setFieldValue('invType', invoice.type || 'invoice-ticket');
       refreshDocumentLabels(invoice.type || 'invoice-ticket');
-      setFieldValue('invNumber', invoice.number || '');
+      setFieldValue('invNumber',currentInvoiceAutoNumber?'':invoice.number||'');
+      document.getElementById('invNumber').readOnly=currentInvoiceAutoNumber||invoice.numberAssignedByDB===true;
+      document.getElementById('invNumber').placeholder=currentInvoiceAutoNumber?'Assigned by Supabase when saved':'Invoice number';
+      renderInvoiceInternalFields(invoice);
+      setFieldValue('invVendorId',invoice.vendorId||'');
+      const vendorPicker=document.getElementById('invoiceVendorPicker');if(vendorPicker)vendorPicker.value='';
       setFieldValue('invCreated', invoice.createdDate || '');
       setFieldValue('invDue', invoice.dueDate || '');
-      setFieldValue('invFulfillment', invoice.fulfillmentStatus || 'Pending');
+      setFieldValue('invFulfillment', invoice.fulfillmentStatus ?? 'Pending');
       setFieldValue('invExternalReference', invoice.externalReference || '');
       setFieldValue('invInHandDate', invoice.inHandDate || invoice.externalDate || '');
       setFieldValue('invTerms', invoice.terms || '');
@@ -2882,10 +2910,13 @@ function createBtn(label, url, isCustom=true){
 
     function collectInvoiceFromForm(){
       const invoice = {
+        ...currentInvoiceSnapshot,
+        vendorId:document.getElementById('invVendorId')?.value||'',
+        autoNumber:currentInvoiceAutoNumber,
         id: currentInvoiceId || ('inv-' + crypto.randomUUID()),
         savedName: currentInvoiceSavedName || '',
         type: document.getElementById('invType')?.value || 'invoice-ticket',
-        number: (document.getElementById('invNumber')?.value || '').trim() || String(getNextInvoiceNumber()),
+        number: currentInvoiceAutoNumber?'':(document.getElementById('invNumber')?.value || '').trim(),
         createdDate: document.getElementById('invCreated')?.value || '',
         dueDate: document.getElementById('invDue')?.value || '',
         fulfillmentStatus: document.getElementById('invFulfillment')?.value || '',
@@ -2908,6 +2939,7 @@ function createBtn(label, url, isCustom=true){
         credit: parseNum(document.getElementById('invCredit')?.value),
         lines: []
       };
+      for(const [key,,id] of A1InvoiceFields.fields)invoice[key]=document.getElementById(id)?.value ?? invoice[key] ?? '';
       const rows = {};
       document.querySelectorAll('#invoiceLines [data-line]').forEach(el => {
         const idx = el.dataset.line;
@@ -2995,7 +3027,7 @@ function createBtn(label, url, isCustom=true){
         <div class="sky-rule"></div>
 
         <div class="sky-detail-grid">
-          <div><div class="label">${escHtml(documentNumberLabel(invoice.type))}</div><div class="value">${escHtml(invoice.number)}</div></div>
+          <div><div class="label">${escHtml(documentNumberLabel(invoice.type))}</div><div class="value">${escHtml(invoice.number||'Draft — save to assign a number')}</div></div>
           <div><div class="label">Date Created</div><div class="value">${escHtml(formatInvoiceDate(invoice.createdDate) || '-')}</div></div>
           <div><div class="label">Due Date</div><div class="value">${escHtml(formatInvoiceDate(invoice.dueDate) || '-')}</div></div>
           <div><div class="label">Fulfillment Status</div><div class="value">${escHtml(invoice.fulfillmentStatus || '-')}</div></div>
@@ -3081,10 +3113,11 @@ function createBtn(label, url, isCustom=true){
     }
 
     async function saveInvoice(){
+      if(invoiceSaveInFlight)return;
       const invoice = collectInvoiceFromForm();
       const items = loadInvoices();
       const duplicateNumber = items.find(item => item.number === invoice.number && item.id !== invoice.id);
-      if (duplicateNumber){
+      if (!invoice.autoNumber && duplicateNumber){
         alert('That invoice number already exists in history. Please use a different number.');
         return;
       }
@@ -3105,16 +3138,21 @@ function createBtn(label, url, isCustom=true){
         addUnique(presets.eventNames, line.eventName);
         addUnique(presets.venues, line.venue);
       });
-      let savedToCloud = false;
+      let savedToCloud = false;invoiceSaveInFlight=true;
       try {
-        await A1Data.save(invoice, presets, currentInvoiceVersion);
+        const saved=await A1Data.save(invoice,presets,currentInvoiceVersion);
+        savedToCloud=true;
+        if(currentInvoiceId!==invoice.id){refreshCloudViews();alert('Invoice #'+saved.number+' saved to Supabase.');return;}
+        currentInvoiceAutoNumber=false;currentInvoiceSnapshot=JSON.parse(JSON.stringify(saved));
+        setFieldValue('invNumber',saved.number);
+        document.getElementById('invNumber').readOnly=saved.numberAssignedByDB===true;
         currentInvoiceVersion = A1Data.version('invoice', invoice.id);
-        savedToCloud = true;
         if (currentImportConflictHash) { await A1Data.resolveConflict(currentImportConflictHash, invoice.id); currentImportConflictHash = null; }
         currentInvoiceId = invoice.id;
         refreshCloudViews(); refreshInvoicePreview();
         alert('Invoice saved to Supabase.');
       } catch(error) { alert((savedToCloud ? 'Invoice saved, but import review could not be completed: ' : 'Invoice was not saved: ') + error.message); }
+      finally{invoiceSaveInFlight=false;}
     }
 
     function exportInvoiceFile(){
@@ -3134,7 +3172,7 @@ function createBtn(label, url, isCustom=true){
         if (imported.kind !== 'invoice'){
           throw new Error('This export file is not an invoice or purchase order.');
         }
-        const invoice = Object.assign(invoiceBase(imported.payload?.type || 'invoice-ticket'), normalizeSavedInvoice(imported.payload || {}), { id: 'inv-' + crypto.randomUUID() });
+        const invoice = Object.assign(invoiceBase(imported.payload?.type || 'invoice-ticket'), normalizeSavedInvoice(imported.payload || {}), { id: 'inv-' + crypto.randomUUID(),number:'',autoNumber:true,numberAssignedByDB:false,origin:'a1' });
         invoice.lines = (invoice.lines && invoice.lines.length ? invoice.lines : [invoiceLineBase(invoice.type)]).map(line => Object.assign(invoiceLineBase(invoice.type), line));
         setInvoiceToForm(invoice);
         openInvoiceMode('editor');
@@ -3164,7 +3202,7 @@ function createBtn(label, url, isCustom=true){
         yearSelect.innerHTML='<option value="">All Years</option>'+A1History.years(items).map(year=>`<option value="${escHtml(year)}">${escHtml(year)}</option>`).join('');
         yearSelect.value=selectedYear;
       }
-      const filtered = A1History.filter(items,query,selectedYear,document.getElementById('invoiceHistoryOrder')?.value || 'newest');
+      const filtered = A1History.filter(items,query,selectedYear,document.getElementById('invoiceHistoryOrder')?.value || 'newest',document.getElementById('invoiceHistoryOrigin')?.value || '');
       const lastPage=Math.max(0,Math.ceil(filtered.length/50)-1);
       invoiceHistoryPage=Math.min(invoiceHistoryPage,lastPage);
       const pager=document.getElementById('invoiceHistoryPager');
@@ -3178,7 +3216,7 @@ function createBtn(label, url, isCustom=true){
           <div class="invoice-history-head">
             <div>
               <strong>${escHtml(item.savedName || `${documentLabel(item.type)} #${item.number}`)}</strong>
-              <div style="margin-top:6px;color:#cbd5e1;">${escHtml(documentLabel(item.type))} #${escHtml(item.number)} · ${escHtml(item.clientCompany || 'No client')} · ${escHtml(documentTypeLabel(item.type || 'invoice-ticket'))}</div>
+              <div style="margin-top:6px;color:#cbd5e1;">${escHtml(documentLabel(item.type))} #${escHtml(item.number)} · ${escHtml(item.clientCompany || 'No client')} · ${escHtml(documentTypeLabel(item.type || 'invoice-ticket'))} · ${A1History.origin(item)==='skybox'?'Skybox':'A1 Dashboard'}</div>
             </div>
             <span class="invoice-chip">${escHtml(item.status || 'Unpaid')}</span>
           </div>
@@ -3231,7 +3269,7 @@ function createBtn(label, url, isCustom=true){
       const invoice = loadInvoices().find(item => item.id === id);
       if (!invoice) return;
       invoice.id = 'inv-' + crypto.randomUUID();
-      invoice.number = String(getNextInvoiceNumber());
+      invoice.number = ''; invoice.autoNumber = true; invoice.numberAssignedByDB = false; invoice.origin = 'a1';
       invoice.savedName = '';
       currentInvoiceId = null;
       currentInvoiceSavedName = '';
@@ -4556,6 +4594,7 @@ function createBtn(label, url, isCustom=true){
 
     function emailInvoice(){
       const invoice = collectInvoiceFromForm();
+      if(invoice.autoNumber){alert('Save this invoice first so Supabase can assign its permanent number.');return;}
       const docLabel = documentLabel(invoice.type);
       const subject = encodeURIComponent(`${docLabel} ${invoice.number} - ${invoice.clientCompany || 'A1 VIP Entertainment'}`);
       const body = encodeURIComponent(
