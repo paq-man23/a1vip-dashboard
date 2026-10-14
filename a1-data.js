@@ -115,6 +115,7 @@
     user = data.user;
     if (recoveryUserId === user.id) { beginRecovery(user.id); return false; }
     endRecovery();
+    window.dispatchEvent(new Event('a1-restoring-session'));
     await refresh();
     return true;
   }
@@ -312,6 +313,12 @@
     conflicts: () => copy(conflicts),
     logout: async () => { const c = connect(); check(await c.auth.signOut()); endRecovery(); clear(); },
     recovering: () => !!recoveryUserId,
+    account: () => {
+      if(!user||!ready||recoveryUserId)return null;
+      const email=user.email||'';
+      const alias=Object.entries(window.A1_SUPABASE_CONFIG?.adminAliases||{}).find(([,address])=>String(address).toLowerCase()===email.toLowerCase());
+      return {name:alias?.[0]||user.user_metadata?.display_name||user.user_metadata?.full_name||email,email};
+    },
     authenticated: () => !!user && ready && !recoveryUserId
   };
 })();

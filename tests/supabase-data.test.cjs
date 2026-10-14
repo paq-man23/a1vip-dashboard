@@ -239,3 +239,7 @@ test('contact saves send the loaded version and update the shared picker cache o
 test('failed contact saves leave the shared contact unchanged',async()=>{
  const {data}=harness({failSave:true,contactRows:[{document:{kind:'customer',id:'123',displayName:'Example',phone:'111'},version:2}]});await data.restore();await assert.rejects(data.saveContact('customer','123',{phone:'222'},2),/stale edit/);assert.equal(data.contacts()[0].phone,'111');assert.equal(data.contactVersion('customer','123'),2);
 });
+
+test('header account identity resolves aliases only after staff authentication and clears on signout',async()=>{
+ const {data}=harness();assert.equal(data.account(),null);await data.login('JV','test-password');assert.equal(data.account().name,'JV');assert.equal(data.account().email,'vollario@mac.com');await data.logout();assert.equal(data.account(),null);
+});

@@ -32,6 +32,10 @@
     header img{height:150px}
     .title{font-size:2.1rem;line-height:1.05;font-weight:900;letter-spacing:.2px}
 
+    .header-account{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:7px;max-width:220px;min-width:90px}
+    .header-account[hidden]{display:none}
+    #signedInUser{font-size:14px;font-weight:700;max-width:100%;overflow-wrap:anywhere;text-align:right}
+    .header-password-btn{background:transparent;border:0;color:#93c5fd;font-size:12px;padding:0;cursor:pointer;text-decoration:underline}
     /* Logout button in header */
     .logout-btn{
       margin-left:auto;
@@ -352,7 +356,8 @@
   <!-- Login Screen -->
   <div id="loginScreen" class="login-screen" style="display:flex;">
     <div class="login-card">
-      <div id="normalLoginPanel">
+      <div id="sessionLoadingPanel" role="status" aria-live="polite"><h2>A1 VIP Dashboard</h2><p id="sessionLoadingMessage">Checking your saved sign-in…</p></div>
+      <form id="normalLoginPanel" style="display:none;" onsubmit="event.preventDefault();handleLogin()">
       <h2>A1 VIP Login</h2>
       <p>Enter your credentials to access the dashboard.</p>
       <label>
@@ -364,11 +369,11 @@
         <input id="loginPass" type="password" autocomplete="current-password" placeholder="Password">
       </label>
       <div class="login-actions">
-        <button class="login-btn" id="loginButton" onclick="handleLogin()">Login</button>
-        <button class="login-btn" id="forgotPasswordButton" onclick="requestPasswordReset(false)">Forgot Password</button>
+        <button class="login-btn" id="loginButton" type="submit">Login</button>
+        <button class="login-btn" id="forgotPasswordButton" type="button" onclick="requestPasswordReset(false)">Forgot Password</button>
       </div>
       <div id="loginError" class="login-error"></div>
-      </div>
+      </form>
       <form id="passwordRecoveryPanel" style="display:none;" onsubmit="finishPasswordReset(event)">
         <h2>Choose a new password</h2>
         <p>Your reset link is valid. Enter and confirm your new password.</p>
@@ -390,8 +395,11 @@
   <header>
     <img src="A1VIP_LOGO_VERT_for _Black_backgrounds.png" alt="Logo">
     <div class="title">A1 VIP<br/>Ticket<br/>Dashboard</div>
-    <!-- Logout button -->
-    <button class="logout-btn" onclick="logout()">Logout</button>
+    <div id="headerAccount" class="header-account" hidden>
+      <span id="signedInUser" aria-live="polite"></span>
+      <button class="header-password-btn" type="button" onclick="openAccountSettings()">Change Password</button>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
   </header>
 
   <div id="linkStatus" class="link-status"></div>
@@ -891,8 +899,17 @@
         </label>
       </div>
 
+      <button class="cta cta-primary" onclick="openAccountSettings()">Account Settings</button>
+
+      <p style="font-size:0.8rem;color:#9ca3af;margin-top:8px;">
+        Desktop: hold Alt while viewing Admin. Mobile: long-press the Admin tab to show/hide SYSTEM.
+      </p>
+    </div>
+
+    <div id="account" class="section" style="display:none;">
+      <h3>Account Settings</h3>
       <!-- Login Settings tool -->
-      <div class="upload-card" style="margin-top:18px;">
+      <div id="accountSettings" class="upload-card" style="margin-top:18px;">
         <h4 style="margin:0 0 8px;color:#facc15;">Login Settings</h4>
         <div class="form-grid">
           <label>Current Password
@@ -913,9 +930,6 @@
         </div>
       </div>
 
-      <p style="font-size:0.8rem;color:#9ca3af;margin-top:8px;">
-        Desktop: hold Alt while viewing Admin. Mobile: long-press the Admin tab to show/hide SYSTEM.
-      </p>
     </div>
 
     <div id="domains" class="section" style="display:none;">
@@ -1079,26 +1093,43 @@
       'https://paq-man23.github.io/a1vip-dashboard/buttons.json'
     ];
     const SYNC_ENDPOINT = 'https://a1vip-sync.jviphone.workers.dev';
-    const SHARED_SECRET = 'a1vip-2025-sync-9fK2sX';
+    let buttonSyncSecret = '';
+    window.addEventListener('a1-signed-out',()=>{buttonSyncSecret='';});
     const STORAGE_KEY = 'a1vip-button-manager-v2';
 
     /* === INVOICE LOGO ==== */
     const INVOICE_LOGO = "./A1VIP_LOGO_WIDE_for_White_backgrounds_large.png";
     /* ===== Supabase staff authentication ===== */
     let authReady = Promise.resolve();
-    function showLogin(){
+    function refreshAccountHeader(clear=false){
+      const controls=document.getElementById('headerAccount'),label=document.getElementById('signedInUser');
+      if(!controls||!label)return;
+      const account=clear?null:A1Data.account?.();
+      controls.hidden=!account;label.textContent=account?.name||'';label.title=account?.email||'';
+    }
+    function openAccountSettings(){
+      if(!A1Data.authenticated())return;
+      showSection('account');
+      document.getElementById('accountSettings').scrollIntoView({behavior:'smooth',block:'center'});
+      document.getElementById('authCurrentPass').focus({preventScroll:true});
+    }
+    function showLogin(checking=false){
+      refreshAccountHeader(true);
       document.body.classList.add('a1-locked');
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('loginPass').value = '';
       const recovering = typeof A1Data !== 'undefined' && typeof A1Data.recovering === 'function' && A1Data.recovering();
-      document.getElementById('normalLoginPanel').style.display = recovering ? 'none' : 'block';
+      document.getElementById('normalLoginPanel').style.display = recovering || checking ? 'none' : 'block';
+      document.getElementById('sessionLoadingPanel').style.display = checking && !recovering ? 'block' : 'none';
       document.getElementById('passwordRecoveryPanel').style.display = recovering ? 'block' : 'none';
     }
     function hideLogin(){
       if (A1Data.recovering()) { showPasswordRecovery(); return; }
       document.body.classList.remove('a1-locked');
+      refreshAccountHeader();
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('loginPass').value = '';
+      document.getElementById('sessionLoadingPanel').style.display='none';
     }
     function showPasswordRecovery(){
       showLogin();
@@ -1106,6 +1137,10 @@
       document.getElementById('passwordRecoveryPanel').style.display = 'block';
     }
     window.addEventListener('a1-password-recovery', showPasswordRecovery);
+    window.addEventListener('a1-restoring-session',()=>{
+      if(A1Data.recovering())return;
+      showLogin(true);document.getElementById('sessionLoadingMessage').textContent='Already signed in. Loading your dashboard…';
+    });
     async function finishPasswordReset(event){
       event.preventDefault();
       const password = document.getElementById('recoveryPassword');
@@ -1146,12 +1181,14 @@
     }
     async function initializeAuth(){
       try {
-        showLogin(); requireLoginClient();
+        showLogin(true);document.getElementById('sessionLoadingMessage').textContent='Checking your saved sign-in…';requireLoginClient();
         localStorage.removeItem('a1vip-auth-v1');
         localStorage.removeItem('a1vip-auth-override');
         if (await A1Data.restore()) { hideLogin(); refreshCloudViews(); }
         else if (A1Data.recovering()) showPasswordRecovery();
+        else showLogin();
       } catch(error) {
+        showLogin();
         document.getElementById('loginError').textContent = error.message;
       }
     }
@@ -1163,6 +1200,8 @@
       err.textContent = 'Checking sign-in…';
       try {
         await waitForAuthStartup(); requireLoginClient();
+        if(A1Data.authenticated?.()){err.textContent='';hideLogin();refreshCloudViews();return;}
+        if(!document.getElementById('loginUser').value.trim()||!document.getElementById('loginPass').value)throw new Error('Enter your username and password.');
         err.textContent = 'Signing in and loading shared documents…';
         await A1Data.login(document.getElementById('loginUser').value.trim(), document.getElementById('loginPass').value);
         err.textContent = ''; hideLogin(); refreshCloudViews(); startNewInvoice(); startNewLetter(); startNewItinerary();
@@ -2018,10 +2057,11 @@ function createBtn(label, url, isCustom=true){
 
     async function syncRemote(state){
       if(!SYNC_ENDPOINT) return;
+      if(!buttonSyncSecret){buttonSyncSecret=(prompt('Enter your button-list sync key. Cancel keeps button changes on this computer.')||'').trim();if(!buttonSyncSecret)return;}
       try{
         const res = await fetch(SYNC_ENDPOINT, {
           method: 'POST',
-          headers: { 'Content-Type':'application/json', 'X-A1VIP-Secret': SHARED_SECRET },
+          headers: { 'Content-Type':'application/json', 'X-A1VIP-Secret': buttonSyncSecret },
           body: JSON.stringify(state)
         });
         const text = await res.text();
