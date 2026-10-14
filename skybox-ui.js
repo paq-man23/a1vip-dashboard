@@ -55,15 +55,17 @@
     }catch(error){message('Import stopped: '+error.message+' Earlier completed records remain saved. Re-selecting and importing the same files safely skips completed records.');}
     finally{busy=false;$('skyboxCommit').disabled=false;$('skyboxFile').disabled=false;}
   }
+  const compareContacts=(a,b)=>String(a.displayName||a.name||a.company||'').localeCompare(String(b.displayName||b.name||b.company||''),undefined,{sensitivity:'base',numeric:true})||String(a.id).localeCompare(String(b.id));
+  const matchesContact=(c,q)=>[c.displayName,c.name,c.company,c.email,c.phone,c.phone2,c.address,c.tags,c.type,c.id].some(v=>String(v||'').toLowerCase().includes(q));
   function directory(kind){
     const wrap=$(kind+'Directory');if(!wrap)return;wrap.replaceChildren();
     const q=($(kind+'Search').value||'').toLowerCase();
-    const items=A1Data.contacts().filter(c=>c.kind===kind && [c.displayName,c.name,c.company,c.email,c.phone,c.phone2,c.address,c.tags,c.id].some(v=>String(v||'').toLowerCase().includes(q)));
+    const items=A1Data.contacts().filter(c=>c.kind===kind && matchesContact(c,q)).sort(compareContacts);
     const max=Math.max(0,Math.ceil(items.length/50)-1);pages[kind]=Math.min(pages[kind],max);
     wrap.append(node('p',items.length+' '+(kind==='vendor'?'vendors':'customers')+' · Page '+(pages[kind]+1)+' of '+(max+1)));
     for(const c of items.slice(pages[kind]*50,pages[kind]*50+50)){
       const card=node('div');card.className='invoice-history-card';card.append(node('strong',c.displayName+' · Skybox #'+c.id));
-      for(const value of [c.name,c.company,c.email,[c.phone,c.phone2].filter(Boolean).join(' / '),c.address,c.tags&&'Tags: '+c.tags,c.credit&&'Skybox customer credit (reference only): '+c.credit])if(value){const p=node('p',value);p.style.whiteSpace='pre-wrap';card.append(p);}
+      for(const value of [c.type&&'Type: '+c.type,c.name,c.company,c.email,[c.phone,c.phone2].filter(Boolean).join(' / '),c.address,c.tags&&'Tags: '+c.tags,c.credit&&'Skybox customer credit (reference only): '+c.credit])if(value){const p=node('p',value);p.style.whiteSpace='pre-wrap';card.append(p);}
       const use=node('button',kind==='vendor'?'Use in New Purchase Order':'Use in New Invoice');use.className='btn';use.addEventListener('click',()=>{startNewInvoice(kind==='vendor'?'po-ticket':'invoice-ticket');$('invType').value=kind==='vendor'?'po-ticket':'invoice-ticket';fill(c);openInvoiceMode('editor');showSection('invoices');});card.append(use);wrap.append(card);
     }
     pager(wrap,kind,max);
@@ -117,17 +119,41 @@
     if(notes&&contact&&!notes.value.split('\n').includes(contact))notes.value=[notes.value,contact].filter(Boolean).join('\n');
     refreshItineraryPreview();
   }
+  function updatePicker(picker){
+    const selectedValue=picker.value;
+    const query=(picker._contactSearch?.value||'').trim().toLowerCase();
+    picker.replaceChildren();
+    const placeholder=node('option',picker.dataset.contactKind==='vendor'?'Choose a saved vendor…':'Choose a saved customer or vendor…');placeholder.value='';picker.append(placeholder);
+    let matches=0;
+    for(const kind of ['customer','vendor']){
+      if(picker.dataset.contactKind&&picker.dataset.contactKind!==kind)continue;
+      const groups=new Map();
+      for(const c of A1Data.contacts().filter(c=>c.kind===kind).sort(compareContacts)){
+        const match=matchesContact(c,query);
+        if(!match&&kind+':'+c.id!==selectedValue)continue;
+        if(match)matches++;
+        const type=String(c.type||'').trim();
+        const key=type.toLowerCase();
+        if(!groups.has(key)){const group=node('optgroup');group.label=(kind==='vendor'?'Vendors':'Customers')+(type?' — '+type:'');groups.set(key,group);}
+        const option=node('option',c.displayName+' · '+(c.name||c.email||'')+' · #'+c.id);
+        option.value=kind+':'+c.id;groups.get(key).append(option);
+      }
+      for(const [,group] of [...groups].sort(([a],[b])=>a.localeCompare(b,undefined,{sensitivity:'base'})))picker.append(group);
+    }
+    if(!matches){const empty=node('option','No matching contacts');empty.value='';empty.disabled=true;picker.append(empty);}
+    picker.value=selectedValue;
+  }
   function populatePickers(){
     for(const picker of document.querySelectorAll('[data-contact-picker]')){
-      const selectedValue=picker.value;picker.replaceChildren();
-      const placeholder=node('option',picker.dataset.contactKind==='vendor'?'Choose a saved vendor…':'Choose a saved customer or vendor…');placeholder.value='';picker.append(placeholder);
-      for(const kind of ['customer','vendor']){
-        if(picker.dataset.contactKind&&picker.dataset.contactKind!==kind)continue;
-        const group=node('optgroup');group.label=kind==='vendor'?'Vendors':'Customers';
-        for(const c of A1Data.contacts().filter(c=>c.kind===kind)){
-          const option=node('option',c.displayName+' · '+(c.name||c.email||c.id));option.value=kind+':'+c.id;group.append(option);
-        }picker.append(group);
-      }picker.value=selectedValue;
+      if(!picker._contactSearch&&picker.parentNode){
+        const search=node('input');search.type='search';search.className='contact-picker-search';
+        const label=picker.dataset.contactKind==='vendor'?'Search saved vendors':'Search saved customers and vendors';
+        search.placeholder=label+' by name, company, email, or type…';search.setAttribute('aria-label',label);
+        search.style.cssText='width:100%;box-sizing:border-box;margin-bottom:6px;';
+        search.addEventListener('input',()=>updatePicker(picker));
+        picker.parentNode.insertBefore(search,picker);picker._contactSearch=search;
+      }
+      updatePicker(picker);
     }
   }
   function purchases(){

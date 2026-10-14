@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const S=require('../skybox-import');
 function ui(contacts=[]){
- const nodes=new Map();class Node{constructor(){this.dataset={};this.value='';this.children=[];this.disabled=false;this.style={};this.files=[];}append(...values){this.children.push(...values);}replaceChildren(...values){this.children=values;}addEventListener(){}click(){}}
+ const nodes=new Map();class Node{constructor(){this.dataset={};this.value='';this.children=[];this.disabled=false;this.style={};this.files=[];this.listeners={};}setAttribute(key,value){this[key]=value;}insertBefore(child,before){this.children.splice(this.children.indexOf(before),0,child);child.parentNode=this;}append(...values){this.children.push(...values);for(const value of values)if(value&&typeof value==='object')value.parentNode=this;}replaceChildren(...values){this.children=values;}addEventListener(event,handler){this.listeners[event]=handler;}click(){}}
  const node=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};let imports=0;
  const window={addEventListener(){}};
  vm.runInNewContext(fs.readFileSync('skybox-ui.js','utf8'),{window,document:{getElementById:node,createElement:()=>new Node(),querySelector:node,querySelectorAll:()=>Array.from(nodes.values()).filter(n=>n.isPicker)},A1Skybox:S,A1Data:{contacts:()=>contacts,importSkybox:async()=>{imports++;return {imported:1,skipped:0,conflicts:0,changed:0,errors:[]};}},refreshInvoicePreview(){},refreshLetterPreview(){},refreshItineraryPreview(){},money:value=>'$'+value,confirm:()=>false});
@@ -42,4 +42,29 @@ test('all pickers use shared contacts and booking pickers restrict choices to ve
 });
 test('invoice vendor selection fills vendor fields without replacing the customer',()=>{
  const {api,node}=ui([savedContact]);node('invoiceVendorPicker').value='vendor:123';node('invClientCompany').value='Invoice customer';api.choose('vendor');assert.equal(node('invVendor').value,'Example Vendor');assert.equal(node('invVendorId').value,'123');assert.equal(node('invClientCompany').value,'Invoice customer');
+});
+
+test('pickers group by contact role and type, sort names, and search without changing the selected identity',()=>{
+ const contacts=[
+ {kind:'customer',id:'3',displayName:'zeta',type:'Retail'},
+ {kind:'vendor',id:'8',displayName:'Vendor',type:'Marketplace'},
+ {kind:'customer',id:'2',displayName:'Alpha',type:'Retail',email:'alpha@example.invalid'},
+ {kind:'customer',id:'1',displayName:'Alpha',type:'retail',email:'other@example.invalid'},
+ {kind:'customer',id:'4',displayName:'Business',type:'Corporate'}];
+ const {api,node}=ui(contacts);const picker=node('all');picker.isPicker=true;node('parent').append(picker);
+ api.populatePickers();assert.deepEqual(picker.children.slice(1).map(g=>g.label),['Customers — Corporate','Customers — retail','Vendors — Marketplace']);
+ assert.deepEqual(picker.children[2].children.map(o=>o.value),['customer:1','customer:2','customer:3']);
+ const search=picker._contactSearch;assert.equal(search.type,'search');assert.match(search['aria-label'],/Search saved/);
+ picker.value='customer:3';search.value='alpha@example';search.listeners.input();
+ assert.equal(picker.value,'customer:3');assert.deepEqual(picker.children[1].children.map(o=>o.value),['customer:2','customer:3']);
+ assert.equal(node('invClientCompany').value,'','searching must not fill invoice fields');
+ api.populatePickers();assert.equal(node('parent').children.length,2,'refresh must not duplicate search inputs');assert.equal(search.value,'alpha@example');
+ picker.value='';search.value='no such contact';search.listeners.input();assert.equal(picker.children[1].textContent,'No matching contacts');assert.equal(picker.children[1].disabled,true);
+ search.value='marketplace';search.listeners.input();assert.equal(picker.children[1].label,'Vendors — Marketplace');
+});
+test('vendor-only searches cannot expose customer matches and directories sort by name',()=>{
+ const {api,node}=ui([{kind:'customer',id:'1',displayName:'Alpha',type:'Retail'},{kind:'vendor',id:'2',displayName:'zeta'},{kind:'vendor',id:'3',displayName:'Beta'}]);
+ const picker=node('vendors');picker.isPicker=true;picker.dataset.contactKind='vendor';node('parent').append(picker);api.populatePickers();
+ assert.deepEqual(picker.children[1].children.map(o=>o.value),['vendor:3','vendor:2']);picker._contactSearch.value='Alpha';picker._contactSearch.listeners.input();assert.equal(picker.children.length,2);assert.equal(picker.children[1].textContent,'No matching contacts');
+ api.directory('vendor');const cards=node('vendorDirectory').children.filter(n=>n.className==='invoice-history-card');assert.match(cards[0].children[0].textContent,/Beta/);assert.match(cards[1].children[0].textContent,/zeta/);
 });
