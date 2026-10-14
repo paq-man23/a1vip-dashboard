@@ -2,7 +2,8 @@
 (function(root){
  let alt=false,press=null,timer=null,suppressUntil=0;
  const selector='#accounts .grid[data-section="accounts"] > .btn';
- const eligible=button=>button?.matches(selector)&&/^https?:\/\//i.test(getBtnURL(button)||'');
+ const ticketUrl=button=>normalizeStoredLinkUrl(getBtnURL(button));
+ const eligible=button=>button?.matches(selector)&&/^https?:\/\//i.test(ticketUrl(button));
  function paint(button,ready){button.classList.toggle('private-ready',ready);}
  function cancel(){clearTimeout(timer);timer=null;if(press)paint(press.button,alt);press=null;}
  function refresh(){
@@ -25,7 +26,7 @@
   document.addEventListener('pointerup',event=>{
    if(!press||event.pointerId!==press.id)return;
    const button=press.button,ready=press.ready;cancel();
-   if(ready){event.preventDefault();suppressUntil=Date.now()+1000;openPrivateShortcut(getBtnURL(button),button.dataset.label||button.textContent.trim());}
+   if(ready){event.preventDefault();suppressUntil=Date.now()+1000;openPrivateShortcut(ticketUrl(button),button.dataset.label||button.textContent.trim());}
   },true);
   document.addEventListener('pointercancel',cancel,true);
   document.addEventListener('dragstart',cancel,true);
@@ -33,7 +34,7 @@
   document.addEventListener('click',event=>{
    const button=event.target.closest?.(selector);if(!eligible(button))return;
    if(Date.now()<suppressUntil){event.preventDefault();event.stopImmediatePropagation();return;}
-   if(event.altKey||alt){event.preventDefault();event.stopImmediatePropagation();cancel();openPrivateShortcut(getBtnURL(button),button.dataset.label||button.textContent.trim());}
+   if(event.altKey||alt){event.preventDefault();event.stopImmediatePropagation();cancel();openPrivateShortcut(ticketUrl(button),button.dataset.label||button.textContent.trim());}
   },true);
   document.addEventListener('keydown',event=>{if(event.key==='Alt'){alt=true;refresh();}if(event.key==='Escape')cancel();});
   document.addEventListener('keyup',event=>{if(event.key==='Alt'){alt=false;refresh();}});

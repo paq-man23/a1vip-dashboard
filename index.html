@@ -1829,6 +1829,11 @@ function copyDescription(){
         .replaceAll("'","&#39;");
     }
 
+function normalizeStoredLinkUrl(raw){
+      const url=String(raw||'').trim();
+      return /^(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:[/?#]|$)/i.test(url)?'https://'+url:url;
+    }
+
 function createBtn(label, url, isCustom=true){
       const btn = document.createElement('button');
       btn.className = 'btn';
@@ -1845,7 +1850,7 @@ function createBtn(label, url, isCustom=true){
       // Badge + behavior hint for links that must open in a full browser tab
       if (isFullBrowserUrl(url)) btn.classList.add('full-browser');
   if (isVideoUrl(url)) btn.classList.add('video-link');
-      btn.addEventListener('click', ()=>openPopup(url, label));
+      btn.addEventListener('click', ()=>openPopup(normalizeStoredLinkUrl(url), label));
       return btn;
     }
 
