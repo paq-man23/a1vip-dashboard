@@ -16,3 +16,9 @@ header{padding-top:calc(14px + env(safe-area-inset-top))}.mobile-section-bar{dis
 
 .can-drag-link{cursor:grab}.moving-link .is-dragging{opacity:.45}.top-tabs .tab.is-drop-target,.grid.is-drop-target{outline:3px solid #86efac;outline-offset:2px;background:#204839}.link-drag-ghost{position:fixed;z-index:5000;pointer-events:none;transform:translate(-50%,-115%);max-width:220px;padding:12px 16px;border-radius:12px;background:#86efac;color:#082619;font-size:13px;font-weight:700;box-shadow:0 8px 24px #0005}.button-move-hint{font-size:12px!important;color:#94a3b8!important;margin-bottom:16px!important}.moving-link{user-select:none;-webkit-user-select:none}
 @media(max-width:760px){.login-card input,.quick-link-bar input,.form-grid input,.form-grid select,.search-row input{font-size:16px}.login-screen{padding:16px;overflow-y:auto}.login-card{max-height:calc(100dvh - 32px);overflow-y:auto}}
+
+/* A small lock appears only when private opening is armed. */
+.ticket-lock{display:none;width:18px;height:18px;flex:0 0 18px;margin-left:8px;vertical-align:middle}
+#accounts .btn.private-ready{background:#f5ce52;color:#191b20;border-color:#ffe694;box-shadow:0 0 0 2px #f5ce5240}
+#accounts .btn.private-ready .ticket-lock{display:inline-block}
+#accounts .btn{touch-action:pan-y;-webkit-touch-callout:none}
