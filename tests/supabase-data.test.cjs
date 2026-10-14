@@ -27,7 +27,7 @@ function harness({ member = true, failSave = false } = {}) {
     }
   };
   const storage = new Map();
-  const window = { A1_SUPABASE_CONFIG: { url: 'https://test.supabase.co', publishableKey: 'public', adminUsername: 'JAW', adminEmail: 'jaw@a1eei.com', passwordResetRedirect: 'https://a1dash.a1eei.com/reset-password.html' },
+  const window = { A1_SUPABASE_CONFIG: { url: 'https://test.supabase.co', publishableKey: 'public', adminAliases: { JAW: 'jaw@a1eei.com', JV: 'vollario@mac.com' }, passwordResetRedirect: 'https://a1dash.a1eei.com/reset-password.html' },
     supabase: { createClient: () => client }, dispatchEvent() {} };
   vm.runInNewContext(fs.readFileSync('a1-data.js','utf8'), { window, Event: class {}, localStorage: { getItem: key => storage.get(key) } });
   return { data: window.A1Data, storage, args: () => savedArgs, loginArgs: () => loginArgs, resetArgs: () => resetArgs, updateArgs: () => updateArgs, window };
@@ -85,7 +85,7 @@ test('JAW stays the visible username and resolves to the configured Auth account
 });
 test('an unconfigured JAW account cannot bypass authentication', async () => {
   const { data, window } = harness();
-  window.A1_SUPABASE_CONFIG.adminEmail = '';
+  window.A1_SUPABASE_CONFIG.adminAliases.JAW = '';
   await assert.rejects(data.login('JAW', 'password'), /still needs to be configured/);
   assert.equal(data.authenticated(), false);
 });
@@ -108,4 +108,15 @@ test('password changes reauthenticate and update the password without changing e
   assert.equal(loginArgs().password, 'current-password');
   assert.equal(updateArgs().password, 'new-password');
   assert.equal(updateArgs().email, undefined);
+});
+
+test('JV resolves to its own Auth account, including lowercase input', async () => {
+  const { data, loginArgs } = harness();
+  await data.login('jv', 'password');
+  assert.equal(loginArgs().email, 'vollario@mac.com');
+});
+test('unknown usernames cannot authenticate through an admin alias', async () => {
+  const { data } = harness();
+  await assert.rejects(data.login('other-admin', 'password'), /Invalid username/);
+  assert.equal(data.authenticated(), false);
 });

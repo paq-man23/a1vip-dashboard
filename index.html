@@ -355,7 +355,7 @@
       <p>Enter your credentials to access the dashboard.</p>
       <label>
         Username
-        <input id="loginUser" type="text" autocomplete="username" placeholder="JAW">
+        <input id="loginUser" type="text" autocomplete="username" placeholder="JAW, JV, or email">
       </label>
       <label>
         Password
@@ -812,7 +812,7 @@
         </div>
         <div id="authUpdateMsg" class="note" style="margin-top:6px;"></div>
         <div class="note" style="margin-top:4px;">
-          Password changes apply to your Supabase account across devices. Your admin username remains JAW.
+          Password changes apply to your Supabase account across devices. Your username remains unchanged.
         </div>
       </div>
 
@@ -1036,7 +1036,7 @@
       try {
         await A1Data.updateAccount(current.value, password.value);
         current.value = ''; password.value = '';
-        setAuthMessage('Password updated. Continue signing in as JAW.', '#4ade80');
+        setAuthMessage('Password updated. Continue using your username.', '#4ade80');
       } catch(error) { setAuthMessage(error.message); }
     }
     async function requestPasswordReset(signedIn){
