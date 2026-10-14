@@ -1,6 +1,6 @@
 /* Supabase-backed A1 staff invoices. No invoice/password data is cached locally. */
 (() => {
-  let client, user, ready = false;
+  let client, user, ready = false, admin = false;
   let recoveryUserId = null;
   const RECOVERY_KEY = 'a1vip-password-recovery';
   try { recoveryUserId = sessionStorage.getItem(RECOVERY_KEY) || null; } catch {}
@@ -10,7 +10,7 @@
   }
   function beginRecovery(id) {
     recoveryUserId = id;
-    ready = false; invoices = []; presets = {}; versions.clear();
+    ready = false; admin=false; invoices = []; presets = {}; versions.clear();
     documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; contacts = []; contactVersions.clear();
     try { sessionStorage.setItem(RECOVERY_KEY, id); } catch {}
     window.dispatchEvent(new Event('a1-password-recovery'));
@@ -48,7 +48,7 @@
     });
     return client;
   }
-  function clear() { user = null; ready = false; invoices = []; presets = {}; versions.clear();
+  function clear() { user = null; ready = false; admin=false; invoices = []; presets = {}; versions.clear();
     documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; contacts = []; contactVersions.clear(); }
   function requireReady() {
     if (!user || !ready || recoveryUserId) throw new Error('Sign in and load Supabase invoices before saving.');
@@ -58,7 +58,7 @@
     if (recoveryUserId) throw new Error('Choose your new password before accessing invoices.');
     if (!user) throw new Error('Please sign in first.');
     const identity = user.id;
-    const member = check(await client.from('a1_staff').select('user_id').eq('user_id', identity).maybeSingle());
+    const member = check(await client.from('a1_staff').select('user_id,is_admin').eq('user_id', identity).maybeSingle());
     if (!member) { clear(); throw new Error('This account has not been approved for the A1 Dashboard.'); }
     const rows = [];
     for (let offset = 0; ; offset += 500) {
@@ -90,6 +90,7 @@
       if (page.length < 500) break;
     }
     if (user?.id !== identity || recoveryUserId) throw new Error('Session changed. Sign in again.');
+    admin = member.is_admin===true;
     contacts = contactRows.map(row=>row.document);
     contactVersions = new Map(contactRows.map(row=>[row.document.kind+':'+row.document.id,row.version||0]));
     invoices = rows.map(row => row.document);
@@ -189,7 +190,9 @@
     documentVersions.delete(kind + ':' + id);
     documents[kind] = documents[kind].filter(item => item.id !== id);
   }
+  function requireAdmin(){requireReady();if(!admin)throw new Error('Administrator access required');return client;}
   async function resolveConflict(hash, invoiceId) {
+    requireAdmin();
     check(await requireReady().rpc('a1_resolve_import_conflict', { p_source_hash: hash, p_imported_id: invoiceId }));
     conflicts = conflicts.filter(item => item.source_hash !== hash);
   }
@@ -229,6 +232,7 @@
   }
   const report = () => ({ imported: 0, skipped: 0, conflicts: 0, copied: 0, errors: [] });
   async function importRecords(kind, records, presetValues = {}) {
+    requireAdmin();
     if (!['invoice','letter','itinerary'].includes(kind) || !Array.isArray(records)) throw new Error('Invalid import document type or history.');
     const c = requireReady(), identity = user.id, summary = report();
     for (const document of records) {
@@ -260,7 +264,7 @@
     return result;
   }
   async function importSkybox(items, progress = () => {}) {
-    const c = requireReady(), identity = user.id;
+    const c = requireAdmin(), identity = user.id;
     const result = { imported:0, skipped:0, conflicts:0, changed:0, errors:[] };
     for (let offset=0;offset<items.length;offset+=50) {
       if (user?.id !== identity || recoveryUserId) throw new Error('Session changed. Sign in again before importing.');
@@ -303,7 +307,8 @@
     if(path)check(await requireReady().storage.from('a1-contact-photos').remove([path]));
   }
   window.A1Data = {
-    fetchSyncRuns: async () => { const c=requireReady(); return check(await c.from('a1_skybox_sync_runs').select('machine_label,started_at,finished_at,status,summary').order('started_at',{ascending:false}).limit(5)); },
+    fetchSyncRuns: async () => { const c=requireAdmin(); return check(await c.from('a1_skybox_sync_runs').select('machine_label,started_at,finished_at,status,summary').order('started_at',{ascending:false}).limit(5)); },
+    isAdmin: () => !!user && ready && admin && !recoveryUserId,
     importSkybox, contacts: () => copy(contacts), saveContact, uploadContactPhoto, contactPhotoUrl, removeContactPhoto,
     contactVersion: (kind,id) => contactVersions.get(kind+':'+id) ?? 0,
     restore, login, refresh, save, remove, updateAccount, finishPasswordReset, requestPasswordReset, migrateLegacy, migrateAll, importRecords, browserBackup, saveDocument, removeDocument, resolveConflict,
