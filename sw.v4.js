@@ -2,7 +2,7 @@
 // Update style: show "New update available" banner in the page; activate on user click.
 // If you need to force all installs to fetch this worker, bump CACHE_NAME.
 
-const CACHE_NAME = 'a1vip-static-v5'; // bump this once
+const CACHE_NAME = 'a1vip-static-v6'; // bump this once
 
 
 // Resolve relative to worker scope (safe for GitHub Pages subpaths)
@@ -38,6 +38,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
+  // Supabase auth/data and non-GET requests must never enter the asset cache.
+  if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Configuration and data client must refresh with the page deployment.
+  if (url.pathname.endsWith('/supabase-config.js') || url.pathname.endsWith('/a1-data.js')) {
+    event.respondWith(fetch(req, { cache: 'no-store' }));
+    return;
+  }
 
   // Always-fresh buttons.json
   if (url.pathname.endsWith('buttons.json')) {
@@ -85,9 +92,9 @@ self.addEventListener('fetch', (event) => {
       const cache = await caches.open(CACHE_NAME);
       cache.put(req, net.clone());
       return net;
-    } catch {
+    } catch (error) {
       // Let the request fail quietly for opaque/CDN assets
-      throw;
+      throw error;
     }
   })());
 });
