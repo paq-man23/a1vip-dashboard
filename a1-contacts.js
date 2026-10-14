@@ -21,7 +21,7 @@
     const wrap=$(kind+'ContactCard');if(!wrap)return;wrap.replaceChildren();
     const top=el('div');top.className='rolodex-card-heading';const photo=el('div');photo.className='rolodex-portrait';photo.append(el('span',text(contact.firstName||contact.displayName).slice(0,1).toUpperCase()));
     const image=el('img');image.alt='Contact photo';image.hidden=true;image.onerror=()=>{image.hidden=true;};photo.append(image);top.append(photo);
-    const heading=el('div');heading.append(el('div',kind==='vendor'?'VENDOR CARD':'CUSTOMER CARD'),el('h3',contact.displayName||'New contact'),el('p',contact.type||'Shared A1 contact'));
+    const heading=el('div');heading.append(el('div',kind==='vendor'?'VENDOR':'CUSTOMER'),el('h3',contact.displayName||'New contact'),el('p',contact.type||'Shared A1 contact'));
     const actions=el('div');actions.className='rolodex-actions';
     if(contact.phone){const call=el('a','Call');call.className='btn';call.href='tel:'+text(contact.phone).replace(/[^+0-9*#,;]/g,'');actions.append(call);}
     if(contact.email){const email=el('a','Email');email.className='btn';email.href='mailto:'+encodeURIComponent(contact.email);actions.append(email);}heading.append(actions);top.append(heading);wrap.append(top);
@@ -82,7 +82,7 @@
     wrap.append(el('p',items.length+' '+kind+' cards · Sorted by last name, then company / display name'));
     const body=el('div');body.className='rolodex-body';const list=el('div');list.className='rolodex-index';list.setAttribute('aria-label','Matching '+kind+' contacts');
     for(const c of items.slice(state.page*40,state.page*40+40)){
-      const button=el('button');button.type='button';button.className='rolodex-index-card'+(c.id===state.selected?' active':'');button.append(el('strong',c.displayName),el('span',[c.name,c.company,c.type].filter(Boolean).join(' · ')),el('small','#'+c.id));
+      const button=el('button');button.type='button';button.dataset.contactId=c.id;button.className='rolodex-index-card'+(c.id===state.selected?' active':'');const avatar=el('span',text(c.firstName||c.displayName).slice(0,1).toUpperCase());avatar.className='contact-list-avatar';avatar.setAttribute('aria-hidden','true');const details=el('div');details.className='contact-index-details';details.append(el('strong',c.displayName),el('span',[c.name,c.company,c.type].filter(Boolean).join(' · ')),el('small','#'+c.id));button.append(avatar,details);
       button.addEventListener('click',()=>{open(kind,c);for(const b of list.children)b.classList.toggle('active',b===button&&state.selected===c.id);});list.append(button);
     }
     if(!items.length)list.append(el('p','No matching contacts. Try another name or select All.'));
@@ -94,6 +94,7 @@
     const current=source.find(c=>c.id===state.selected);
     if(current&&!state.form?.dataset.dirty&&JSON.stringify(current)!==JSON.stringify(state.original))open(kind,current,true);
     if(!state.selected&&items[0])open(kind,items[0],true);else if(!state.selected&&!items.length){card.replaceChildren(el('p','Add a contact or search your saved cards.'));}
+    for(const button of list.querySelectorAll('.rolodex-index-card'))button.classList.toggle('active',button.dataset.contactId===state.selected);
   }
   function add(kind){const state=states[kind];if(!mayLeave(state))return;open(kind,{kind,id:crypto.randomUUID(),displayName:'',name:'',firstName:'',lastName:''},true);}
   function clear(){for(const kind of ['customer','vendor']){states[kind]={letter:'',page:0};$(kind+'Directory')?.replaceChildren();}}
