@@ -409,6 +409,9 @@
       <button class="tab tab-travel" onclick="showSection('travel')">Travel</button>
       <button class="tab tab-social" onclick="showSection('social')">Social</button>
       <button class="tab tab-invoices" onclick="showSection('invoices')">Invoices</button>
+      <button class="tab tab-invoices" onclick="showSection('customers')">Customers</button>
+      <button class="tab tab-invoices" onclick="showSection('vendors')">Vendors</button>
+      <button class="tab tab-invoices" onclick="showSection('purchases')">Purchases</button>
       <button class="tab tab-letter" onclick="showSection('formLetter')">Form Letter</button>
       <button class="tab tab-itinerary" onclick="showSection('tripItinerary')">Trip / Talent Itinerary</button>
       <button class="tab tab-admin" onclick="showSection('admin')">Admin</button>
@@ -539,7 +542,11 @@
                     <option>Pending</option>
                     <option>Paid</option>
                     <option>Partially Paid</option>
+                    <option>Void</option>
                   </select>
+                </label>
+                <label class="full">Saved Customer / Vendor
+                  <select id="sharedContactPicker" onchange="A1SkyboxUI.choose()"><option value="">Choose a saved customer or vendor…</option></select>
                 </label>
                 <label>Client / Company
                   <input id="invClientCompany" list="clientCompanyList" placeholder="Client / Company">
@@ -602,9 +609,14 @@
           </div>
           <div class="invoice-form-grid" style="margin-bottom:14px;">
             <label class="full">Search Invoice History
-              <input id="invoiceHistorySearch" type="search" placeholder="Search invoice #, client, status, or type..." oninput="renderInvoiceHistory()">
+              <input id="invoiceHistorySearch" type="search" placeholder="Search invoice #, client, status, or type..." oninput="invoiceHistoryPage=0;renderInvoiceHistory()">
             </label>
           </div>
+          <div class="invoice-form-grid" style="margin-bottom:14px;">
+            <label>Invoice Year <select id="invoiceHistoryYear" onchange="invoiceHistoryPage=0;renderInvoiceHistory()"><option value="">All Years</option></select></label>
+            <label>Sort <select id="invoiceHistoryOrder" onchange="invoiceHistoryPage=0;renderInvoiceHistory()"><option value="newest">Newest First</option><option value="oldest">Oldest First</option></select></label>
+          </div>
+          <div id="invoiceHistoryPager" class="invoice-toolbar"></div>
           <div id="invoiceHistoryList" class="invoice-history-list"></div>
         </div>
 
@@ -782,7 +794,33 @@
       </div>
     </div>
 
+
+    <div id="customers" class="section" style="display:none;">
+      <h3>Customers</h3><p>Shared Skybox contacts. Import your customer export in Admin. Customer credit is reference information and does not change invoice balances.</p>
+      <div class="invoice-toolbar"><button class="btn" onclick="refreshInvoiceHistory()">Refresh Contacts</button><button class="btn" onclick="showSection('admin')">Skybox Import</button></div>
+      <input id="customerSearch" type="search" placeholder="Search name, email, company, or Skybox ID" oninput="A1SkyboxUI.directory('customer')"><div id="customerDirectory" class="invoice-history-list"></div>
+    </div>
+    <div id="vendors" class="section" style="display:none;">
+      <h3>Vendors</h3><p>Shared vendor contacts, addresses, phone numbers, and tags from Skybox.</p>
+      <div class="invoice-toolbar"><button class="btn" onclick="refreshInvoiceHistory()">Refresh Vendors</button><button class="btn" onclick="showSection('admin')">Skybox Import</button></div>
+      <input id="vendorSearch" type="search" placeholder="Search name, email, company, phone, or Skybox ID" oninput="A1SkyboxUI.directory('vendor')"><div id="vendorDirectory" class="invoice-history-list"></div>
+    </div>
+    <div id="purchases" class="section" style="display:none;">
+      <h3>Purchases / Purchase Orders</h3><p>Open imported Skybox purchases and saved A1 purchase orders.</p>
+      <div class="invoice-toolbar"><button class="btn" onclick="refreshInvoiceHistory()">Refresh Purchases</button><button class="btn" onclick="showSection('admin')">Skybox Import</button></div>
+      <input id="purchaseSearch" type="search" placeholder="Search PO number, vendor, or status" oninput="A1SkyboxUI.purchases()"><div id="purchaseDirectory" class="invoice-history-list"></div>
+    </div>
+
     <div id="admin" class="section" style="display:none;">
+      <div class="upload-card" style="margin-bottom:20px;">
+        <h3>Import from Skybox</h3>
+        <p>Select customer, vendor, invoice, and purchase exports together. Excel (.xlsx) and CSV files with the original Skybox headings are supported. Files are previewed on this computer before anything is saved.</p>
+        <p>Invoice reports become summary invoices because they lack original ticket details. Original totals, balances, void status, and report fields are preserved. Purchases become purchase orders.</p>
+        <label>Skybox export files <input id="skyboxFile" type="file" multiple accept=".xlsx,.csv" onchange="A1SkyboxUI.read(event)"></label>
+        <div class="invoice-toolbar" style="margin-top:12px;"><button class="btn" onclick="A1SkyboxUI.download()">Download Full Review</button><button id="skyboxCommit" class="btn" disabled onclick="A1SkyboxUI.commit()">Import Reviewed Records</button></div>
+        <p id="skyboxMessage" role="status" aria-live="polite" style="white-space:pre-wrap;"></p><div id="skyboxPreview"></div>
+      </div>
+
       <div class="upload-card" style="margin-bottom:20px;">
         <h3>Move Saved Documents to Shared History</h3>
         <p>On each computer, use the same browser and dashboard address where the documents were saved. Import once, then access the documents from any signed-in device.</p>
@@ -1003,6 +1041,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.1/dist/umd/supabase.js"></script>
 <script src="./supabase-config.js"></script>
 <script src="./a1-data.js"></script>
+<script src="./vendor/fflate-0.8.3.js"></script>
+<script src="./skybox-import.js"></script>
+<script src="./a1-history.js"></script>
+<script src="./skybox-ui.js"></script>
 <script>
     /* ===== Config ===== */
     const CONFIG_URLS = [
@@ -1059,6 +1101,7 @@
     function refreshCloudViews(){
       refreshInvoiceDatalists(); renderInvoiceHistory(); renderInvoicePresets();
       renderLetterHistory(); renderItineraryHistory(); renderImportConflicts();
+      if (window.A1SkyboxUI) window.A1SkyboxUI.render();
     }
     function requireLoginClient(){
       if (typeof A1Data === 'undefined') throw new Error('Login code could not load. Reload the page and check that the local server is running from the updated dashboard folder.');
@@ -2572,12 +2615,7 @@ function createBtn(label, url, isCustom=true){
       if (!v) return;
       if (!arr.some(x => String(x).toLowerCase() === v.toLowerCase())) arr.push(v);
     }
-    function getNextInvoiceNumber(){
-      const nums = loadInvoices()
-        .map(item => parseInt(String(item.number || '').replace(/\D/g,''), 10))
-        .filter(Number.isFinite);
-      return nums.length ? Math.max.apply(null, nums) + 1 : 4100;
-    }
+    function getNextInvoiceNumber(){ return A1History.nextNumber(loadInvoices()); }
     function money(n){
       const v = Number(n || 0);
       return '$' + v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -2711,6 +2749,8 @@ function createBtn(label, url, isCustom=true){
     }
 
     function setInvoiceToForm(invoice){
+      const contactPicker=document.getElementById('sharedContactPicker');
+      if(contactPicker)contactPicker.value='';
       invoice = normalizeSavedInvoice(invoice);
       if (invoice.id !== currentInvoiceId) { currentImportConflictHash = null; currentInvoiceVersion = A1Data.version('invoice', invoice.id); }
       currentInvoiceId = invoice.id || null;
@@ -3094,7 +3134,9 @@ function createBtn(label, url, isCustom=true){
       }
     }
 
+    let invoiceHistoryPage = 0;
     function renderInvoiceHistory(){
+      if (window.A1SkyboxUI) window.A1SkyboxUI.purchases();
       const wrap = document.getElementById('invoiceHistoryList');
       if (!wrap) return;
       const items = loadInvoices();
@@ -3103,22 +3145,22 @@ function createBtn(label, url, isCustom=true){
         return;
       }
       const query = (document.getElementById('invoiceHistorySearch')?.value || '').trim().toLowerCase();
-      const filtered = query
-        ? items.filter(item => [
-            item.savedName,
-            item.number,
-            item.clientCompany,
-            item.clientContact,
-            item.clientEmail,
-            item.status,
-            documentTypeLabel(item.type || 'invoice-ticket')
-          ].some(value => String(value || '').toLowerCase().includes(query)))
-        : items;
+      const yearSelect=document.getElementById('invoiceHistoryYear');
+      const selectedYear=yearSelect?.value || '';
+      if(yearSelect){
+        yearSelect.innerHTML='<option value="">All Years</option>'+A1History.years(items).map(year=>`<option value="${escHtml(year)}">${escHtml(year)}</option>`).join('');
+        yearSelect.value=selectedYear;
+      }
+      const filtered = A1History.filter(items,query,selectedYear,document.getElementById('invoiceHistoryOrder')?.value || 'newest');
+      const lastPage=Math.max(0,Math.ceil(filtered.length/50)-1);
+      invoiceHistoryPage=Math.min(invoiceHistoryPage,lastPage);
+      const pager=document.getElementById('invoiceHistoryPager');
+      if(pager)pager.innerHTML=`<span>${filtered.length} documents · Page ${invoiceHistoryPage+1} of ${lastPage+1}</span><button class="btn" ${invoiceHistoryPage===0?'disabled':''} onclick="invoiceHistoryPage--;renderInvoiceHistory()">Previous</button><button class="btn" ${invoiceHistoryPage>=lastPage?'disabled':''} onclick="invoiceHistoryPage++;renderInvoiceHistory()">Next</button>`;
       if (!filtered.length){
         wrap.innerHTML = '<div class="invoice-empty">No invoices match your search.</div>';
         return;
       }
-      wrap.innerHTML = filtered.map(item => `
+      wrap.innerHTML = filtered.slice(invoiceHistoryPage*50,invoiceHistoryPage*50+50).map(item => `
         <div class="invoice-history-card">
           <div class="invoice-history-head">
             <div>
@@ -3128,7 +3170,7 @@ function createBtn(label, url, isCustom=true){
             <span class="invoice-chip">${escHtml(item.status || 'Unpaid')}</span>
           </div>
           <div style="margin-top:10px;color:#cbd5e1;">
-            Created: ${escHtml(item.createdDate || '-')} · Due: ${escHtml(item.dueDate || '-')} · Total: ${money(invoiceTotal(item))}
+            Created: ${escHtml(item.createdDate || '-')} · Due: ${escHtml(item.dueDate || '-')} · Total: ${money(invoiceSubtotal(item)+parseNum(item.tax)+parseNum(item.shipping))} · Balance: ${money(invoiceBalance(item))}
           </div>
           <div class="invoice-toolbar" style="margin-top:12px;margin-bottom:0;">
             <button class="btn" onclick="loadInvoiceFromHistory('${escHtml(item.id)}')">Open</button>
