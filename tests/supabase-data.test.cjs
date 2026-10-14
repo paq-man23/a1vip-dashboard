@@ -19,7 +19,7 @@ function harness({ member = true, failSave = false, recoverySession = false, ini
     from: table => {
       const query = { select() { if (this.deleting) return Promise.resolve({ data: [{id:'deleted'}] }); return this; }, delete() { this.deleting = true; return this; }, eq(key, value) { filters.push([key,value]); return this; }, order() { return this; },
         maybeSingle: async () => ({ data: member ? { user_id: 'staff' } : null }),
-        range: async () => ({ data: table === 'a1_invoices' ? rows : table === 'a1_skybox_records' ? contactRows : table === 'a1_documents' ? documentRows : table === 'a1_import_conflicts' ? conflictRows : [] }) };
+        range: async () => ({ data: table === 'a1_invoices' ? rows : table === 'a1_skybox_contacts' ? contactRows : table === 'a1_documents' ? documentRows : table === 'a1_import_conflicts' ? conflictRows : [] }) };
       return query;
     },
     rpc: async (name, args) => {

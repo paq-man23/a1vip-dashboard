@@ -85,7 +85,7 @@
     }
     const contactRows = [];
     for (const kind of ['customer','vendor']) for (let offset = 0; ; offset += 500) {
-      const page = check(await client.from('a1_skybox_records').select('document').eq('kind',kind).order('source_id').range(offset,offset+499));
+      const page = check(await client.from('a1_skybox_contacts').select('document').eq('kind',kind).order('source_id').range(offset,offset+499));
       contactRows.push(...page.map(row => row.document));
       if (page.length < 500) break;
     }
@@ -279,6 +279,7 @@
     await refresh(); return result;
   }
   window.A1Data = {
+    fetchSyncRuns: async () => { const c=requireReady(); return check(await c.from('a1_skybox_sync_runs').select('machine_label,started_at,finished_at,status,summary').order('started_at',{ascending:false}).limit(5)); },
     importSkybox, contacts: () => copy(contacts),
     restore, login, refresh, save, remove, updateAccount, finishPasswordReset, requestPasswordReset, migrateLegacy, migrateAll, importRecords, browserBackup, saveDocument, removeDocument, resolveConflict,
     invoices: () => copy(invoices), presets: () => copy(presets),

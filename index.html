@@ -824,6 +824,9 @@
     <div id="admin" class="section" style="display:none;">
       <div class="upload-card" style="margin-bottom:20px;">
         <h3>Import from Skybox</h3>
+        <div class="invoice-toolbar"><a class="btn" href="./downloads/A1VIP-Skybox-Mac-Sync.zip" download>Download Mac Folder Sync</a><button class="btn" onclick="A1SkyboxUI.refreshSyncStatus()">Refresh Sync Status</button></div>
+        <p>Mac folder sync: install once on JAW’s Mac, then export weekly files to <strong>~/skyexport</strong>. The helper checks every five minutes while the Mac is awake and logged in. New records import automatically; updates that conflict with A1 edits are preserved for review.</p>
+        <div id="skyboxSyncStatus" role="status" aria-live="polite"><p>No folder-sync status loaded yet.</p></div>
         <p>Select customer, vendor, invoice, and purchase exports together. Excel (.xlsx) and CSV files with the original Skybox headings are supported. Files are previewed on this computer before anything is saved.</p>
         <p>Invoice reports become summary invoices because they lack original ticket details. Original totals, balances, void status, and report fields are preserved. Purchases become purchase orders.</p>
         <label>Skybox export files <input id="skyboxFile" type="file" multiple accept=".xlsx,.csv" onchange="A1SkyboxUI.read(event)"></label>
