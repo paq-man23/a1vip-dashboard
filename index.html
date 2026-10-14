@@ -3,7 +3,7 @@
 <head>
   <style>body.a1-locked > :not(#loginScreen):not(script) { visibility: hidden; }</style>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>A1 VIP Ticket Dashboard</title>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -397,7 +397,7 @@
   </div>
 
   <header>
-    <img src="A1VIP_LOGO_VERT_for _Black_backgrounds.png" alt="Logo">
+    <img class="dashboard-brand-logo" width="810" height="684" src="A1VIP_LOGO_WIDE_for_White_backgrounds_large.png" alt="A1VIP Entertainment logo">
     <div class="title"><span>A1 VIP</span><small>Ticket Dashboard</small></div>
     <div id="headerAccount" class="header-account" hidden>
       <span id="signedInUser" aria-live="polite"></span>
@@ -415,7 +415,8 @@
   </div>
 
   <nav class="top-tabs">
-    <div class="tabs-scroller">
+    <div class="mobile-section-bar"><span id="mobileSectionTitle">Main Links</span><button id="mobileSectionToggle" type="button" aria-expanded="false" aria-controls="categoryNavigation" onclick="toggleSectionMenu()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Sections</button></div>
+    <div id="categoryNavigation" class="tabs-scroller">
       <button class="tab tab-main is-active" data-category="main" onclick="showSection('main')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/></svg><span class="tab-label">Main Links</span></button>
       <button class="tab tab-luxury" data-category="luxury" onclick="showSection('luxury')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 6 4 4 5-7 5 7 4-4-2 13H5Z"/><path d="M6 15h12"/></svg><span class="tab-label">Suites</span></button>
       <button class="tab tab-accounts" data-category="accounts" onclick="showSection('accounts')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 6h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4Z"/><path d="M15 6v3m0 3v2m0 3v1"/></svg><span class="tab-label">Ticket Accounts</span></button>
@@ -433,6 +434,7 @@
   <main>
     <div id="main" class="section">
       <h3>Main Links</h3>
+      <p class="button-move-hint" data-admin-only hidden>Drag a link onto another category to move it. On mobile, press and hold the link first. You’ll confirm before it moves.</p>
       <div class="grid" data-section="main"></div>
     </div>
 
@@ -1087,6 +1089,7 @@
 <script src="./vendor/fflate-0.8.3.js"></script>
 <script src="./skybox-import.js"></script>
 <script src="./a1-history.js"></script>
+<script src="./button-moves.js"></script>
 <script src="./a1-invoice-fields.js"></script>
 <script src="./a1-contacts.js"></script>
 <script src="./skybox-ui.js"></script>
@@ -1106,6 +1109,7 @@
     /* ===== Supabase staff authentication ===== */
     let authReady = Promise.resolve();
     function refreshAdminAccess(clear=false){
+      window.A1ButtonMoves?.refresh();
       const allowed=!clear&&typeof A1Data!=='undefined'&&A1Data.isAdmin?.()===true;
       for(const element of document.querySelectorAll?.('[data-admin-only]')||[])element.hidden=!allowed;
       if(!allowed){for(const id of ['admin','system','buttonManager','upload','domains']){
@@ -1620,6 +1624,10 @@
       adminTab.addEventListener('touchcancel', cancelPress);
     });
 
+    function toggleSectionMenu(){
+      const nav=document.querySelector('.top-tabs'),button=document.getElementById('mobileSectionToggle');
+      const expanded=nav.classList.toggle('is-open');button.setAttribute('aria-expanded',String(expanded));
+    }
     function showSection(id){
       if(['admin','system','buttonManager','upload','domains'].includes(id)&&A1Data.isAdmin?.()!==true){alert('Administrator access required.');return;}
       if(id==='purchases'){id='invoices';setInvoiceHistoryKind('purchase');openInvoiceMode('history');}
@@ -1627,6 +1635,9 @@
       const el = document.getElementById(id);
       if(el) el.style.display='block';
       document.querySelectorAll('[data-category]').forEach(button=>{const active=button.dataset.category===id;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
+      const activeCategory=document.querySelector('[data-category="'+id+'"] .tab-label');
+      document.getElementById('mobileSectionTitle').textContent=activeCategory?.textContent||({account:'Account Settings',system:'System',upload:'Uploads',buttonManager:'Button Manager',domains:'Domains'})[id]||'Main Links';
+      document.querySelector('.top-tabs').classList.remove('is-open');document.getElementById('mobileSectionToggle').setAttribute('aria-expanded','false');
       if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
     }
 
@@ -1939,7 +1950,7 @@ function createBtn(label, url, isCustom=true){
         }
       }
 
-      return merged;
+      return window.A1ButtonMoves?A1ButtonMoves.reconcile(merged,remote):merged;
     }
 
     function compareLabels(a, b){
@@ -2010,6 +2021,7 @@ function createBtn(label, url, isCustom=true){
       });
       refreshPrivateTicketAccountButtons();
       wireHoverStatus();
+      window.A1ButtonMoves?.refresh();
     }
 
     const bc = 'BroadcastChannel' in window ? new BroadcastChannel('a1vip-sync') : null;
@@ -2078,7 +2090,7 @@ function createBtn(label, url, isCustom=true){
         const res = await fetch(SYNC_ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type':'application/json', 'X-A1VIP-Secret': buttonSyncSecret },
-          body: JSON.stringify(state)
+          body: JSON.stringify({added:state.added||{},removed:state.removed||{}})
         });
         const text = await res.text();
         if (!res.ok) {
