@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <style>body.a1-locked > :not(#loginScreen):not(script) { visibility: hidden; }</style>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>A1 VIP Ticket Dashboard</title>
@@ -345,25 +346,43 @@
     }
   </style>
 </head>
-<body>
+<body class="a1-locked">
 
   <!-- Login Screen -->
-  <div id="loginScreen" class="login-screen" style="display:none;">
+  <div id="loginScreen" class="login-screen" style="display:flex;">
     <div class="login-card">
+      <div id="normalLoginPanel">
       <h2>A1 VIP Login</h2>
       <p>Enter your credentials to access the dashboard.</p>
       <label>
         Username
-        <input id="loginUser" type="text" autocomplete="username" placeholder="Username">
+        <input id="loginUser" type="text" autocomplete="username" placeholder="JAW, JV, or email">
       </label>
       <label>
         Password
         <input id="loginPass" type="password" autocomplete="current-password" placeholder="Password">
       </label>
       <div class="login-actions">
-        <button class="login-btn" onclick="handleLogin()">Login</button>
+        <button class="login-btn" id="loginButton" onclick="handleLogin()">Login</button>
+        <button class="login-btn" id="forgotPasswordButton" onclick="requestPasswordReset(false)">Forgot Password</button>
       </div>
       <div id="loginError" class="login-error"></div>
+      </div>
+      <form id="passwordRecoveryPanel" style="display:none;" onsubmit="finishPasswordReset(event)">
+        <h2>Choose a new password</h2>
+        <p>Your reset link is valid. Enter and confirm your new password.</p>
+        <label>New password
+          <input id="recoveryPassword" type="password" autocomplete="new-password" minlength="8" required>
+        </label>
+        <label>Confirm new password
+          <input id="recoveryConfirm" type="password" autocomplete="new-password" minlength="8" required>
+        </label>
+        <div class="login-actions">
+          <button id="recoverySaveButton" class="login-btn" type="submit">Save Password</button>
+          <button class="login-btn" type="button" onclick="logout()">Cancel</button>
+        </div>
+        <div id="recoveryMessage" class="login-error" role="status" aria-live="polite"></div>
+      </form>
     </div>
   </div>
 
@@ -577,8 +596,9 @@
 
         <div id="invoiceHistoryPanel" class="invoice-panel" style="display:none;">
           <div class="invoice-toolbar">
-            <button class="btn" onclick="renderInvoiceHistory()">Refresh History</button>
+            <button class="btn" onclick="refreshInvoiceHistory()">Refresh History</button>
             <button class="btn btn-remove" onclick="clearInvoiceHistory()">Clear History</button>
+            <button class="btn" onclick="migrateLocalInvoices()">Import This Computer’s Saved Documents</button>
           </div>
           <div class="invoice-form-grid" style="margin-bottom:14px;">
             <label class="full">Search Invoice History
@@ -590,7 +610,7 @@
 
         <div id="invoicePresetsPanel" class="invoice-panel" style="display:none;">
           <div class="invoice-toolbar">
-            <button class="btn" onclick="renderInvoicePresets()">Refresh Presets</button>
+            <button class="btn" onclick="refreshInvoiceHistory()">Refresh Presets</button>
           </div>
           <div id="invoicePresetsList" class="invoice-presets-list"></div>
         </div>
@@ -660,8 +680,9 @@
 
         <div id="letterHistoryPanel" class="invoice-panel" style="display:none;">
           <div class="invoice-toolbar">
-            <button class="btn" onclick="renderLetterHistory()">Refresh History</button>
+            <button class="btn" onclick="refreshInvoiceHistory()">Refresh History</button>
             <button class="btn btn-remove" onclick="clearLetterHistory()">Clear History</button>
+            <button class="btn" onclick="migrateThisComputer()">Import This Computer’s Saved Documents</button>
           </div>
           <div class="invoice-form-grid" style="margin-bottom:14px;">
             <label class="full">Search Letter History
@@ -746,8 +767,9 @@
 
         <div id="itineraryHistoryPanel" class="invoice-panel" style="display:none;">
           <div class="invoice-toolbar">
-            <button class="btn" onclick="renderItineraryHistory()">Refresh History</button>
+            <button class="btn" onclick="refreshInvoiceHistory()">Refresh History</button>
             <button class="btn btn-remove" onclick="clearItineraryHistory()">Clear History</button>
+            <button class="btn" onclick="migrateThisComputer()">Import This Computer’s Saved Documents</button>
           </div>
           <div class="invoice-form-grid" style="margin-bottom:14px;">
             <label class="full">Search Itinerary History
@@ -761,6 +783,21 @@
     </div>
 
     <div id="admin" class="section" style="display:none;">
+      <div class="upload-card" style="margin-bottom:20px;">
+        <h3>Move Saved Documents to Shared History</h3>
+        <p>On each computer, use the same browser and dashboard address where the documents were saved. Import once, then access the documents from any signed-in device.</p>
+        <p>A test address cannot see documents saved at your normal dashboard address. Exported A1VIP files can also be imported below.</p>
+        <div class="invoice-toolbar">
+          <button class="btn" onclick="migrateThisComputer()">Import This Computer’s Saved Documents</button>
+          <button class="btn" onclick="exportBrowserBackup()">Export Browser Backup</button>
+          <button class="btn" onclick="document.getElementById('sharedDocumentImport').click()">Import Document Files</button>
+          <button class="btn" onclick="refreshInvoiceHistory()">Refresh Shared History</button>
+        </div>
+        <input id="sharedDocumentImport" type="file" multiple accept=".json,.a1vip.json,application/json" style="display:none;" onchange="importDocumentFiles(event)">
+        <p id="documentImportResult" role="status" aria-live="polite" style="white-space:pre-wrap;"></p>
+        <h4>Imports Needing Review</h4>
+        <div id="importConflictList"></div>
+      </div>
       <h3>Admin</h3>
       <div class="search-row">
         <input id="linkSearch" type="text" placeholder="Search buttons..." oninput="searchLinks()" />
@@ -798,20 +835,18 @@
           <label>Current Password
             <input id="authCurrentPass" type="password" autocomplete="current-password">
           </label>
-          <label>New Username
-            <input id="authNewUser" type="text" autocomplete="username">
-          </label>
           <label>New Password
             <input id="authNewPass" type="password" autocomplete="new-password">
           </label>
         </div>
         <div class="modal-actions" style="justify-content:flex-start;margin-top:10px;">
-          <button class="cta cta-primary" onclick="updateCredentials()">Update Login</button>
-          <button class="cta ghost" onclick="resetCredentialsToDefault()">Reset to Default</button>
+          <button class="cta cta-primary" onclick="updateCredentials()">Change Password</button>
+          <button class="cta ghost" id="signedInResetButton" onclick="requestPasswordReset(true)">Email Password Reset Link</button>
+
         </div>
         <div id="authUpdateMsg" class="note" style="margin-top:6px;"></div>
         <div class="note" style="margin-top:4px;">
-          Changes apply only to this browser/device.
+          Password changes apply to your Supabase account across devices. Your username remains unchanged.
         </div>
       </div>
 
@@ -965,6 +1000,9 @@
     </div>
   </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.1/dist/umd/supabase.js"></script>
+<script src="./supabase-config.js"></script>
+<script src="./a1-data.js"></script>
 <script>
     /* ===== Config ===== */
     const CONFIG_URLS = [
@@ -977,151 +1015,204 @@
 
     /* === INVOICE LOGO ==== */
     const INVOICE_LOGO = "./A1VIP_LOGO_WIDE_for_White_backgrounds_large.png";
-  /* ===== Auth (with overrides) ===== */
-    const AUTH_DEFAULT_USER = 'JAW';
-    const AUTH_DEFAULT_PASS = 'Da$h25';
-    const AUTH_KEY          = 'a1vip-auth-v1';
-    const AUTH_OVERRIDE_KEY = 'a1vip-auth-override';
-
-    function getAuthCreds(){
-      try{
-        const raw = localStorage.getItem(AUTH_OVERRIDE_KEY);
-        if (raw){
-          const parsed = JSON.parse(raw);
-          if (parsed && parsed.user && parsed.pass){
-            return { user:String(parsed.user), pass:String(parsed.pass) };
-          }
-        }
-      }catch(e){}
-      return { user:AUTH_DEFAULT_USER, pass:AUTH_DEFAULT_PASS };
-    }
-
-    function isAuthenticated(){
-      try{
-        const token = localStorage.getItem(AUTH_KEY);
-        if (!token) return false;
-        const creds = getAuthCreds();
-        return token === 'ok::' + creds.user;
-      }catch(e){
-        return false;
-      }
-    }
-
+    /* ===== Supabase staff authentication ===== */
+    let authReady = Promise.resolve();
     function showLogin(){
-      const el = document.getElementById('loginScreen');
-      if (el) el.style.display = 'flex';
-      const uEl = document.getElementById('loginUser');
-      const pEl = document.getElementById('loginPass');
-      const err = document.getElementById('loginError');
-      if (uEl) uEl.value = '';
-      if (pEl) pEl.value = '';
-      if (err) err.textContent = '';
+      document.body.classList.add('a1-locked');
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('loginPass').value = '';
+      const recovering = typeof A1Data !== 'undefined' && typeof A1Data.recovering === 'function' && A1Data.recovering();
+      document.getElementById('normalLoginPanel').style.display = recovering ? 'none' : 'block';
+      document.getElementById('passwordRecoveryPanel').style.display = recovering ? 'block' : 'none';
     }
     function hideLogin(){
-      const el = document.getElementById('loginScreen');
-      if (el) el.style.display = 'none';
+      if (A1Data.recovering()) { showPasswordRecovery(); return; }
+      document.body.classList.remove('a1-locked');
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('loginPass').value = '';
     }
-
-    function handleLogin(){
-      const uEl = document.getElementById('loginUser');
-      const pEl = document.getElementById('loginPass');
-      const err = document.getElementById('loginError');
-      const u = (uEl?.value || '').trim();
-      const p = pEl?.value || '';
-      const creds = getAuthCreds();
-      if (u === creds.user && p === creds.pass){
-        try{ localStorage.setItem(AUTH_KEY,'ok::' + creds.user); }catch(e){}
-        if (err) err.textContent = '';
-        hideLogin();
-      }else{
-        if (err) err.textContent = 'Invalid username or password.';
-        else alert('Invalid username or password.');
-      }
-    }
-
-    function logout(){
-      try{
-        localStorage.removeItem(AUTH_KEY);
-      }catch(e){}
+    function showPasswordRecovery(){
       showLogin();
-      window.scrollTo({ top:0, behavior:'smooth' });
+      document.getElementById('normalLoginPanel').style.display = 'none';
+      document.getElementById('passwordRecoveryPanel').style.display = 'block';
     }
-
-    function setAuthMessage(text, okColor){
-      const msg = document.getElementById('authUpdateMsg');
-      if (!msg){
-        if (text) alert(text);
-        return;
-      }
-      msg.textContent = text || '';
-      msg.style.color = okColor || '#f97373';
-    }
-
-    function updateCredentials(){
-      const currentPass = document.getElementById('authCurrentPass')?.value || '';
-      const newUser = (document.getElementById('authNewUser')?.value || '').trim();
-      const newPass = document.getElementById('authNewPass')?.value || '';
-      const creds = getAuthCreds();
-
-      if (!currentPass){
-        setAuthMessage('Please enter your current password.', '#f97373');
-        return;
-      }
-      if (currentPass !== creds.pass){
-        setAuthMessage('Current password is incorrect.', '#f97373');
-        return;
-      }
-      if (!newUser || !newPass){
-        setAuthMessage('New username and password cannot be empty.', '#f97373');
-        return;
-      }
-      if (newUser.length < 2){
-        setAuthMessage('New username must be at least 2 characters.', '#f97373');
-        return;
-      }
-
-      try{
-        const override = { user:newUser, pass:newPass };
-        localStorage.setItem(AUTH_OVERRIDE_KEY, JSON.stringify(override));
-        localStorage.setItem(AUTH_KEY, 'ok::' + newUser);
-
-        const cur = document.getElementById('authCurrentPass');
-        const np  = document.getElementById('authNewPass');
-        if (cur) cur.value = '';
-        if (np)  np.value  = '';
-        setAuthMessage('Login updated for this browser/device.', '#4ade80');
-      }catch(e){
-        setAuthMessage('Could not save new login: ' + e.message, '#f97373');
-      }
-    }
-
-    function resetCredentialsToDefault(){
-      if (!confirm('Reset login to default username/password (JAW / Da$h25) for this browser?')){
-        return;
-      }
-      try{
-        localStorage.removeItem(AUTH_OVERRIDE_KEY);
-        localStorage.removeItem(AUTH_KEY);
-        setAuthMessage('Login reset to default (JAW / Da$h25). You will use these next time you log in.', '#facc15');
-      }catch(e){
-        setAuthMessage('Could not reset: ' + e.message, '#f97373');
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      if (!isAuthenticated()){
+    window.addEventListener('a1-password-recovery', showPasswordRecovery);
+    async function finishPasswordReset(event){
+      event.preventDefault();
+      const password = document.getElementById('recoveryPassword');
+      const confirmation = document.getElementById('recoveryConfirm');
+      const message = document.getElementById('recoveryMessage');
+      const button = document.getElementById('recoverySaveButton');
+      if (button.disabled) return;
+      if (password.value !== confirmation.value) { message.textContent = 'The passwords do not match.'; return; }
+      button.disabled = true; message.textContent = 'Saving your password…';
+      try {
+        const result = await A1Data.finishPasswordReset(password.value);
+        password.value = ''; confirmation.value = '';
         showLogin();
-      }else{
-        hideLogin();
+        document.getElementById('loginError').textContent = result.signOutFailed
+          ? 'Password updated. Close this page and sign in with the new password.'
+          : 'Password updated. Sign in with your new password.';
+      } catch(error) { message.textContent = error.message; }
+      finally { button.disabled = false; }
+    }
+    function refreshCloudViews(){
+      refreshInvoiceDatalists(); renderInvoiceHistory(); renderInvoicePresets();
+      renderLetterHistory(); renderItineraryHistory(); renderImportConflicts();
+    }
+    function requireLoginClient(){
+      if (typeof A1Data === 'undefined') throw new Error('Login code could not load. Reload the page and check that the local server is running from the updated dashboard folder.');
+      if (['restore','login','recovering','documents','conflicts','version'].some(name => typeof A1Data[name] !== 'function')) {
+        throw new Error('Login files are out of date. Refresh the page to load the updated dashboard files.');
       }
-      const uEl = document.getElementById('loginUser');
-      const pEl = document.getElementById('loginPass');
-      [uEl,pEl].forEach(el=>{
-        if (!el) return;
-        el.addEventListener('keydown', (e)=>{
-          if (e.key === 'Enter') handleLogin();
-        });
-      });
+    }
+    async function waitForAuthStartup(){
+      let timer;
+      try {
+        await Promise.race([authReady, new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Sign-in startup timed out. Close other local dashboard tabs, reload this page, and try again.')), 20000);
+        })]);
+      } finally { clearTimeout(timer); }
+    }
+    async function initializeAuth(){
+      try {
+        showLogin(); requireLoginClient();
+        localStorage.removeItem('a1vip-auth-v1');
+        localStorage.removeItem('a1vip-auth-override');
+        if (await A1Data.restore()) { hideLogin(); refreshCloudViews(); }
+        else if (A1Data.recovering()) showPasswordRecovery();
+      } catch(error) {
+        document.getElementById('loginError').textContent = error.message;
+      }
+    }
+    async function handleLogin(){
+      const button = document.getElementById('loginButton');
+      if (button.disabled) return;
+      button.disabled = true;
+      const err = document.getElementById('loginError');
+      err.textContent = 'Checking sign-in…';
+      try {
+        await waitForAuthStartup(); requireLoginClient();
+        err.textContent = 'Signing in and loading shared documents…';
+        await A1Data.login(document.getElementById('loginUser').value.trim(), document.getElementById('loginPass').value);
+        err.textContent = ''; hideLogin(); refreshCloudViews(); startNewInvoice(); startNewLetter(); startNewItinerary();
+      } catch(error) { showLogin(); err.textContent = error.message; }
+      finally { button.disabled = false; }
+    }
+    async function logout(){
+      try { await A1Data.logout(); }
+      catch(error) { alert('Sign out failed: ' + error.message); }
+    }
+    function setAuthMessage(text, color){
+      const msg = document.getElementById('authUpdateMsg');
+      msg.textContent = text; msg.style.color = color || '#f97373';
+    }
+    async function updateCredentials(){
+      const current = document.getElementById('authCurrentPass');
+      const password = document.getElementById('authNewPass');
+      if (!current.value || !password.value) {
+        setAuthMessage('Enter your current password and new password.'); return;
+      }
+      try {
+        await A1Data.updateAccount(current.value, password.value);
+        current.value = ''; password.value = '';
+        setAuthMessage('Password updated. Continue using your username.', '#4ade80');
+      } catch(error) { setAuthMessage(error.message); }
+    }
+    async function requestPasswordReset(signedIn){
+      const button = document.getElementById(signedIn ? 'signedInResetButton' : 'forgotPasswordButton');
+      if (button.disabled) return;
+      button.disabled = true;
+      const message = 'If this account exists, a password reset link will be emailed. Check your inbox and spam folder.';
+      try {
+        await waitForAuthStartup(); requireLoginClient();
+        await A1Data.requestPasswordReset(document.getElementById('loginUser').value.trim() || 'JAW');
+        if (signedIn) setAuthMessage(message, '#4ade80');
+        else document.getElementById('loginError').textContent = message;
+      } catch(error) {
+        if (signedIn) setAuthMessage(error.message);
+        else document.getElementById('loginError').textContent = error.message;
+      } finally { button.disabled = false; }
+    }
+    async function refreshInvoiceHistory(){
+      try { await A1Data.refresh(); refreshCloudViews(); }
+      catch(error) { alert('Could not refresh invoices: ' + error.message); }
+    }
+    let importingDocuments = false;
+    function addImportReport(total, part){
+      for (const key of ['imported','skipped','conflicts','copied']) total[key] += part[key];
+      total.errors.push(...part.errors);
+    }
+    function showImportReport(result){
+      const text = `${result.imported} imported; ${result.skipped} already imported; ${result.copied} copies kept; ${result.conflicts} invoices need review; ${result.errors.length} errors.` +
+        (result.errors.length ? '\n' + result.errors.join('\n') : '') + '\nOriginal browser copies have been kept.';
+      document.getElementById('documentImportResult').textContent = text;
+      refreshCloudViews(); showSection('admin');
+    }
+    async function migrateLocalInvoices(){ return migrateThisComputer(); }
+    async function migrateThisComputer(){
+      if (importingDocuments) return;
+      if (!confirm('Import this browser’s saved invoices, travel invoices, letters, and trip itineraries into shared history? Local copies will remain as backups.')) return;
+      importingDocuments = true;
+      document.getElementById('documentImportResult').textContent = 'Importing saved documents…';
+      try { await A1Data.refresh(); showImportReport(await A1Data.migrateAll()); }
+      catch(error) { document.getElementById('documentImportResult').textContent = 'Import stopped: ' + error.message + '. Earlier completed imports remain saved; original browser copies remain.'; }
+      finally { importingDocuments = false; }
+    }
+    function exportBrowserBackup(){
+      try { downloadPortableDoc('A1VIP_Browser_Backup.a1vip.json', makePortableDoc('browser-backup', A1Data.browserBackup())); }
+      catch(error) { alert('Backup failed: ' + error.message); }
+    }
+    async function importDocumentFiles(event){
+      const files = Array.from(event.target.files || []);
+      if (!files.length || importingDocuments) return;
+      if (!confirm('Import these files into shared history on all devices? Existing records will not be overwritten.')) { event.target.value = ''; return; }
+      importingDocuments = true;
+      const summary = { imported:0, skipped:0, conflicts:0, copied:0, errors:[] };
+      try {
+        await A1Data.refresh();
+        for (const file of files) {
+          try {
+            const doc = await parsePortableDoc(file);
+            if (doc.kind === 'browser-backup') {
+              for (const kind of ['invoice','letter','itinerary']) addImportReport(summary, await A1Data.importRecords(kind, doc.payload[kind] || [], doc.payload.presets || {}));
+            } else addImportReport(summary, await A1Data.importRecords(doc.kind, [doc.payload]));
+          } catch(error) { summary.errors.push(file.name + ': ' + error.message); }
+        }
+        await A1Data.refresh(); showImportReport(summary);
+      } catch(error) { document.getElementById('documentImportResult').textContent = 'Import stopped: ' + error.message + '. Earlier completed imports remain saved.'; }
+      finally { importingDocuments = false; event.target.value = ''; }
+    }
+    function renderImportConflicts(){
+      const wrap = document.getElementById('importConflictList');
+      if (!wrap) return;
+      const conflicts = A1Data.conflicts();
+      wrap.innerHTML = conflicts.length ? conflicts.map(item => `
+        <div class="invoice-history-card">
+          <strong>Invoice #${escHtml(item.document.number || '')} · ${escHtml(item.document.clientCompany || item.document.savedName || '')}</strong>
+          <p>${escHtml(item.reason)} The imported copy is preserved here. Open it and choose an unused invoice number before saving.</p>
+          <button class="btn" onclick="openImportConflict('${escHtml(item.source_hash)}')">Review Imported Invoice</button>
+        </div>`).join('') : '<p>No imports need review.</p>';
+    }
+    function openImportConflict(hash){
+      const item = A1Data.conflicts().find(item => item.source_hash === hash);
+      if (!item) return;
+      const invoice = Object.assign(invoiceBase(item.document.type), item.document, { id:'inv-' + crypto.randomUUID() });
+      setInvoiceToForm(invoice); currentImportConflictHash = hash;
+      openInvoiceMode('editor'); showSection('invoices');
+    }
+    window.addEventListener('a1-signed-out', () => {
+      showLogin(); refreshCloudViews(); startNewInvoice(); startNewLetter(); startNewItinerary();
+      document.getElementById('authCurrentPass').value = '';
+      document.getElementById('authNewPass').value = '';
+      document.getElementById('recoveryPassword').value = '';
+      document.getElementById('recoveryConfirm').value = '';
+    });
+    document.addEventListener('DOMContentLoaded', () => {
+      authReady = initializeAuth();
+      ['loginUser','loginPass'].forEach(id => document.getElementById(id).addEventListener('keydown', event => {
+        if (event.key === 'Enter') handleLogin();
+      }));
     });
 
     /* ===== Seed (links) ===== */
@@ -1264,12 +1355,11 @@
     }
 
     function resetDashboard(){
-      if (!confirm('This will erase all custom buttons, login overrides, and sync a factory reset. Continue?')) return;
+      if (!confirm('This will erase all custom buttons and sync a layout reset. Continue?')) return;
       const empty = { added:{}, removed:{} };
       try{
         saveState(empty);
-        localStorage.removeItem('a1vip-auth-override');
-        localStorage.removeItem(AUTH_KEY);
+
       }catch(e){ console.warn('saveState during reset failed', e); }
       (async () => {
         try{
@@ -1829,6 +1919,7 @@ function createBtn(label, url, isCustom=true){
     }
 
     async function init(){
+      await authReady;
       seedDOM();
       const localState = loadState();
       const remote = await fetchRemoteConfig();
@@ -2293,6 +2384,8 @@ function createBtn(label, url, isCustom=true){
       'Parking'
     ];
     let currentInvoiceId = null;
+    let currentInvoiceVersion = null;
+    let currentImportConflictHash = null;
     let currentInvoiceSavedName = '';
 
     function isTravelInvoiceType(type='invoice-ticket'){
@@ -2363,7 +2456,7 @@ function createBtn(label, url, isCustom=true){
     function invoiceBase(type='invoice-ticket'){
       const today = new Date().toISOString().slice(0,10);
       return {
-        id: 'inv-' + Date.now(),
+        id: 'inv-' + crypto.randomUUID(),
         type,
         number: String(getNextInvoiceNumber()),
         createdDate: today,
@@ -2408,11 +2501,23 @@ function createBtn(label, url, isCustom=true){
       };
     }
 
-    function loadInvoices(){
-      try { return JSON.parse(localStorage.getItem(INVOICE_STORAGE_KEY)) || []; }
-      catch(e){ return []; }
+    function normalizeSavedInvoice(invoice){
+      const result = Object.assign({}, invoice);
+      result.type = ({ ticket:'invoice-ticket', travel:'invoice-travel' })[result.type] || result.type || 'invoice-ticket';
+      result.lines = (Array.isArray(result.lines) ? result.lines : []).map(line => Object.assign({}, line, {
+        lineType: line.lineType || invoiceLineTypeDefault(result.type)
+      }));
+      if (result.credit == null && ('other' in result || 'amountPaid' in result)) {
+        const other = parseNum(result.other);
+        result.credit = parseNum(result.amountPaid);
+        if (other !== 0) result.lines.push(Object.assign(invoiceLineBase(result.type), {
+          lineType:'Experience', eventName:'Other charge', description:'Other charge from the original invoice', qty:1, unitCost:other
+        }));
+        delete result.other; delete result.amountPaid;
+      }
+      return result;
     }
-    function saveInvoices(items){ localStorage.setItem(INVOICE_STORAGE_KEY, JSON.stringify(items)); }
+    function loadInvoices(){ return A1Data.invoices().map(normalizeSavedInvoice); }
     function makePortableDoc(kind, payload){
       return {
         app: 'A1VIP Dashboard',
@@ -2456,13 +2561,12 @@ function createBtn(label, url, isCustom=true){
         venues: []
       };
       try {
-        const parsed = JSON.parse(localStorage.getItem(INVOICE_PRESET_KEY)) || {};
+        const parsed = A1Data.presets();
         return Object.assign({}, defaults, parsed);
       } catch(e){
         return defaults;
       }
     }
-    function saveInvoicePresets(p){ localStorage.setItem(INVOICE_PRESET_KEY, JSON.stringify(p)); }
     function addUnique(arr, value){
       const v = String(value || '').trim();
       if (!v) return;
@@ -2570,6 +2674,7 @@ function createBtn(label, url, isCustom=true){
     }
 
     function startNewInvoice(type){
+      currentImportConflictHash = null;
       currentInvoiceId = null;
       currentInvoiceSavedName = '';
       setInvoiceToForm(invoiceBase(type || (document.getElementById('invType')?.value || 'invoice-ticket')));
@@ -2578,7 +2683,7 @@ function createBtn(label, url, isCustom=true){
 
     function duplicateCurrentInvoice(){
       const invoice = collectInvoiceFromForm();
-      invoice.id = 'inv-' + Date.now();
+      invoice.id = 'inv-' + crypto.randomUUID();
       invoice.number = String(getNextInvoiceNumber());
       invoice.savedName = '';
       currentInvoiceId = null;
@@ -2606,6 +2711,8 @@ function createBtn(label, url, isCustom=true){
     }
 
     function setInvoiceToForm(invoice){
+      invoice = normalizeSavedInvoice(invoice);
+      if (invoice.id !== currentInvoiceId) { currentImportConflictHash = null; currentInvoiceVersion = A1Data.version('invoice', invoice.id); }
       currentInvoiceId = invoice.id || null;
       currentInvoiceSavedName = invoice.savedName || '';
       setFieldValue('invType', invoice.type || 'invoice-ticket');
@@ -2722,7 +2829,7 @@ function createBtn(label, url, isCustom=true){
 
     function collectInvoiceFromForm(){
       const invoice = {
-        id: currentInvoiceId || ('inv-' + Date.now()),
+        id: currentInvoiceId || ('inv-' + crypto.randomUUID()),
         savedName: currentInvoiceSavedName || '',
         type: document.getElementById('invType')?.value || 'invoice-ticket',
         number: (document.getElementById('invNumber')?.value || '').trim() || String(getNextInvoiceNumber()),
@@ -2920,7 +3027,7 @@ function createBtn(label, url, isCustom=true){
       });
     }
 
-    function saveInvoice(){
+    async function saveInvoice(){
       const invoice = collectInvoiceFromForm();
       const items = loadInvoices();
       const duplicateNumber = items.find(item => item.number === invoice.number && item.id !== invoice.id);
@@ -2931,8 +3038,7 @@ function createBtn(label, url, isCustom=true){
       const idx = items.findIndex(item => item.id === invoice.id);
       if (idx >= 0) items[idx] = invoice;
       else items.unshift(invoice);
-      saveInvoices(items);
-      currentInvoiceId = invoice.id;
+
 
       const presets = loadInvoicePresets();
       addUnique(presets.clientCompanies, invoice.clientCompany);
@@ -2946,11 +3052,16 @@ function createBtn(label, url, isCustom=true){
         addUnique(presets.eventNames, line.eventName);
         addUnique(presets.venues, line.venue);
       });
-      saveInvoicePresets(presets);
-      refreshInvoiceDatalists();
-      refreshInvoicePreview();
-      renderInvoiceHistory();
-      alert('Invoice saved.');
+      let savedToCloud = false;
+      try {
+        await A1Data.save(invoice, presets, currentInvoiceVersion);
+        currentInvoiceVersion = A1Data.version('invoice', invoice.id);
+        savedToCloud = true;
+        if (currentImportConflictHash) { await A1Data.resolveConflict(currentImportConflictHash, invoice.id); currentImportConflictHash = null; }
+        currentInvoiceId = invoice.id;
+        refreshCloudViews(); refreshInvoicePreview();
+        alert('Invoice saved to Supabase.');
+      } catch(error) { alert((savedToCloud ? 'Invoice saved, but import review could not be completed: ' : 'Invoice was not saved: ') + error.message); }
     }
 
     function exportInvoiceFile(){
@@ -2970,7 +3081,7 @@ function createBtn(label, url, isCustom=true){
         if (imported.kind !== 'invoice'){
           throw new Error('This export file is not an invoice or purchase order.');
         }
-        const invoice = Object.assign(invoiceBase(imported.payload?.type || 'invoice-ticket'), imported.payload || {});
+        const invoice = Object.assign(invoiceBase(imported.payload?.type || 'invoice-ticket'), normalizeSavedInvoice(imported.payload || {}), { id: 'inv-' + crypto.randomUUID() });
         invoice.lines = (invoice.lines && invoice.lines.length ? invoice.lines : [invoiceLineBase(invoice.type)]).map(line => Object.assign(invoiceLineBase(invoice.type), line));
         setInvoiceToForm(invoice);
         openInvoiceMode('editor');
@@ -3055,6 +3166,7 @@ function createBtn(label, url, isCustom=true){
     function loadInvoiceFromHistory(id){
       const invoice = loadInvoices().find(item => item.id === id);
       if (!invoice) return;
+      currentInvoiceVersion = A1Data.version('invoice', invoice.id);
       setInvoiceToForm(invoice);
       openInvoiceMode('editor');
       showSection('invoices');
@@ -3063,7 +3175,7 @@ function createBtn(label, url, isCustom=true){
     function duplicateInvoiceFromHistory(id){
       const invoice = loadInvoices().find(item => item.id === id);
       if (!invoice) return;
-      invoice.id = 'inv-' + Date.now();
+      invoice.id = 'inv-' + crypto.randomUUID();
       invoice.number = String(getNextInvoiceNumber());
       invoice.savedName = '';
       currentInvoiceId = null;
@@ -3073,39 +3185,46 @@ function createBtn(label, url, isCustom=true){
       showSection('invoices');
     }
 
-    function renameInvoice(id){
+    async function renameInvoice(id){
       const items = loadInvoices();
       const invoice = items.find(item => item.id === id);
       if (!invoice) return;
       const nextName = prompt('Enter a saved name for this invoice or purchase order.', invoice.savedName || `${documentLabel(invoice.type)} #${invoice.number}`);
       if (nextName === null) return;
       invoice.savedName = String(nextName || '').trim();
-      saveInvoices(items);
-      if (currentInvoiceId === id) currentInvoiceSavedName = invoice.savedName || '';
-      renderInvoiceHistory();
+      const loadedVersion = A1Data.version('invoice', id);
+      try {
+        await A1Data.save(invoice, {}, loadedVersion);
+        if (currentInvoiceId === id) {
+          currentInvoiceSavedName = invoice.savedName || '';
+          if (currentInvoiceVersion === loadedVersion) currentInvoiceVersion = A1Data.version('invoice', id);
+        }
+        renderInvoiceHistory();
+      } catch(error) { alert('Rename failed: ' + error.message); }
     }
 
-    function deleteInvoice(id){
-      if (!confirm('Delete this invoice from history?')) return;
-      const items = loadInvoices().filter(item => item.id !== id);
-      saveInvoices(items);
-      renderInvoiceHistory();
+    async function deleteInvoice(id){
+      if (!confirm('Delete this invoice from shared history on all devices?')) return;
+      try { await A1Data.remove(id); renderInvoiceHistory(); }
+      catch(error) { alert('Delete failed: ' + error.message); }
     }
-
-    function clearInvoiceHistory(){
-      if (!confirm('Clear all invoice history?')) return;
-      localStorage.removeItem(INVOICE_STORAGE_KEY);
-      renderInvoiceHistory();
-      startNewInvoice();
+    async function clearInvoiceHistory(){
+      const snapshot = loadInvoices();
+      if (!confirm('Delete all ' + snapshot.length + ' loaded invoices from shared history on all devices?')) return;
+      try {
+        for (const invoice of snapshot) await A1Data.remove(invoice.id);
+        renderInvoiceHistory(); startNewInvoice();
+      } catch(error) { renderInvoiceHistory(); alert('Clear stopped; some invoices may already have been deleted: ' + error.message); }
     }
 
     const LETTER_STORAGE_KEY = 'a1vip-form-letters-v1';
     let currentLetterId = null;
+    let currentLetterVersion = null;
     let currentLetterSavedName = '';
 
     function letterBase(){
       return {
-        id: 'letter-' + Date.now(),
+        id: 'letter-' + crypto.randomUUID(),
         savedName: '',
         to: '',
         toEmail: '',
@@ -3116,14 +3235,7 @@ function createBtn(label, url, isCustom=true){
       };
     }
 
-    function loadLetters(){
-      try { return JSON.parse(localStorage.getItem(LETTER_STORAGE_KEY)) || []; }
-      catch(e){ return []; }
-    }
-
-    function saveLetters(items){
-      localStorage.setItem(LETTER_STORAGE_KEY, JSON.stringify(items));
-    }
+    function loadLetters(){ return A1Data.documents('letter'); }
 
     function openLetterMode(mode){
       const editor = document.getElementById('letterEditor');
@@ -3139,6 +3251,7 @@ function createBtn(label, url, isCustom=true){
     }
 
     function setLetterToForm(letter){
+      if (letter.id !== currentLetterId) currentLetterVersion = A1Data.version('letter', letter.id);
       currentLetterId = letter.id || null;
       currentLetterSavedName = letter.savedName || '';
       setLetterField('letterTo', letter.to);
@@ -3159,7 +3272,7 @@ function createBtn(label, url, isCustom=true){
 
     function collectLetterFromForm(){
       return {
-        id: currentLetterId || ('letter-' + Date.now()),
+        id: currentLetterId || ('letter-' + crypto.randomUUID()),
         savedName: currentLetterSavedName || '',
         to: document.getElementById('letterTo')?.value || '',
         toEmail: document.getElementById('letterToEmail')?.value || '',
@@ -3170,17 +3283,15 @@ function createBtn(label, url, isCustom=true){
       };
     }
 
-    function saveLetter(){
-      const letter = collectLetterFromForm();
-      const items = loadLetters();
-      const idx = items.findIndex(item => item.id === letter.id);
-      if (idx >= 0) items[idx] = letter;
-      else items.unshift(letter);
-      saveLetters(items);
-      currentLetterId = letter.id;
-      refreshLetterPreview();
-      renderLetterHistory();
-      alert('Letter saved.');
+    async function saveLetter(){
+      const document = collectLetterFromForm();
+      try {
+        await A1Data.saveDocument('letter', document, currentLetterVersion);
+        currentLetterVersion = A1Data.version('letter', document.id);
+        currentLetterId = document.id;
+        refreshLetterPreview(); renderLetterHistory();
+        alert('Letter saved to Supabase.');
+      } catch(error) { alert('Letter was not saved: ' + error.message); }
     }
 
     function exportLetterFile(){
@@ -3198,7 +3309,7 @@ function createBtn(label, url, isCustom=true){
         if (imported.kind !== 'letter'){
           throw new Error('This export file is not a form letter.');
         }
-        const letter = Object.assign(letterBase(), imported.payload || {});
+        const letter = Object.assign(letterBase(), imported.payload || {}, { id: 'letter-' + crypto.randomUUID() });
         setLetterToForm(letter);
         openLetterMode('editor');
         showSection('formLetter');
@@ -3248,44 +3359,50 @@ function createBtn(label, url, isCustom=true){
     function loadLetterFromHistory(id){
       const letter = loadLetters().find(item => item.id === id);
       if (!letter) return;
+      currentLetterVersion = A1Data.version('letter', letter.id);
       setLetterToForm(letter);
       openLetterMode('editor');
       showSection('formLetter');
     }
 
-    function deleteLetter(id){
-      if (!confirm('Delete this letter from history?')) return;
-      const items = loadLetters().filter(item => item.id !== id);
-      saveLetters(items);
-      renderLetterHistory();
+    async function deleteLetter(id){
+      if (!confirm('Delete this letter from shared history on all devices?')) return;
+      try { await A1Data.removeDocument('letter', id); renderLetterHistory(); }
+      catch(error) { alert('Delete failed: ' + error.message); }
     }
-
-    function renameLetter(id){
-      const items = loadLetters();
-      const letter = items.find(item => item.id === id);
-      if (!letter) return;
-      const nextName = prompt('Enter a saved name for this letter.', letter.savedName || letter.subject || 'Untitled Letter');
+    async function renameLetter(id){
+      const document = loadLetters().find(item => item.id === id);
+      if (!document) return;
+      const nextName = prompt('Enter a saved name.', document.savedName || '');
       if (nextName === null) return;
-      letter.savedName = String(nextName || '').trim();
-      saveLetters(items);
-      if (currentLetterId === id) currentLetterSavedName = letter.savedName || '';
-      renderLetterHistory();
+      document.savedName = nextName.trim();
+      const loadedVersion = A1Data.version('letter', id);
+      try {
+        await A1Data.saveDocument('letter', document, loadedVersion);
+        if (currentLetterId === id) {
+          currentLetterSavedName = document.savedName;
+          if (currentLetterVersion === loadedVersion) currentLetterVersion = A1Data.version('letter', id);
+        }
+        renderLetterHistory();
+      } catch(error) { alert('Rename failed: ' + error.message); }
     }
-
-    function clearLetterHistory(){
-      if (!confirm('Clear all saved letters?')) return;
-      localStorage.removeItem(LETTER_STORAGE_KEY);
-      renderLetterHistory();
-      startNewLetter();
+    async function clearLetterHistory(){
+      const snapshot = loadLetters();
+      if (!confirm('Delete all ' + snapshot.length + ' loaded letters from shared history on all devices?')) return;
+      try {
+        for (const document of snapshot) await A1Data.removeDocument('letter', document.id);
+        renderLetterHistory(); startNewLetter();
+      } catch(error) { renderLetterHistory(); alert('Clear stopped; some records may already be deleted: ' + error.message); }
     }
 
     const ITINERARY_STORAGE_KEY = 'a1vip-itineraries-v1';
     let currentItineraryId = null;
+    let currentItineraryVersion = null;
     let currentItinerarySavedName = '';
 
     function itineraryBase(){
       return {
-        id: 'itin-' + Date.now(),
+        id: 'itin-' + crypto.randomUUID(),
         savedName: '',
         talent: '',
         eventName: '',
@@ -3390,14 +3507,7 @@ function createBtn(label, url, isCustom=true){
       return normalized;
     }
 
-    function loadItineraries(){
-      try { return JSON.parse(localStorage.getItem(ITINERARY_STORAGE_KEY)) || []; }
-      catch(e){ return []; }
-    }
-
-    function saveItineraries(items){
-      localStorage.setItem(ITINERARY_STORAGE_KEY, JSON.stringify(items));
-    }
+    function loadItineraries(){ return A1Data.documents('itinerary'); }
 
     function openItineraryMode(mode){
       const editor = document.getElementById('itineraryEditor');
@@ -3588,6 +3698,7 @@ function createBtn(label, url, isCustom=true){
     }
 
     function setItineraryToForm(itinerary){
+      if (itinerary.id !== currentItineraryId) currentItineraryVersion = A1Data.version('itinerary', itinerary.id);
       itinerary = normalizeItinerary(itinerary);
       currentItineraryId = itinerary.id || null;
       currentItinerarySavedName = itinerary.savedName || '';
@@ -3636,7 +3747,7 @@ function createBtn(label, url, isCustom=true){
         rentalCars[idx][field] = el.value || '';
       });
       return {
-        id: currentItineraryId || ('itin-' + Date.now()),
+        id: currentItineraryId || ('itin-' + crypto.randomUUID()),
         savedName: currentItinerarySavedName || '',
         talent: document.getElementById('itinTalent')?.value || '',
         eventName: document.getElementById('itinEventName')?.value || '',
@@ -3695,17 +3806,15 @@ function createBtn(label, url, isCustom=true){
       refreshItineraryPreview();
     }
 
-    function saveItinerary(){
-      const itinerary = collectItineraryFromForm();
-      const items = loadItineraries();
-      const idx = items.findIndex(item => item.id === itinerary.id);
-      if (idx >= 0) items[idx] = itinerary;
-      else items.unshift(itinerary);
-      saveItineraries(items);
-      currentItineraryId = itinerary.id;
-      refreshItineraryPreview();
-      renderItineraryHistory();
-      alert('Itinerary saved.');
+    async function saveItinerary(){
+      const document = collectItineraryFromForm();
+      try {
+        await A1Data.saveDocument('itinerary', document, currentItineraryVersion);
+        currentItineraryVersion = A1Data.version('itinerary', document.id);
+        currentItineraryId = document.id;
+        refreshItineraryPreview(); renderItineraryHistory();
+        alert('Itinerary saved to Supabase.');
+      } catch(error) { alert('Itinerary was not saved: ' + error.message); }
     }
 
     function exportItineraryFile(){
@@ -3723,7 +3832,7 @@ function createBtn(label, url, isCustom=true){
         if (imported.kind !== 'itinerary'){
           throw new Error('This export file is not a trip / talent itinerary.');
         }
-        const itinerary = Object.assign(itineraryBase(), imported.payload || {});
+        const itinerary = Object.assign(itineraryBase(), imported.payload || {}, { id: 'itin-' + crypto.randomUUID() });
         setItineraryToForm(itinerary);
         openItineraryMode('editor');
         showSection('tripItinerary');
@@ -3773,35 +3882,40 @@ function createBtn(label, url, isCustom=true){
     function loadItineraryFromHistory(id){
       const itinerary = loadItineraries().find(item => item.id === id);
       if (!itinerary) return;
+      currentItineraryVersion = A1Data.version('itinerary', itinerary.id);
       setItineraryToForm(itinerary);
       openItineraryMode('editor');
       showSection('tripItinerary');
     }
 
-    function renameItinerary(id){
-      const items = loadItineraries();
-      const itinerary = items.find(item => item.id === id);
-      if (!itinerary) return;
-      const nextName = prompt('Enter a saved name for this itinerary.', itinerary.savedName || itinerary.talent || 'Untitled Itinerary');
+    async function deleteItinerary(id){
+      if (!confirm('Delete this itinerary from shared history on all devices?')) return;
+      try { await A1Data.removeDocument('itinerary', id); renderItineraryHistory(); }
+      catch(error) { alert('Delete failed: ' + error.message); }
+    }
+    async function renameItinerary(id){
+      const document = loadItineraries().find(item => item.id === id);
+      if (!document) return;
+      const nextName = prompt('Enter a saved name.', document.savedName || '');
       if (nextName === null) return;
-      itinerary.savedName = String(nextName || '').trim();
-      saveItineraries(items);
-      if (currentItineraryId === id) currentItinerarySavedName = itinerary.savedName || '';
-      renderItineraryHistory();
+      document.savedName = nextName.trim();
+      const loadedVersion = A1Data.version('itinerary', id);
+      try {
+        await A1Data.saveDocument('itinerary', document, loadedVersion);
+        if (currentItineraryId === id) {
+          currentItinerarySavedName = document.savedName;
+          if (currentItineraryVersion === loadedVersion) currentItineraryVersion = A1Data.version('itinerary', id);
+        }
+        renderItineraryHistory();
+      } catch(error) { alert('Rename failed: ' + error.message); }
     }
-
-    function deleteItinerary(id){
-      if (!confirm('Delete this itinerary from history?')) return;
-      const items = loadItineraries().filter(item => item.id !== id);
-      saveItineraries(items);
-      renderItineraryHistory();
-    }
-
-    function clearItineraryHistory(){
-      if (!confirm('Clear all saved itineraries?')) return;
-      localStorage.removeItem(ITINERARY_STORAGE_KEY);
-      renderItineraryHistory();
-      startNewItinerary();
+    async function clearItineraryHistory(){
+      const snapshot = loadItineraries();
+      if (!confirm('Delete all ' + snapshot.length + ' loaded itinerarys from shared history on all devices?')) return;
+      try {
+        for (const document of snapshot) await A1Data.removeDocument('itinerary', document.id);
+        renderItineraryHistory(); startNewItinerary();
+      } catch(error) { renderItineraryHistory(); alert('Clear stopped; some records may already be deleted: ' + error.message); }
     }
 
     function renderItineraryPreviewHtml(itinerary){

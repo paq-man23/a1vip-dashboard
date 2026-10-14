@@ -1,0 +1,10 @@
+{
+  "name": "a1vip-dashboard",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs && node tests/postgres.test.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.9"
+  }
+}

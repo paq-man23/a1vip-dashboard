@@ -1,0 +1,55 @@
+# A1 Dashboard Supabase setup
+
+The configured admin aliases are **JAW → jaw@a1eei.com** and **JV → vollario@mac.com**. Configure `adminAliases` in `supabase-config.js` to map usernames to real Supabase Auth email accounts; this is a login alias, never an authorization check. Other approved staff can sign in with email. This change uses Supabase Auth email/password accounts and shared invoices for approved A1 staff. Passwords never go into invoice tables or the dashboard source. Invoice payloads preserve all current ticket/travel invoice and purchase order fields and line items. Saved client/preset values also live in Supabase. Form letters and trip/talent itineraries now use the same shared storage and approved-staff access model. Trip payloads include hotel reservations, rental cars, flights, contacts, and notes. Travel/experience invoices and purchase orders use the invoice table. The Travel booking-links tab and other button layouts retain their existing sync mechanism.
+
+## Current project status
+
+Project `a1vip-dashboard` (`oncyuklfjtshfdayonoi`) is configured in `supabase-config.js` with its public publishable key. Migration `20261014004903_a1_invoices_auth` was applied successfully on October 13, 2026 (New York time). Do not rerun it against this project. Live rolled-back integration assertions passed for approved staff writes, presets, duplicate numbers, stale edits/deletes, unapproved account access, and anonymous access. No test accounts or invoices remain. Supabase security advisors reported no issues. Performance advisors only reported unused foreign-key indexes on the newly created empty tables; these are retained for referential-integrity operations.
+
+The requested admin alias is JAW, backed by jaw@a1eei.com, and both are configured. On October 13, 2026, the confirmed Auth account jaw@a1eei.com was verified and its ID was added to a1_staff. Staff membership and invoice/preset reads were verified under its authenticated database role. No password was read or changed. An end-to-end browser login/save check is still required once GitHub publication and deployment are available. The code is published on the GitHub branch feat/supabase-invoices-auth and is awaiting review and deployment. The user approved publication of the existing dashboard source on October 13, 2026 after the automatic approval review identified its pre-existing button-sync secret and operational data. GitHub repository write access was subsequently restored and publication to feat/supabase-invoices-auth succeeded. No live deployment has occurred. Review the draft PR and verify recovery redirect/SMTP configuration before merging and deploying. The confirmed JAW account and its staff membership are ready.
+
+## Before deploying
+
+1. For a fresh project, apply `supabase/migrations/20261014004903_a1_invoices_auth.sql` once using migrations or the SQL editor. It creates new `a1_*` tables and a transactional save function. It does not alter existing project tables.
+2. Disable public user signup for this internal dashboard. Create or invite each staff user through Supabase Authentication. Approve each specific Auth user UUID with administrator SQL:
+
+   ```sql
+   insert into public.a1_staff(user_id) values ('AUTH_USER_UUID') on conflict do nothing;
+   ```
+
+   Staff cannot approve themselves. All approved staff share invoice read/write/delete access. Removing a membership revokes database access through row level security.
+3. Configure Supabase Auth Site URL as `https://a1dash.a1eei.com` and any exact approved preview redirect URLs. Confirm the email provider and account confirmation settings. Password changes require the current password. The dashboard retains JAW as the admin login alias; manage email changes through Supabase and update `adminAliases` accordingly. Add `https://a1dash.a1eei.com/reset-password.html` to the exact allowed redirect URLs. `reset-password.html` accepts a Supabase PASSWORD_RECOVERY session and lets the account choose and confirm a new password. Signed-in users can change their password with current-password verification or request a reset link; the login screen has Forgot Password. Reset emails contain a link, never the existing password. Configure SMTP and verify actual email delivery before deployment. No reset email was sent during development.
+4. Set `adminAliases` to the desired username/email mappings. Set `url` and `publishableKey` in `supabase-config.js` using the project's URL and **publishable key** (legacy anon key also works). These are public browser settings. Never use a secret or service_role key.
+5. Validate login and database permissions with an approved staff account, an unapproved account, and an anonymous session before merging/deploying. Validate two-device saves, duplicate numbers and stale edits against the live database. The Node tests mock Supabase. `tests/rls.integration.sql` performs the database access and write assertions with fixture data inside a rolled-back transaction; browser login validation is separate.
+
+## Existing browser invoices
+
+After signing in on each browser with existing history, open Invoice History and choose **Import Old Browser Invoices**. This requires confirmation, imports each missing ID separately, never overwrites an existing shared ID, and retains original local copies as a backup. If a duplicate invoice number or other error occurs, earlier successful imports remain saved; resolve the conflict and retry. Legacy preset values are imported alongside invoices. No stored plaintext credentials are migrated: create real Auth accounts instead.
+
+New invoice, letter, and itinerary writes require a successful cloud save; failures do not report success or fall back to local-only writes. Refresh History reloads the database. Invoice numbering still suggests the next loaded number; the database rejects concurrent duplicate numbers, so refresh and choose a new number if another staff member used it. Version checks reject stale edits/deletes rather than replacing newer records. Clearing history deletes only the loaded snapshot, can partially complete on an error, and reports that situation.
+
+## Checks
+
+Run `node --test tests/*.test.cjs` and JavaScript syntax checks. The service worker bypasses Supabase and all non-GET requests and uses fresh configuration/data scripts.
+
+The current public repository also contains historical HTML backups with the old browser login, and a separate public shared secret for the button-sync worker. This change removes the old login from the active app but does not rewrite repository history or change that external worker. The old password must not be reused for Supabase; review the backup routes and worker authentication separately. Database RLS, rather than the browser login overlay, protects invoice records.
+
+## Recovery redirect behavior
+
+A reset link establishes a Supabase recovery session before the user chooses a new password. Both the dedicated recovery page and the main dashboard handle that state. The main dashboard keeps its login overlay locked and presents a new-password/confirmation form instead of opening invoice access. The pending state survives a refresh in the same tab. After the password is saved, the page returns to ordinary login.
+
+For local testing, set passwordResetRedirect locally to http://localhost:8000/reset-password.html and allow that exact URL in Supabase Auth URL Configuration. If a redirect URL is not allowed, Supabase may send the user to the configured Site URL instead. Request a fresh reset email after changing configuration, then verify the form, mismatched passwords, and sign-in with the replacement password. Never commit the localhost configuration for production.
+
+## Shared documents and imports
+
+The shared-document tables, versioned-save RPC, repeat-safe import RPC, and invoice-review RPC are applied as migrations 20261014022334 through 20261014022537. Migration files match the project history; do not rerun against this project.
+
+On each original computer/browser, sign in at the same dashboard address used to save the documents, open Admin, and choose **Import This Computer’s Saved Documents**. It imports invoices (including travel invoices and purchase orders), form letters, and trip itineraries. Local copies remain untouched. Repeat imports are recognized by server-side receipts, even if an imported cloud document was edited later. Different letters/trips sharing an old ID are preserved as separate copies. Differing invoice IDs/numbers are saved in a staff-only shared review list without changing official numbers. Review a conflicting invoice, choose an unused number, and save to finish the import.
+
+**Export Browser Backup** downloads an A1VIP archive of the legacy browser data. **Import Document Files** accepts that archive or multiple individual invoice, letter, and itinerary exports and saves them directly to shared history. The document editor’s Import File option loads a new draft; Save is required there. Import summaries report imported/skipped/copy/review/error counts. A malformed record does not roll back earlier successful records. A network/session failure can interrupt a batch; retry is safe because import receipts recognize completed records. A page reload during an import can show an incomplete local count; shared history is the source of truth.
+
+Browser data is tied to the original address, browser, and browser profile. localhost cannot access data stored at the public dashboard address. Do not clear browser storage or uninstall the old dashboard before exporting/importing. Draft editor versions are pinned so refreshing shared history does not allow an older draft to overwrite a newer cloud edit. History refresh reloads all document categories without replacing draft form contents. Older ticket/travel invoice type names are mapped to the current types. Older Other charges become explicit line items and Amount Paid becomes a credit, preserving the original balance; the original imported payload remains stored until a staff member edits and saves it.
+
+Run `npm ci` then `npm test`. PGlite is a pinned development-only dependency for disposable Postgres validation; production remains a static browser app with Supabase. The local Postgres assertions cover repeat imports, changed local copies, invoice review/resolution, complete travel data, cross-account reads, and stale edit/delete rejection. The Supabase connector declined the rolled-back live import assertion; local Postgres assertions passed instead. Live read-only checks confirmed RLS and no anonymous table access. No customer records or test fixtures were imported into the live project by this work. Auth’s leaked-password-protection setting is currently disabled; database security advisors reported no table-policy issues.
+
+Before deployment, pull the branch and verify a form letter and complete itinerary saved in one browser are available after sign-in/Refresh History in another. Test repeat file imports and invoice conflicts. Then test the original-address browser import after deployment while retaining the old browser backups.
