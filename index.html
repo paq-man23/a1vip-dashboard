@@ -840,12 +840,18 @@
     <div id="customers" class="section" style="display:none;">
       <h3>Customers</h3><p>Browse by last name or search. Edit contact cards to save phone numbers, notes, and photos across devices. Cards without a last name are indexed by company or display name.</p>
       <div class="invoice-toolbar"><button class="btn" onclick="A1Contacts.add('customer')">Add Customer</button><button class="btn" onclick="refreshInvoiceHistory()">Refresh Contacts</button><button class="btn" data-admin-only hidden onclick="showSection('admin')">Skybox Import</button></div>
-      <input id="customerSearch" type="search" placeholder="Search name, phone, email, company, type, notes, or ID" oninput="A1Contacts.directory('customer')"><div id="customerDirectory" class="invoice-history-list"></div>
+      <form class="contact-directory-search" role="search" aria-label="Search customers" onsubmit="event.preventDefault();A1Contacts.search('customer')">
+        <input id="customerSearch" type="search" aria-label="Search customers" placeholder="Search name, phone, email, company, type, notes, or ID" oninput="A1Contacts.search('customer')">
+        <div class="contact-directory-search-actions"><button class="cta" type="submit">Search</button><button class="cta ghost" type="button" onclick="A1Contacts.search('customer',true)">Clear</button></div>
+      </form><div id="customerDirectory" class="invoice-history-list"></div>
     </div>
     <div id="vendors" class="section" style="display:none;">
       <h3>Vendors</h3><p>Shared vendor contact cards. Add phone numbers, notes, photos, and contact details.</p>
       <div class="invoice-toolbar"><button class="btn" onclick="A1Contacts.add('vendor')">Add Vendor</button><button class="btn" onclick="refreshInvoiceHistory()">Refresh Vendors</button><button class="btn" data-admin-only hidden onclick="showSection('admin')">Skybox Import</button></div>
-      <input id="vendorSearch" type="search" placeholder="Search name, phone, email, company, type, notes, or ID" oninput="A1Contacts.directory('vendor')"><div id="vendorDirectory" class="invoice-history-list"></div>
+      <form class="contact-directory-search" role="search" aria-label="Search vendors" onsubmit="event.preventDefault();A1Contacts.search('vendor')">
+        <input id="vendorSearch" type="search" aria-label="Search vendors" placeholder="Search name, phone, email, company, type, notes, or ID" oninput="A1Contacts.search('vendor')">
+        <div class="contact-directory-search-actions"><button class="cta" type="submit">Search</button><button class="cta ghost" type="button" onclick="A1Contacts.search('vendor',true)">Clear</button></div>
+      </form><div id="vendorDirectory" class="invoice-history-list"></div>
     </div>
     <div id="admin" class="section" style="display:none;">
       <div class="upload-card" style="margin-bottom:20px;">
