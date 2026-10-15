@@ -96,9 +96,15 @@
     if(!state.selected&&items[0])open(kind,items[0],true);else if(!state.selected&&!items.length){card.replaceChildren(el('p','Add a contact or search your saved cards.'));}
     for(const button of list.querySelectorAll('.rolodex-index-card'))button.classList.toggle('active',button.dataset.contactId===state.selected);
   }
+  function search(kind,reset=false){
+    const input=$(kind+'Search'),state=states[kind];if(!input||!state)return;
+    if(reset)input.value='';
+    if(!input.value.trim())state.letter='';
+    state.page=0;directory(kind);
+  }
   function add(kind){const state=states[kind];if(!mayLeave(state))return;open(kind,{kind,id:crypto.randomUUID(),displayName:'',name:'',firstName:'',lastName:''},true);}
   function clear(){for(const kind of ['customer','vendor']){states[kind]={letter:'',page:0};$(kind+'Directory')?.replaceChildren();}}
-  const api={fields,sortName,initial,filter,patch,directory,open,add,preparePhoto,clear};
+  const api={fields,sortName,initial,filter,patch,directory,search,open,add,preparePhoto,clear};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   else {root.A1Contacts=api;root.addEventListener('a1-signed-out',clear);}
 })(typeof window!=='undefined'?window:globalThis);

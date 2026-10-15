@@ -22,3 +22,7 @@
 @media(prefers-reduced-motion:reduce){.rolodex-card{animation:none}}
 @media(max-width:760px){.rolodex{padding:14px}.rolodex-body{grid-template-columns:1fr;gap:18px}.rolodex-index{max-height:255px}.rolodex-card{padding:22px 18px}.rolodex-form{grid-template-columns:1fr;gap:16px}.rolodex-card-heading h3{font-size:26px}.rolodex-tabs{gap:3px}.rolodex-tabs button{min-width:30px;padding:7px}.rolodex-form input,.rolodex-form textarea{font-size:16px}}
 @media(max-width:600px){header img{height:80px}header .title{font-size:24px}header{gap:10px}.rolodex-actions .btn{font-size:12px;padding:9px}}
+
+.contact-directory-search{max-width:680px;margin:0 0 16px}
+.contact-directory-search-actions{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.contact-directory-search-actions button{min-height:44px;min-width:88px;cursor:pointer}
