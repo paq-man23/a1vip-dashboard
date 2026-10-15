@@ -22,3 +22,36 @@ header{padding-top:calc(14px + env(safe-area-inset-top))}.mobile-section-bar{dis
 #accounts .btn.private-ready{background:#f5ce52;color:#191b20;border-color:#ffe694;box-shadow:0 0 0 2px #f5ce5240}
 #accounts .btn.private-ready .ticket-lock{display:inline-block}
 #accounts .btn{touch-action:pan-y;-webkit-touch-callout:none}
+
+/* Short landscape screens: keep navigation beside content instead of above it. */
+@media screen and (orientation:landscape) and (max-height:600px) and (max-width:1100px){
+ body{display:grid;grid-template-columns:176px minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"header header" "quick quick" "nav content";height:100dvh;overflow:hidden;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+ body:has(.top-tabs:not(.is-open)){grid-template-columns:116px minmax(0,1fr)}
+ header{grid-area:header;position:relative;padding:6px 14px;gap:10px;min-width:0;padding-top:calc(6px + env(safe-area-inset-top))}
+ header .dashboard-brand-logo{width:52px;height:auto;padding:3px;border-radius:7px}
+ header .title{font-size:19px;min-width:0}header .title small{font-size:11px}
+ .header-account{display:grid;grid-template-columns:auto auto;align-items:center;gap:0 12px;max-width:50%;min-width:0}
+ #signedInUser{grid-column:1;grid-row:1;font-size:12px;line-height:1.2;text-align:center}
+ .header-password-btn{grid-column:1;grid-row:2;min-height:32px;font-size:11px}
+ .logout-btn{grid-column:2;grid-row:1 / span 2;min-height:44px;margin:0;padding:8px 14px;font-size:12px}
+ .link-status{display:none}
+ .quick-link-bar{grid-area:quick;min-width:0;margin:0;padding:4px 14px 6px;gap:8px}
+ .quick-link-bar input{min-width:0;font-size:16px;min-height:36px}
+ .quick-link-bar .btn{min-height:36px;font-size:12px;padding:6px 12px}
+ .top-tabs,.top-tabs.is-open{grid-area:nav;min-height:0;max-height:none;min-width:0;padding:8px;overflow-y:auto;border-bottom:0;border-right:1px solid #27364c;overscroll-behavior:contain;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+ .mobile-section-bar{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-height:0}
+ .mobile-section-bar>span{font-size:12px;text-align:center;overflow-wrap:anywhere}
+ .mobile-section-bar button{display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:7px;font-size:12px;border-radius:9px;background:#17253b;color:#dce6f4;border:1px solid #33465f}
+ .mobile-section-bar svg{width:17px;height:17px}
+ .top-tabs .tabs-scroller{display:none}
+ .top-tabs.is-open .tabs-scroller{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}
+ .top-tabs .tab{min-height:62px;padding:7px 4px;gap:4px;border-radius:9px}
+ .top-tabs .tab svg{width:19px;height:19px}.tab-label{font-size:11px;line-height:1.2}
+ main{grid-area:content;min-width:0;min-height:0;width:100%;overflow:auto;padding:14px 16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));overscroll-behavior:contain}
+ .section>h3{font-size:21px;margin-bottom:12px}.section>p{font-size:13px}
+ .grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))}
+ .invoice-layout{grid-template-columns:minmax(0,1fr);gap:12px}.invoice-panel{padding:12px}.invoice-toolbar{gap:6px}
+ .invoice-form-grid input,.invoice-form-grid select,.invoice-form-grid textarea,.form-grid input,.form-grid select{font-size:16px}
+ .invoice-preview{min-width:0;max-width:100%;overflow-wrap:anywhere}.invoice-preview .sky-lines-wrap{overflow-x:auto;max-width:100%}.invoice-preview .sky-lines-wrap table{min-width:580px}
+ .login-screen,.modal{padding:12px;overflow-y:auto}.login-card,.modal-card{max-height:calc(100dvh - 24px);overflow-y:auto}
+}
