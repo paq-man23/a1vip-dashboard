@@ -17,3 +17,8 @@ test('shared history switches between invoices and purchase orders while retaini
  const items=[{id:'invoice',type:'invoice-ticket',number:'4100',createdDate:'2026-01-01',clientCompany:'Example'},{id:'purchase',type:'po-ticket',origin:'skybox',number:'SB-PO-1',createdDate:'2026-02-01',clientCompany:'Example'},{id:'travel',type:'po-travel',number:'4101',createdDate:'2025-01-01',clientCompany:'Other'}];
  assert.equal(H.filter(items).length,3);assert.deepEqual(H.filter(items,'','','newest','','invoice').map(i=>i.id),['invoice']);assert.deepEqual(H.filter(items,'','','newest','','purchase').map(i=>i.id),['purchase','travel']);assert.deepEqual(H.filter(items,'Example','2026','newest','skybox','purchase').map(i=>i.id),['purchase']);assert.equal(H.filter(items,'Example','2026','newest','a1','purchase').length,0);
 });
+
+test('invoice search matches partial first name, last name and company',()=>{
+ const items=[{id:'a',type:'invoice-ticket',clientContact:'Jason White',clientCompany:'A1VIP Entertainment'}];
+ for(const query of ['jas','WHITE','vip'])assert.deepEqual(H.filter(items,query).map(i=>i.id),['a']);
+});
