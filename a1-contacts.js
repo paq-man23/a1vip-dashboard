@@ -6,7 +6,7 @@
   function initial(c){const ch=sortName(c).normalize('NFD').replace(/[\u0300-\u036f]/g,'').charAt(0).toUpperCase();return /^[A-Z]$/.test(ch)?ch:'#';}
   function filter(contacts,kind,query='',letter=''){
     const words=query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    return contacts.filter(c=>c.kind===kind&&(!letter||initial(c)===letter)&&words.every(w=>fields.map(([k])=>text(c[k])).join(' ').toLowerCase().includes(w)||text(c.id).toLowerCase().includes(w)))
+    return contacts.filter(c=>c.kind===kind&&(words.length>0||!letter||initial(c)===letter)&&words.every(w=>fields.map(([k])=>text(c[k])).join(' ').toLowerCase().includes(w)||text(c.id).toLowerCase().includes(w)))
       .sort((a,b)=>sortName(a).localeCompare(sortName(b),undefined,{sensitivity:'base',numeric:true})||text(a.displayName).localeCompare(text(b.displayName),undefined,{sensitivity:'base'})||text(a.id).localeCompare(text(b.id)));
   }
   function patch(original,values){const result={};for(const [key] of fields)if(text(values[key])!==text(original[key]))result[key]=text(values[key]).trim();return result;}
@@ -72,13 +72,15 @@
   }
   function directory(kind){
     const wrap=$(kind+'Directory');if(!wrap)return;const existingCard=$(kind+'ContactCard');const state=states[kind];wrap.replaceChildren();wrap.className='rolodex';
+    const query=$(kind+'Search').value||'';
+    if(query.trim())state.letter='';
     const tabs=el('nav');tabs.className='rolodex-tabs';tabs.setAttribute('aria-label','Browse '+kind+' cards by last name');
     const source=contacts().filter(c=>c.kind===kind);const letters=new Set(source.map(initial));
     for(const letter of ['','ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),'#'].flat()){
       const tab=el('button',letter||'All');tab.type='button';tab.className=state.letter===letter?'active':'';tab.disabled=!!letter&&!letters.has(letter);tab.setAttribute('aria-pressed',String(state.letter===letter));
-      tab.addEventListener('click',()=>{if(!mayLeave(state))return;state.letter=letter;state.page=0;state.form=null;state.selected=null;directory(kind);});tabs.append(tab);
+      tab.addEventListener('click',()=>{if(!mayLeave(state))return;$(kind+'Search').value='';state.letter=letter;state.page=0;state.form=null;state.selected=null;directory(kind);});tabs.append(tab);
     }wrap.append(tabs);
-    const query=$(kind+'Search').value||'';const items=filter(source,kind,query,state.letter);const max=Math.max(0,Math.ceil(items.length/40)-1);state.page=Math.min(state.page,max);
+    const items=filter(source,kind,query,state.letter);const max=Math.max(0,Math.ceil(items.length/40)-1);state.page=Math.min(state.page,max);
     wrap.append(el('p',items.length+' '+kind+' cards · Sorted by last name, then company / display name'));
     const body=el('div');body.className='rolodex-body';const list=el('div');list.className='rolodex-index';list.setAttribute('aria-label','Matching '+kind+' contacts');
     for(const c of items.slice(state.page*40,state.page*40+40)){
@@ -99,7 +101,7 @@
   function search(kind,reset=false){
     const input=$(kind+'Search'),state=states[kind];if(!input||!state)return;
     if(reset)input.value='';
-    if(!input.value.trim())state.letter='';
+    state.letter='';
     state.page=0;directory(kind);
   }
   function add(kind){const state=states[kind];if(!mayLeave(state))return;open(kind,{kind,id:crypto.randomUUID(),displayName:'',name:'',firstName:'',lastName:''},true);}
