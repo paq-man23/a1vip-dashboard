@@ -28,7 +28,7 @@
   node('accountEditorForm').reset();node('managedMessage').textContent='';
   node('accountEditorTitle').textContent=kind==='create'?'Add User':kind==='password'?'Set Password — '+(row.username||row.email):kind==='email'?'Edit Email — '+(row.username||row.email):'Account & Category Access';
   node('managedUsername').value=row?.username||'';node('managedName').value=row?.name||'';node('managedEmail').value=row?.email||'';
-  node('managedUsername').readOnly=!!row?.is_admin;node('managedEmail').readOnly=kind!=='create'&&kind!=='email';node('managedEmail').required=kind==='email';
+  node('managedUsername').readOnly=!!row?.is_admin;node('managedEmail').readOnly=!!row?.is_admin||kind==='password';node('managedEmail').required=kind==='email'||(kind==='edit'&&!row?.is_admin);
   node('managedUsername').required=kind==='create'||kind==='edit';node('managedPassword').required=kind==='create'||kind==='password';
   for(const id of ['managedUsername','managedName','managedEmail'])node(id).closest('label').hidden=kind==='password'||(kind==='email'&&id!=='managedEmail');
   node('managedPasswordLabel').hidden=kind==='edit'||kind==='email';node('managedCategories').hidden=kind==='password'||kind==='email'||!!row?.is_admin;
@@ -49,8 +49,14 @@
    }else if(mode==='create'){
     await A1Data.accountAction({action:'create',username:node('managedUsername').value,name:node('managedName').value,email:node('managedEmail').value,password:node('managedPassword').value,sections:allowed});
    }else{
-    await A1Data.accountAction({action:'edit',id:selected.id,username:node('managedUsername').value,name:node('managedName').value});
-    if(!selected.is_admin)await A1Data.setAccountAccess(selected.id,allowed,selected.blocked_links||[]);
+    const email=node('managedEmail').value.trim().toLowerCase();
+    if(!selected.is_admin&&email!==selected.email.toLowerCase())await A1Data.accountAction({action:'email',id:selected.id,email});
+    if(node('managedUsername').value!==selected.username||node('managedName').value!==(selected.name||''))await A1Data.accountAction({action:'edit',id:selected.id,username:node('managedUsername').value,name:node('managedName').value});
+    const previous=selected.allowed_sections??sections.map(([id])=>id);
+    if(!selected.is_admin&&(allowed.length!==previous.length||allowed.some(id=>!previous.includes(id)))){
+     const current=await A1Data.accountPermissions(selected.id);
+     await A1Data.setAccountAccess(selected.id,allowed,current.blocked_links||[]);
+    }
    }
    node('managedPassword').value='';node('accountEditor').close();await load();
   }catch(error){node('managedMessage').textContent=error.message;}
