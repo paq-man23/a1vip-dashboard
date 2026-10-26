@@ -38,6 +38,17 @@ select set_config('request.jwt.claims',jsonb_build_object('session_id',gen_rando
 set local role authenticated;
 select public.a1_activity_session('start');
 reset role;
+update public.a1_activity_sessions set started_at=now()-interval '2 hours',last_active_at=now()-interval '1 hour' where ended_at is null and user_id=auth.uid();
+set local role authenticated;
+select public.a1_activity_session('start');
+select public.a1_activity_session('idle');
+select public.a1_website_view(gen_random_uuid(),'example.com','Admin idle',0,false);
+do $$ begin
+ if not exists(select 1 from public.a1_activity_sessions where user_id=auth.uid() and ended_at is null and idle_exempt) then raise exception 'Admin idle session ended';end if;
+end $$;
+select public.a1_activity_session('activity');
+reset role;
+update public.a1_staff set is_admin=false where user_id=auth.uid();
 update public.a1_activity_sessions set started_at=now()-interval '30 minutes',last_active_at=now()-interval '21 minutes' where ended_at is null and user_id=auth.uid();
 set local role authenticated;
 do $$ begin

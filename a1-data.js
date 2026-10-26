@@ -399,7 +399,7 @@
     setAccountAccess:async(id,sections,blocked)=>check(await requireAdmin().rpc('a1_set_account_access',{p_user_id:id,p_sections:sections,p_blocked:blocked})),
     fetchButtonLayout,saveButtonLayout,
     activitySession: async action => check(await connect().rpc('a1_activity_session', {p_action:action})),
-    fetchActivity: async () => check(await requireAdmin().from('a1_activity_sessions').select('id,user_id,display_name,started_at,last_active_at,ended_at,end_reason').order('started_at',{ascending:false}).limit(500)),
+    fetchActivity: async () => check(await requireAdmin().from('a1_activity_sessions').select('id,user_id,display_name,started_at,last_active_at,ended_at,end_reason,idle_exempt').order('started_at',{ascending:false}).limit(500)),
     recordWebsite: async args => check(await connect().rpc('a1_website_view',args)),
     fetchWebsiteViews: async () => check(await requireAdmin().from('a1_website_views').select('id,display_name,site_host,label,started_at,ended_at,visible_seconds').order('started_at',{ascending:false}).limit(500)),
     preferenceUsers: async () => {const rows=check(await requireAdmin().rpc('a1_list_accounts'));return rows.map(row=>({user_id:row.id,email:row.email}));},

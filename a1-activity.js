@@ -14,7 +14,7 @@
     const message=document.getElementById('loginError');
     if(message)message.textContent='Signed out after 20 minutes of dashboard inactivity. Sign in again.';
   }
-  function expired(){return !!userId&&Date.now()-Math.max(last,stored(userId))>=IDLE;}
+  function expired(){return !A1Data.isAdmin()&&!!userId&&Date.now()-Math.max(last,stored(userId))>=IDLE;}
   async function tick(){
     if(!userId||busy)return;
     last=Math.max(last,stored(userId));
@@ -230,7 +230,7 @@
         const begun=new Date(r.started_at).getTime();
         if((selected&&r.user_id!==selected)||begun<start||begun>finish)continue;
         const deadline=new Date(r.last_active_at).getTime()+IDLE;
-        const inferred=!r.ended_at&&Date.now()>=deadline;
+        const inferred=!r.idle_exempt&&!r.ended_at&&Date.now()>=deadline;
         const ended=r.ended_at?new Date(r.ended_at).getTime():inferred?deadline:Date.now();
         const elapsed=Math.max(0,ended-begun);total+=elapsed;count++;
         const status=r.end_reason==='idle'?'Auto logout':r.end_reason==='logout'?'Logged out':inferred?'Timeout (estimated)':'Open session';

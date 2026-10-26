@@ -2,14 +2,14 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-function harness(){
+function harness(admin=false){
  let clock=1000000000,interval,loggedOut=0;
  const listeners={},storage=new Map(),calls=[];
  const message={textContent:''};
  const document={hidden:false,head:{append(){}},addEventListener:(name,fn)=>listeners[name]=fn,
   getElementById:id=>id==='loginError'?message:null,querySelectorAll:()=>[],createElement:()=>({})};
  const window={addEventListener:(name,fn)=>listeners[name]=fn};
- const A1Data={activitySession:async action=>{calls.push(action);return new Date(clock).toISOString();},logout:async reason=>{assert.equal(reason,'idle');loggedOut++;window.A1Activity.stop();},isAdmin:()=>false};
+ const A1Data={activitySession:async action=>{calls.push(action);return new Date(clock).toISOString();},logout:async reason=>{assert.equal(reason,'idle');loggedOut++;window.A1Activity.stop();},isAdmin:()=>admin};
  class FakeDate extends Date{constructor(...args){super(...(args.length?args:[clock]));}static now(){return clock;}}
  vm.runInNewContext(fs.readFileSync('a1-activity.js','utf8'),{window,document,A1Data,Date:FakeDate,console,localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},setInterval:fn=>{interval=fn;return 1;},clearInterval(){}});
  listeners.DOMContentLoaded();
@@ -36,3 +36,5 @@ for(const admin of [true,false])test(`${admin?'admin':'regular user'} website li
  assert.equal(popped,admin?'https://example.com':null);
  assert.equal(embedded?.[0]||null,admin?null:'https://example.com');
 });
+
+test('admin inactivity never triggers logout, including input after sleep',async()=>{const h=harness(true);await h.activity.start('admin');h.advance(24*60*60*1000);await h.tick();h.listeners.keydown({isTrusted:true});await h.tick();assert.equal(h.loggedOut(),0);assert.equal(h.activity.expired(),false);});
