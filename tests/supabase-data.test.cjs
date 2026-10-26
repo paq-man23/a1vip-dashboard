@@ -2,12 +2,12 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-function harness({ usernameEmail, invoiceRows, member = true, admin = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [], beforeRead = async()=>{}, allowedSections = null } = {}) {
+function harness({ locationPending, usernameEmail, invoiceRows, member = true, admin = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [], beforeRead = async()=>{}, allowedSections = null } = {}) {
   let callback, savedArgs, loginArgs, resetArgs, updateArgs;
-  const calls = [], filters = [], reads = [], pages=[];
+  const calls = [], filters = [], reads = [], pages=[],functionCalls=[];
   const rows = invoiceRows || [{ id: 'inv-one', version: 3, document: { id: 'inv-one', number: '4100', clientCompany: 'A1' } }];
   const client = {
-    functions: {invoke:async(name,args)=>{calls.push({name,args});return usernameEmail?{data:{session:{access_token:'test-access',refresh_token:'test-refresh'}}}:{error:{message:'Invalid username or password.'}};}},
+    functions: {invoke:async(name,args)=>{functionCalls.push({name,args});if(name==='a1-login-location')return locationPending||{data:{ok:true}};calls.push({name,args});return usernameEmail?{data:{session:{access_token:'test-access',refresh_token:'test-refresh'}}}:{error:{message:'Invalid username or password.'}};}},
     auth: {
       onAuthStateChange: fn => { callback = fn; },
       setSession:async()=>({data:{user:{id:'staff',email:usernameEmail}}}),
@@ -43,7 +43,7 @@ function harness({ usernameEmail, invoiceRows, member = true, admin = true, fail
   const window = { A1_SUPABASE_CONFIG: { url: 'https://test.supabase.co', publishableKey: 'public', adminAliases: { JAW: 'jaw@a1eei.com', JV: 'vollario@mac.com' }, passwordResetRedirect: 'https://a1dash.a1eei.com/reset-password.html' },
     supabase: { createClient: () => client }, dispatchEvent() {} };
   vm.runInNewContext(fs.readFileSync('a1-data.js','utf8'), { window, Event: class { constructor(type) { this.type = type; } }, sessionStorage: { getItem: key => session.get(key), setItem: (key, value) => session.set(key, value), removeItem: key => session.delete(key) }, localStorage: { getItem: key => storage.get(key) } });
-  return { data: window.A1Data, storage, args: () => savedArgs, loginArgs: () => loginArgs, resetArgs: () => resetArgs, updateArgs: () => updateArgs, authEvent: (event, value) => callback(event, value), calls, filters, reads, pages, session, window };
+  return { data: window.A1Data, storage, args: () => savedArgs, loginArgs: () => loginArgs, resetArgs: () => resetArgs, updateArgs: () => updateArgs, authEvent: (event, value) => callback(event, value), calls, filters, reads, pages, functionCalls, session, window };
 }
 test('approved staff restore invoice history; callers cannot mutate the cache', async () => {
   const { data } = harness(); await data.restore(); if(data.authenticated())await data.refresh();
@@ -330,4 +330,8 @@ test('invoice pages seek by ID without reprocessing earlier rows or skipping aft
 test('a later invoice-page failure preserves an empty cache and a retry starts from the beginning',async()=>{
  const invoiceRows=Array.from({length:501},(_,i)=>{const id='inv-'+String(i).padStart(5,'0');return {id,version:1,document:{id}};});let count=0;
  const h=harness({invoiceRows,beforeRead:async table=>{if(table==='a1_invoice_history'&&++count===2)throw new Error('temporary failure');}});await h.data.restore();await assert.rejects(h.data.loadSection('invoices'),/temporary failure/);assert.equal(h.data.invoices().length,0);await h.data.loadSection('invoices');assert.equal(h.data.invoices().length,501);
+});
+
+test('login location enrichment runs in the background without blocking restoration or passing client IP data',async()=>{
+ let finish;const locationPending=new Promise(r=>finish=r);const h=harness({locationPending});await h.data.restore();assert.equal(h.data.authenticated(),true);const request=h.functionCalls.find(c=>c.name==='a1-login-location');assert.deepEqual(JSON.parse(JSON.stringify(request.args.body)),{});finish({data:{ok:true}});
 });

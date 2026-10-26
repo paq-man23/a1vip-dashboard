@@ -238,7 +238,7 @@
         const elapsed=Math.max(0,ended-begun);total+=elapsed;count++;
         const status=r.end_reason==='idle'?'Auto logout':r.end_reason==='logout'?'Logged out':inferred?'Timeout (estimated)':'Open session';
         const tr=body.insertRow();
-        for(const text of [r.display_name,new Date(begun).toLocaleString(),[r.login_city,r.login_region,r.login_country].filter(Boolean).join(', ')||(r.login_ip?(r.login_location_checked_at?'Unavailable':'Lookup not enabled'):'Not recorded'),r.login_ip||'—',r.ended_at||inferred?new Date(ended).toLocaleString():'—',duration(elapsed),status])tr.insertCell().textContent=text;
+        for(const text of [r.display_name,new Date(begun).toLocaleString(),[r.login_city,r.login_region,r.login_country].filter(Boolean).join(', ')||(r.login_ip?(r.login_location_checked_at?'Unavailable':'Lookup pending'):'Not recorded'),r.login_ip||'—',r.ended_at||inferred?new Date(ended).toLocaleString():'—',duration(elapsed),status])tr.insertCell().textContent=text;
       }
       const summary=document.createElement('p');summary.textContent=count+' sessions · '+duration(total)+' elapsed (overlapping sessions can count twice). Login locations are IP-based estimates; VPNs and mobile networks can show another area.';
       const scroller=document.createElement('div');scroller.style.overflowX='auto';scroller.append(table);output.append(summary,scroller);

@@ -130,6 +130,7 @@
     const next={allowed_sections:profile?.allowed_sections||null,blocked_links:profile?.blocked_links||[],display_name:profile?.display_name||'',username:profile?.username||''};
     if(JSON.stringify(next)!==JSON.stringify(accountAccess)||admin!==(member.is_admin===true))resetSharedData();
     accountAccess=next;admin=member.is_admin===true;ready=true;
+    if(mode==='auth')void window.A1Data.recordLoginLocation().catch(()=>{});
     if(mode!=='auth')await Promise.all(Object.keys(resourceSection).map(resource=>loadResource(resource,true)));
   }
   async function restore() {
@@ -401,6 +402,7 @@
     setAccountAccess:async(id,sections,blocked)=>check(await requireAdmin().rpc('a1_set_account_access',{p_user_id:id,p_sections:sections,p_blocked:blocked})),
     fetchButtonLayout,saveButtonLayout,
     activitySession: async action => check(await connect().rpc('a1_activity_session', {p_action:action})),
+    recordLoginLocation:async()=>{requireReady();const result=await connect().functions.invoke('a1-login-location',{body:{}});if(result.error)throw result.error;},
     fetchActivity: async () => check(await requireAdmin().from('a1_activity_sessions').select('id,user_id,display_name,started_at,last_active_at,ended_at,end_reason,idle_exempt,login_ip,login_city,login_region,login_country,login_location_checked_at').order('started_at',{ascending:false}).limit(500)),
     recordWebsite: async args => check(await connect().rpc('a1_website_view',args)),
     fetchWebsiteViews: async () => check(await requireAdmin().from('a1_website_views').select('id,display_name,site_host,label,started_at,ended_at,visible_seconds').order('started_at',{ascending:false}).limit(500)),
