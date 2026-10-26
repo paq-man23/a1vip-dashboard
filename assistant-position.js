@@ -5,11 +5,13 @@
  const dimensions=(w,h,vw,vh)=>({width:clamp(Number(w)||300,Math.min(250,vw-16),Math.min(560,vw-16)),height:clamp(Number(h)||220,Math.min(160,vh-24),Math.min(600,vh-24))});
  if(typeof module!=='undefined'&&module.exports){module.exports={fit,dimensions};return;}
  root.A1AssistantPosition={init(launcher,panel){
-  let position=null,size={width:300,height:220},preferred={width:300,height:220},drag=null,resizing=null,suppress=false,latest=null,measure=0;
+  let position=null,size={width:300,height:220},preferred={width:300,height:220},drag=null,resizing=null,suppress=false,latest=null,measure=0,answerStart=null,reading=false;
   const log=panel.querySelector('.copilot-log'),form=panel.querySelector('.copilot-form');
   const cue=document.createElement('button');cue.type='button';cue.className='al-scroll-cue';cue.textContent='More below ↓';cue.hidden=true;cue.setAttribute('aria-label','Scroll down to read the rest of Al’s reply');panel.append(cue);
   function updateCue(){if(!log)return;cue.hidden=panel.hidden||log.scrollHeight-log.clientHeight-log.scrollTop<10;cue.style.bottom=((form?.offsetHeight||48)+4)+'px';}
-  log?.addEventListener('scroll',updateCue);cue.addEventListener('click',()=>log?.scrollBy({top:Math.max(80,log.clientHeight*.7),behavior:'smooth'}));
+  log?.addEventListener('scroll',updateCue);
+  for(const event of ['wheel','touchstart','pointerdown','keydown'])log?.addEventListener(event,()=>{reading=true;});
+  cue.addEventListener('click',()=>{reading=true;log?.scrollBy({top:Math.max(80,log.clientHeight*.7),behavior:'smooth'});});
   const key=()=>{const email=root.A1Data?.account()?.email;return email?'a1-al-companion:'+email.toLowerCase():null;};
   function persist(){try{if(key())localStorage.setItem(key(),JSON.stringify({position,size:preferred}));}catch{}}
   function apply(){
@@ -28,17 +30,27 @@
    const frame=root.requestAnimationFrame||((fn)=>fn());
    frame(()=>{
     if(ticket!==measure||panel.hidden||!reply.isConnected)return;
-    size=dimensions(Math.max(preferred.width,reply.textContent.length>320?400:300),preferred.height,innerWidth,innerHeight);apply();
-    const previous=reply.previousElementSibling,question=previous?.classList.contains('is-user')?previous:null;
+    // A search answer can contain many cards, including results arriving after a load.
+    // Measure the entire answer and anchor its first card, never the last result.
+    let first=reply;
+    while(first.previousElementSibling&&!first.previousElementSibling.classList.contains('is-user'))first=first.previousElementSibling;
+    const question=first.previousElementSibling;
+    if(answerStart!==first){answerStart=first;reading=false;}
+    const savedScroll=log.scrollTop;
+    let length=0;for(let card=reply;card;card=card.previousElementSibling){length+=card.textContent.length;if(card===first)break;}
+    size=dimensions(Math.max(preferred.width,length>320?400:300),preferred.height,innerWidth,innerHeight);apply();
+    const top=node=>node.getBoundingClientRect&&log.getBoundingClientRect?node.getBoundingClientRect().top-log.getBoundingClientRect().top+log.scrollTop:node.offsetTop-log.offsetTop;
     const overhead=panel.offsetHeight-log.clientHeight;
-    const desired=reply.offsetHeight+(question?.offsetHeight||0)+overhead+24;
+    const answerHeight=top(reply)+reply.offsetHeight-top(first);
+    const questionHeight=question?top(first)-top(question):0;
+    const desired=answerHeight+questionHeight+overhead+24;
     size.height=Math.max(preferred.height,Math.min(desired,Math.min(600,innerHeight-100)));size=dimensions(size.width,size.height,innerWidth,innerHeight);apply();
-    const target=question&&question.offsetHeight+reply.offsetHeight+20<=log.clientHeight?question:reply;
-    log.scrollTop=Math.max(0,target.offsetTop-log.offsetTop-6);updateCue();
+    const target=question&&questionHeight+answerHeight+20<=log.clientHeight?question:first;
+    log.scrollTop=reading?savedScroll:Math.max(0,top(target)-6);updateCue();
    });
   }
   function restore(){
-   position=null;size={width:300,height:220};preferred={...size};latest=null;drag=null;let saved;
+   position=null;size={width:300,height:220};preferred={...size};latest=null;answerStart=null;reading=false;drag=null;let saved;
    try{saved=key()&&JSON.parse(localStorage.getItem(key()));}catch{}
    if(saved?.position&&Number.isFinite(saved.position.x)&&Number.isFinite(saved.position.y))position={x:clamp(saved.position.x,0,1),y:clamp(saved.position.y,0,1)};
    if(saved?.size)size=dimensions(saved.size.width,saved.size.height,innerWidth,innerHeight);preferred={...size};apply();

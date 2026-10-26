@@ -302,3 +302,7 @@ body .copilot-panel .copilot-form textarea{line-height:20px;padding:6px 8px}
 body .copilot-panel .al-scroll-cue{position:absolute;right:12px;z-index:4;min-height:28px;padding:4px 9px;border:1px solid #d0b76b;border-radius:16px;background:#21334d;color:#ffe8a1;font:600 11px/1.3 Arial,sans-serif;box-shadow:0 2px 8px #0006;cursor:pointer}
 .copilot-log{scrollbar-width:auto;scrollbar-gutter:stable}
 .copilot-log::-webkit-scrollbar{width:8px}.copilot-log::-webkit-scrollbar-thumb{background:#6b7f9d;border-radius:8px}
+
+/* Keep browser scroll anchoring from fighting Al’s answer-level positioning. */
+body .copilot-panel .copilot-log{overflow-anchor:none;scroll-behavior:auto;padding-bottom:36px}
+body .copilot-panel .copilot-form,body .copilot-panel .copilot-status{flex-shrink:0}
