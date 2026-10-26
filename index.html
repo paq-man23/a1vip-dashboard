@@ -430,7 +430,7 @@
     <img class="dashboard-brand-logo" width="810" height="684" src="A1VIP_LOGO_WIDE_for_White_backgrounds_large.png" alt="A1VIP Entertainment logo">
     <div class="title"><span>A1 VIP</span><small>Ticket Dashboard</small></div>
     <div id="headerAccount" class="header-account" hidden>
-      <select id="dashboardLayout" class="layout-picker" aria-label="Dashboard layout"><option value="auto">Layout: Auto</option><option value="duo">Tablet · Right</option></select>
+      <select id="dashboardLayout" class="layout-picker" aria-label="Dashboard layout"><option value="auto">Layout: Auto</option><option value="duo">Tablet · Right</option><option value="vision">Vision Pro</option></select>
       <span class="account-identity"><span id="signedInUser" aria-live="polite"></span><span id="accountRoleIcon" role="img"></span></span>
       <button class="header-password-btn" type="button" onclick="openAccountSettings()">Change Password</button>
       <button class="header-password-btn" type="button" onclick="A1Activity.customize()">My Buttons</button>
@@ -1211,6 +1211,7 @@
 <script src="./a1-history.js"></script>
 <script src="./private-links.js"></script>
 <script src="./button-moves.js"></script>
+<script src="./vision-layout.js"></script>
 <script src="./a1-invoice-fields.js"></script>
 <script src="./a1-contacts.js"></script>
 <script src="./skybox-ui.js"></script>
@@ -4971,11 +4972,13 @@ function createBtn(label, url, isCustom=true){
  const tablet=window.matchMedia('(pointer:coarse) and (min-width:700px) and (max-width:1366px) and (min-height:601px)');
  let preference='auto';
  try{preference=localStorage.getItem('a1-dashboard-layout')||'auto';}catch(e){}
- if(!['auto','duo'].includes(preference))preference='auto';
+ if(!['auto','duo','vision'].includes(preference))preference='auto';
  picker.value=preference;
  function apply(){
    const duo=picker.value==='duo'||(picker.value==='auto'&&(/Surface Duo/i.test(navigator.userAgent)||segments.matches||tablet.matches));
    document.body.classList.toggle('a1-duo',duo);
+   document.body.classList.toggle('a1-vision',picker.value==='vision');
+   window.dispatchEvent(new Event('a1-layout-changed'));
  }
  picker.addEventListener('change',()=>{try{localStorage.setItem('a1-dashboard-layout',picker.value);}catch(e){}apply();});
  if(segments.addEventListener)segments.addEventListener('change',apply);

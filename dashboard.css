@@ -178,3 +178,33 @@ main .grid>.btn{
  line-height:1.35;
 }
 main .grid>.btn>*{min-width:0;max-width:100%;overflow-wrap:anywhere}
+
+/* Vision Pro Safari: layered panels and generous look-and-pinch targets. */
+.vision-toolbar[hidden]{display:none}
+body.a1-vision{background:radial-gradient(ellipse at 20% 0%,#253b60 0%,#111d32 45%,#080e1c 100%);height:100dvh;overflow:hidden}
+body.a1-vision header{background:#18243be8;border-color:#ffffff26;padding:16px 28px;gap:20px}
+body.a1-vision header .title{font-size:24px}
+body.a1-vision .header-account{max-width:65%;flex-direction:row;flex-wrap:wrap;align-items:center;gap:12px}
+body.a1-vision .header-password-btn,body.a1-vision .logout-btn,body.a1-vision .layout-picker{min-height:60px;font-size:16px;padding:12px}
+body.a1-vision .layout-picker{max-width:180px}
+body.a1-vision .top-tabs{background:#111e32b8;padding:14px 28px;border-color:#ffffff26;max-height:32dvh;overflow-y:auto}
+body.a1-vision .mobile-section-bar{display:none}
+body.a1-vision .top-tabs .tabs-scroller{display:grid;grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:14px;margin:0}
+body.a1-vision .top-tabs .tab{min-height:94px;padding:14px 10px;border-radius:22px;background:linear-gradient(150deg,#405574b8,#1e2c46d9);border:1px solid #ffffff30;box-shadow:0 8px 20px #0003,inset 0 1px #ffffff26;gap:10px}
+body.a1-vision .tab-label{font-size:16px;line-height:1.3;overflow-wrap:anywhere}
+body.a1-vision .top-tabs .tab.is-active{background:#36567b;border-color:#bae6fd;box-shadow:0 0 0 2px #7dd3fc55,0 8px 24px #0004}
+body.a1-vision main{padding:24px 32px 48px;overflow:auto;min-height:0}
+body.a1-vision .section{max-width:1500px}
+body.a1-vision main .grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:22px}
+body.a1-vision main .grid>.btn{min-height:96px;padding:22px 18px;font-size:18px;border-radius:24px;border:1px solid #ffffff40;box-shadow:0 12px 24px #0004,inset 0 2px 1px #ffffff30;background-image:linear-gradient(145deg,#ffffff16,#00000014);transition:box-shadow .15s,border-color .15s}
+body.a1-vision .btn:focus-visible,body.a1-vision .tab:focus-visible,body.a1-vision .cta:focus-visible{outline:3px solid #bae6fd;outline-offset:5px}
+body.a1-vision .btn:hover{border-color:#e0f2fe;box-shadow:0 0 0 3px #bae6fd44,0 14px 28px #0005}
+body.a1-vision .quick-link-bar .btn,body.a1-vision .cta,body.a1-vision .invoice-toolbar .btn{min-height:60px;padding:14px 18px;font-size:16px}
+body.a1-vision input,body.a1-vision select,body.a1-vision textarea{font-size:18px;min-height:52px}
+.vision-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:16px;padding:20px 24px;margin:0 auto 28px;max-width:1500px;background:#243550dc;border:1px solid #ffffff30;border-radius:24px;box-shadow:0 12px 28px #0003}
+.vision-toolbar strong{font-size:20px}.vision-toolbar p{flex:1;min-width:min(100%,240px);margin:0;color:#d6e4f5;line-height:1.5}
+.vision-move-dialog{width:min(800px,92vw);max-height:85dvh;overflow:auto;background:#1b2b43;color:#f1f5f9;border:1px solid #94a3b8;border-radius:28px;padding:28px;box-shadow:0 24px 80px #0008}
+.vision-move-dialog::backdrop{background:#020617b8}.vision-destinations{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:18px;margin:24px 0}.vision-move-dialog button{min-height:72px;font-size:18px;white-space:normal;overflow-wrap:anywhere}
+body.vision-moving .grid[data-section]>.can-drag-link{outline:2px dashed #bae6fd;outline-offset:4px}
+@media(max-width:760px){body.a1-vision header{padding:12px;flex-wrap:wrap}body.a1-vision .header-account{max-width:100%}body.a1-vision main{padding:18px}body.a1-vision .top-tabs{padding:12px}body.a1-vision .top-tabs .tabs-scroller{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){body.a1-vision main .grid>.btn{transition:none}}

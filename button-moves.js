@@ -64,5 +64,5 @@
   document.addEventListener('click',event=>{if(Date.now()<suppressUntil){event.preventDefault();event.stopImmediatePropagation();}},{capture:true});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')cleanup();});root.addEventListener('a1-signed-out',cleanup);refresh();
  }
- root.A1ButtonMoves={moveState,reconcile,refresh,move};document.addEventListener('DOMContentLoaded',init);
+ root.A1ButtonMoves={moveState,reconcile,refresh,move,source,destinations:()=>manageableSections.filter(s=>allowed(s.id))};document.addEventListener('DOMContentLoaded',init);
 })(typeof window==='undefined'?globalThis:window);
