@@ -25,6 +25,7 @@ function harness({ member = true, admin = true, failSave = false, recoverySessio
     },
     rpc: async (name, args) => {
       savedArgs = args; calls.push({ name, args });
+      if(name==='a1_list_accounts')return {data:[{id:'staff',email:'staff@example.com',enabled:true},{id:'disabled-staff',email:'disabled@example.com',enabled:false}]};
       if(name==='a1_activity_session')return {data:new Date().toISOString()};
       if(name==='a1_save_button_layout'&&!failSave)return {data:{state:args.p_state,version:args.p_expected_version+1}};
       if(name==='a1_save_contact'&&!failSave){const original=contactRows.find(row=>row.document.kind===args.p_kind&&row.document.id===args.p_id)?.document||{};return {data:{document:{...original,...args.p_patch,kind:args.p_kind,id:args.p_id},version:4}};}
@@ -267,4 +268,8 @@ for (const name of ['user1','user2']) test(name+' username resolves without gran
  assert.equal(data.authenticated(),true);assert.equal(data.isAdmin(),false);
  await assert.rejects(data.fetchActivity(),/Administrator access required/);
  await assert.rejects(data.preferenceUsers(),/Administrator access required/);
+});
+
+test('admin layout setup includes disabled accounts so they can be prepared before restoring access',async()=>{
+ const {data}=harness();await data.restore();const users=await data.preferenceUsers();assert.equal(users.length,2);assert.equal(users[1].user_id,'disabled-staff');
 });
