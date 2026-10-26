@@ -309,3 +309,13 @@ body .copilot-panel .copilot-form,body .copilot-panel .copilot-status{flex-shrin
 
 body .copilot-panel .copilot-header .al-new-chat{font:600 12px/1.2 Arial,sans-serif;padding:6px 8px;border:1px solid #61708a;border-radius:8px;white-space:nowrap;color:#ffe8a1;order:-1}
 body .copilot-panel .copilot-header>div{order:-2}
+
+/* Admin-only preview is isolated from the live dashboard grids and actions. */
+.account-dashboard-preview{width:min(1180px,94vw);height:min(850px,92dvh);max-width:96vw;max-height:94dvh;overflow:auto;padding:20px;border:1px solid #64748b;border-radius:18px;background:#0b1220;color:#e5edf7}
+.account-dashboard-preview::backdrop{background:#020617bf}
+.account-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:-20px;background:#0b1220;z-index:1;padding:10px 0}
+.account-preview-toolbar h2{margin:0;font-size:20px}.account-preview-toolbar .btn{min-width:0;min-height:42px;font-size:14px;padding:8px 14px}
+.account-preview-brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18px 0;border-bottom:1px solid #334155}.account-preview-brand img{width:64px;height:56px;object-fit:contain;background:white;border-radius:10px}.account-preview-brand strong{font-size:22px}.account-preview-brand span{margin-left:auto}
+.account-preview-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}.account-preview-tabs .tab{font-size:14px;min-height:44px;padding:10px 14px}.account-preview-tabs [aria-pressed=true]{outline:2px solid #facc15;outline-offset:2px}
+.account-preview-content h3{font-size:24px;color:#facc15}.account-preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:14px}.account-preview-grid .btn{min-width:0;min-height:78px;white-space:normal;overflow-wrap:anywhere;cursor:default;pointer-events:none;font-size:17px}
+@media(max-width:600px){.account-dashboard-preview{padding:12px}.account-preview-toolbar{top:-12px}.account-preview-toolbar h2{font-size:16px}.account-preview-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.account-preview-grid .btn{font-size:13px;padding:10px;min-height:65px}}
