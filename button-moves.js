@@ -26,7 +26,7 @@
  if(typeof module!=='undefined'&&module.exports){module.exports={moveState,reconcile};return;}
  let dragging=null,timer=null,touchStart=null,ghost=null,suppressUntil=0,busy=false,wasOpen=false;
  const permitted=()=>root.A1Data?.authenticated?.()===true||root.A1Data?.isAdmin?.()===true;
- const allowed=id=>manageableSections.some(s=>s.id===id)&&!!sectionGrid(id)&&(root.A1Data?.isAdmin?.()===true||!['domains','admin','system','upload','buttonManager'].includes(id));
+ const allowed=id=> (!root.A1Data?.canAccess||root.A1Data.canAccess(id))&&manageableSections.some(s=>s.id===id)&&!!sectionGrid(id)&&(root.A1Data?.isAdmin?.()===true||!['domains','admin','system','upload','buttonManager'].includes(id));
  const name=id=>manageableSections.find(s=>s.id===id)?.label||id;
  function source(button){const from=button.closest('.grid[data-section]')?.dataset.section;const url=getBtnURL(button);return allowed(from)&&url&&(root.A1Data?.isAdmin?.()===true||/^https?:\/\//i.test(url))?{from,label:button.getAttribute('data-label')||button.textContent.trim(),url,personal:button.dataset.personalLink==='1',key:root.A1Activity?.buttonKey?.(button)}:null;}
  function refresh(){for(const button of document.querySelectorAll('.grid[data-section]>.btn')){const canMove=permitted()&&!!source(button);button.draggable=canMove&&root.matchMedia?.('(pointer:coarse)').matches!==true;button.classList.toggle('can-drag-link',canMove);}}

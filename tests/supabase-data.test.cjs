@@ -7,6 +7,7 @@ function harness({ member = true, admin = true, failSave = false, recoverySessio
   const calls = [], filters = [];
   const rows = [{ id: 'inv-one', version: 3, document: { id: 'inv-one', number: '4100', clientCompany: 'A1' } }];
   const client = {
+    functions: {invoke:async()=>({error:{message:'Invalid username or password.'}})},
     auth: {
       onAuthStateChange: fn => { callback = fn; },
       resetPasswordForEmail: async (email, options) => { resetArgs = { email, options }; return {}; },

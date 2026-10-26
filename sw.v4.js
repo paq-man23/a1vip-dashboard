@@ -2,7 +2,7 @@
 // Update style: show "New update available" banner in the page; activate on user click.
 // If you need to force all installs to fetch this worker, bump CACHE_NAME.
 
-const CACHE_NAME = 'a1vip-static-v29'; // bump this once
+const CACHE_NAME = 'a1vip-static-v30'; // bump this once
 
 
 // Resolve relative to worker scope (safe for GitHub Pages subpaths)
@@ -41,7 +41,7 @@ self.addEventListener('fetch', (event) => {
   // Supabase auth/data and non-GET requests must never enter the asset cache.
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;
   // Configuration and data client must refresh with the page deployment.
-  if (url.pathname.endsWith('/supabase-config.js') || url.pathname.endsWith('/a1-data.js') || url.pathname.endsWith('/a1-activity.js') || url.pathname.endsWith('/skybox-import.js') || url.pathname.endsWith('/skybox-ui.js') || url.pathname.endsWith('/a1-history.js') || url.pathname.endsWith('/a1-invoice-fields.js') || url.pathname.endsWith('/a1-contacts.js') || url.pathname.endsWith('/contacts.css') || url.pathname.endsWith('/dashboard.css') || url.pathname.endsWith('/button-moves.js') || url.pathname.endsWith('/private-links.js')) {
+  if (url.pathname.endsWith('/supabase-config.js') || url.pathname.endsWith('/a1-data.js') || url.pathname.endsWith('/a1-activity.js') || url.pathname.endsWith('/a1-accounts.js') || url.pathname.endsWith('/skybox-import.js') || url.pathname.endsWith('/skybox-ui.js') || url.pathname.endsWith('/a1-history.js') || url.pathname.endsWith('/a1-invoice-fields.js') || url.pathname.endsWith('/a1-contacts.js') || url.pathname.endsWith('/contacts.css') || url.pathname.endsWith('/dashboard.css') || url.pathname.endsWith('/button-moves.js') || url.pathname.endsWith('/private-links.js')) {
     event.respondWith(fetch(req, { cache: 'no-store' }));
     return;
   }
@@ -71,7 +71,8 @@ self.addEventListener('fetch', (event) => {
   if (req.destination === 'document' || req.mode === 'navigate') {
     event.respondWith((async () => {
       try {
-        const fresh = await fetch(req, { cache: 'reload' });
+        const pageUrl=new URL(req.url);pageUrl.searchParams.set('_a1_build',CACHE_NAME);
+        const fresh = await fetch(pageUrl, { cache: 'no-store' });
         const cache = await caches.open(CACHE_NAME);
         cache.put(req, fresh.clone());
         return fresh;
