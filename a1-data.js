@@ -360,7 +360,7 @@
     if(admin||section==='account')return true;
     const aliases={privatejet:'travel',luxhomes:'travel',yachts:'travel',purchases:'invoices'};
     const id=aliases[section]||section;
-    if(['admin','system','upload','buttonManager','domains'].includes(id))return false;
+    if(['admin','manageAccounts','system','upload','buttonManager','domains'].includes(id))return false;
     return accountAccess.allowed_sections===null||accountAccess.allowed_sections.includes(id);
   }
   function linkBlocked(url){

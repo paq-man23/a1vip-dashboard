@@ -888,12 +888,17 @@
       </form><div id="vendorDirectory" class="invoice-history-list"></div>
     </div>
     <div id="admin" class="section" style="display:none;">
-      <div class="upload-card" data-admin-only hidden>
-        <h3>Manage Accounts &amp; User Layouts</h3>
-        <p>All user and admin accounts. Select an account to edit its profile, category access, and assigned links. JAW and JV retain full administrator access.</p>
-        <div class="invoice-toolbar"><button class="btn" type="button" onclick="A1Accounts.create()">Add User</button><button class="btn" type="button" onclick="A1Accounts.load()">Refresh Accounts</button></div>
-        <p id="accountManagerMessage" role="status" aria-live="polite"></p><div id="accountManagerList"></div>
-      </div>
+      <nav class="grid admin-navigation" aria-label="Admin tools">
+        <button class="btn" onclick="showSection('admin')">Admin Home</button>
+        <button class="btn" onclick="showSection('manageAccounts')">Manage Accounts &amp; User Layouts</button>
+        <button class="btn" onclick="showSection('domains')">A1 Domains & Emails</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/')">A1VIP</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/wp-login.php?redirect_to=https%3A%2F%2Fa1vipevents.com%2Fwp-admin%2F&reauth=1')">BackEnd</button>
+        <button class="btn" onclick="showSection('upload')">UPLOAD</button>
+        <button class="btn" onclick="showSection('buttonManager')">Button Manager</button>
+        <button class="btn" style="display:none;" data-system-btn="1" onclick="showSection('system')">SYSTEM</button>
+      </nav>
+
       <div class="upload-card" data-admin-only hidden>
         <h3>User Login History / Punch Card</h3>
         <button class="btn" type="button" onclick="A1Activity.customize(true)">Set User Link Defaults</button>
@@ -937,17 +942,40 @@
         <input id="linkSearch" type="text" placeholder="Search buttons..." oninput="searchLinks()" />
         <div id="searchResults" class="search-results"></div>
       </div>
-      <div class="grid">
+    </div>
+
+    <div id="manageAccounts" class="section" style="display:none;">
+      <nav class="grid admin-navigation" aria-label="Admin tools">
+        <button class="btn" onclick="showSection('admin')">Admin Home</button>
+        <button class="btn" onclick="showSection('manageAccounts')">Manage Accounts &amp; User Layouts</button>
         <button class="btn" onclick="showSection('domains')">A1 Domains & Emails</button>
         <button class="btn" onclick="openPopup('https://a1vipevents.com/')">A1VIP</button>
         <button class="btn" onclick="openPopup('https://a1vipevents.com/wp-login.php?redirect_to=https%3A%2F%2Fa1vipevents.com%2Fwp-admin%2F&reauth=1')">BackEnd</button>
         <button class="btn" onclick="showSection('upload')">UPLOAD</button>
         <button class="btn" onclick="showSection('buttonManager')">Button Manager</button>
         <button class="btn" style="display:none;" data-system-btn="1" onclick="showSection('system')">SYSTEM</button>
+      </nav>
+
+      <div class="upload-card" data-admin-only hidden>
+        <h3>Manage Accounts &amp; User Layouts</h3>
+        <p>All user and admin accounts. Select an account to edit its profile, category access, and assigned links. JAW and JV retain full administrator access.</p>
+        <div class="invoice-toolbar"><button class="btn" type="button" onclick="A1Accounts.create()">Add User</button><button class="btn" type="button" onclick="A1Accounts.load()">Refresh Accounts</button></div>
+        <p id="accountManagerMessage" role="status" aria-live="polite"></p><div id="accountManagerList"></div>
       </div>
     </div>
 
     <div id="system" class="section" style="display:none;">
+      <nav class="grid admin-navigation" aria-label="Admin tools">
+        <button class="btn" onclick="showSection('admin')">Admin Home</button>
+        <button class="btn" onclick="showSection('manageAccounts')">Manage Accounts &amp; User Layouts</button>
+        <button class="btn" onclick="showSection('domains')">A1 Domains & Emails</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/')">A1VIP</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/wp-login.php?redirect_to=https%3A%2F%2Fa1vipevents.com%2Fwp-admin%2F&reauth=1')">BackEnd</button>
+        <button class="btn" onclick="showSection('upload')">UPLOAD</button>
+        <button class="btn" onclick="showSection('buttonManager')">Button Manager</button>
+        <button class="btn" style="display:none;" data-system-btn="1" onclick="showSection('system')">SYSTEM</button>
+      </nav>
+
       <h3>SYSTEM Tools</h3>
       <div class="grid">
         <button class="btn btn-remove" onclick="resetDashboard()">Reset Dashboard (Factory)</button>
@@ -996,11 +1024,33 @@
     </div>
 
     <div id="domains" class="section" style="display:none;">
+      <nav class="grid admin-navigation" aria-label="Admin tools">
+        <button class="btn" onclick="showSection('admin')">Admin Home</button>
+        <button class="btn" onclick="showSection('manageAccounts')">Manage Accounts &amp; User Layouts</button>
+        <button class="btn" onclick="showSection('domains')">A1 Domains & Emails</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/')">A1VIP</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/wp-login.php?redirect_to=https%3A%2F%2Fa1vipevents.com%2Fwp-admin%2F&reauth=1')">BackEnd</button>
+        <button class="btn" onclick="showSection('upload')">UPLOAD</button>
+        <button class="btn" onclick="showSection('buttonManager')">Button Manager</button>
+        <button class="btn" style="display:none;" data-system-btn="1" onclick="showSection('system')">SYSTEM</button>
+      </nav>
+
       <h3>A1 Domains & Emails</h3>
       <div class="grid" data-section="domains"></div>
     </div>
 
     <section id="upload" class="section" style="display:none;">
+      <nav class="grid admin-navigation" aria-label="Admin tools">
+        <button class="btn" onclick="showSection('admin')">Admin Home</button>
+        <button class="btn" onclick="showSection('manageAccounts')">Manage Accounts &amp; User Layouts</button>
+        <button class="btn" onclick="showSection('domains')">A1 Domains & Emails</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/')">A1VIP</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/wp-login.php?redirect_to=https%3A%2F%2Fa1vipevents.com%2Fwp-admin%2F&reauth=1')">BackEnd</button>
+        <button class="btn" onclick="showSection('upload')">UPLOAD</button>
+        <button class="btn" onclick="showSection('buttonManager')">Button Manager</button>
+        <button class="btn" style="display:none;" data-system-btn="1" onclick="showSection('system')">SYSTEM</button>
+      </nav>
+
       <h3>UPLOAD</h3>
       <div class="upload-card">
         <div class="upload-grid">
@@ -1033,6 +1083,17 @@
     </section>
 
     <section id="buttonManager" class="section" style="display:none;">
+      <nav class="grid admin-navigation" aria-label="Admin tools">
+        <button class="btn" onclick="showSection('admin')">Admin Home</button>
+        <button class="btn" onclick="showSection('manageAccounts')">Manage Accounts &amp; User Layouts</button>
+        <button class="btn" onclick="showSection('domains')">A1 Domains & Emails</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/')">A1VIP</button>
+        <button class="btn" onclick="openPopup('https://a1vipevents.com/wp-login.php?redirect_to=https%3A%2F%2Fa1vipevents.com%2Fwp-admin%2F&reauth=1')">BackEnd</button>
+        <button class="btn" onclick="showSection('upload')">UPLOAD</button>
+        <button class="btn" onclick="showSection('buttonManager')">Button Manager</button>
+        <button class="btn" style="display:none;" data-system-btn="1" onclick="showSection('system')">SYSTEM</button>
+      </nav>
+
       <h3>Button Manager</h3>
       <div class="manager-row">
         <button class="btn btn-add" onclick="openAddModal()">➕ Add Button</button>
@@ -1166,7 +1227,7 @@
       window.A1ButtonMoves?.refresh();
       const allowed=!clear&&typeof A1Data!=='undefined'&&A1Data.isAdmin?.()===true;
       for(const element of document.querySelectorAll?.('[data-admin-only]')||[])element.hidden=!allowed;
-      if(!allowed){for(const id of ['admin','system','buttonManager','upload','domains']){
+      if(!allowed){for(const id of ['admin','manageAccounts','system','buttonManager','upload','domains']){
         const panel=document.getElementById(id);if(panel?.style.display==='block'){panel.style.display='none';document.getElementById('main').style.display='block';}
       }}
     }
@@ -1708,18 +1769,19 @@
     }
     function showSection(id){
       if(A1Data.canAccess&& !A1Data.canAccess(id)){alert('Your administrator has not enabled this category for your account.');return;}
-      if(['admin','system','buttonManager','upload','domains'].includes(id)&&A1Data.isAdmin?.()!==true){alert('Administrator access required.');return;}
+      if(['admin','manageAccounts','system','buttonManager','upload','domains'].includes(id)&&A1Data.isAdmin?.()!==true){alert('Administrator access required.');return;}
       if(id==='purchases'){id='invoices';setInvoiceHistoryKind('purchase');openInvoiceMode('history');}
       document.querySelectorAll('.section').forEach(s=>s.style.display='none');
       const el = document.getElementById(id);
       if(el) el.style.display='block';
       document.querySelectorAll('[data-category]').forEach(button=>{const active=button.dataset.category===id;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
       const activeCategory=document.querySelector('[data-category="'+id+'"] .tab-label');
-      document.getElementById('mobileSectionTitle').textContent=activeCategory?.textContent||({account:'Account Settings',system:'System',upload:'Uploads',buttonManager:'Button Manager',domains:'Domains'})[id]||'Main Links';
+      document.getElementById('mobileSectionTitle').textContent=activeCategory?.textContent||({manageAccounts:'Manage Accounts',account:'Account Settings',system:'System',upload:'Uploads',buttonManager:'Button Manager',domains:'Domains'})[id]||'Main Links';
       if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
       if (window.matchMedia('(max-width:760px), (orientation:landscape) and (max-height:600px) and (max-width:1100px)').matches) setSectionMenuExpanded(false);
       loadSectionData(id);
-      if(id==='admin'){window.A1Activity?.history();window.A1Accounts?.load();}
+      if(id==='admin')window.A1Activity?.history();
+      if(id==='manageAccounts')window.A1Accounts?.load();
     }
 
     async function loadSectionData(id,force=false){
@@ -1729,7 +1791,7 @@
       if(!status){status=document.createElement('div');status.className='section-load-status';status.setAttribute('role','status');section.prepend(status);}
       const request={};section._loadRequest=request;
       status.textContent='Loading shared records…';
-      const content=[...section.children].filter(el=>el!==status);
+      const content=[...section.children].filter(el=>el!==status&&!el.classList?.contains('admin-navigation'));
       content.forEach(el=>el.inert=true);
       try{await A1Data.loadSection(id,force);if(section._loadRequest!==request)return;status.textContent='';refreshCloudViews();}
       catch(error){if(section._loadRequest!==request)return;status.textContent='Could not load shared records: '+error.message+' ';const retry=document.createElement('button');retry.className='btn';retry.textContent='Retry';retry.onclick=()=>loadSectionData(id,true);status.append(retry);}
