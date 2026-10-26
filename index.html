@@ -400,6 +400,7 @@
     <img class="dashboard-brand-logo" width="810" height="684" src="A1VIP_LOGO_WIDE_for_White_backgrounds_large.png" alt="A1VIP Entertainment logo">
     <div class="title"><span>A1 VIP</span><small>Ticket Dashboard</small></div>
     <div id="headerAccount" class="header-account" hidden>
+          <select id="dashboardLayout" class="layout-picker" aria-label="Dashboard layout"><option value="auto">Layout: Auto</option><option value="duo">Duo · Right</option></select>
       <span id="signedInUser" aria-live="polite"></span>
       <button class="header-password-btn" type="button" onclick="openAccountSettings()">Change Password</button>
       <button class="logout-btn" onclick="logout()">Logout</button>
@@ -4502,6 +4503,23 @@ function createBtn(label, url, isCustom=true){
 </head>
 <body>
   <div class="print-wrap">${invoiceHtml}</div>
+<script>
+(function(){
+ const picker=document.getElementById('dashboardLayout');
+ const segments=window.matchMedia('(horizontal-viewport-segments: 2)');
+ let preference='auto';
+ try{preference=localStorage.getItem('a1-dashboard-layout')||'auto';}catch(e){}
+ if(!['auto','duo'].includes(preference))preference='auto';
+ picker.value=preference;
+ function apply(){
+   const duo=picker.value==='duo'||(picker.value==='auto'&&(/Surface Duo/i.test(navigator.userAgent)||segments.matches));
+   document.body.classList.toggle('a1-duo',duo);
+ }
+ picker.addEventListener('change',()=>{try{localStorage.setItem('a1-dashboard-layout',picker.value);}catch(e){}apply();});
+ if(segments.addEventListener)segments.addEventListener('change',apply);
+ apply();
+})();
+</script>
 </body>
 </html>`);
       doc.close();

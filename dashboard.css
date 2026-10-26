@@ -131,3 +131,30 @@ header{padding-top:calc(14px + env(safe-area-inset-top))}.mobile-section-bar{dis
  main .grid>.btn{min-height:48px;padding:8px 6px;font-size:11px;border-radius:10px}
  .section>h3{font-size:18px;margin-bottom:8px}
 }
+
+/* Duo: explicit, per-device right navigation for folded and unfolded displays. */
+.layout-picker{font:inherit;font-size:11px;min-height:44px;max-width:130px;background:#17253b;color:#e5e7eb;border:1px solid #33465f;border-radius:8px;padding:6px}
+body.a1-duo,body.a1-duo:has(.top-tabs:not(.is-open)){display:grid;grid-template-columns:minmax(0,1fr) clamp(112px,25vw,180px);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"header header" "quick quick" "content nav";height:100dvh;overflow:hidden;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+body.a1-duo header{grid-area:header;position:relative;min-width:0;padding:calc(6px + env(safe-area-inset-top)) 12px 6px;gap:8px}
+body.a1-duo header .dashboard-brand-logo{width:48px;padding:3px}
+body.a1-duo header .title{font-size:18px;min-width:0}
+body.a1-duo .header-account{max-width:55%;min-width:0;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:4px 8px}
+body.a1-duo #signedInUser{font-size:11px}
+body.a1-duo .header-password-btn{font-size:11px;min-height:44px}
+body.a1-duo .logout-btn{margin:0;min-height:44px;font-size:11px;padding:6px 10px}
+body.a1-duo .link-status{display:none}
+body.a1-duo .quick-link-bar{grid-area:quick;min-width:0;padding:4px 12px;gap:6px}
+body.a1-duo .quick-link-bar input{min-width:0;width:0;font-size:16px}
+body.a1-duo .quick-link-bar .btn{min-height:44px;padding:6px 8px;font-size:11px}
+body.a1-duo .top-tabs,body.a1-duo .top-tabs.is-open{grid-area:nav;min-width:0;min-height:0;max-height:none;padding:8px 6px calc(8px + env(safe-area-inset-bottom));overflow-y:auto;border:0;border-left:1px solid #27364c;overscroll-behavior:contain}
+body.a1-duo .mobile-section-bar{display:none}
+body.a1-duo .top-tabs .tabs-scroller{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0}
+body.a1-duo .top-tabs .tab{min-height:58px;padding:6px 3px;gap:4px;border-radius:9px}
+body.a1-duo .top-tabs .tab svg{width:20px;height:20px}
+body.a1-duo .tab-label{font-size:10px;line-height:1.25;overflow-wrap:anywhere}
+body.a1-duo main{grid-area:content;width:100%;min-width:0;min-height:0;overflow:auto;padding:12px 10px calc(16px + env(safe-area-inset-bottom))}
+body.a1-duo main .grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px}
+body.a1-duo main .grid>.btn{min-width:0;min-height:48px;font-size:12px;padding:8px;flex-wrap:wrap}
+body.a1-duo .section>h3{font-size:20px}
+body.a1-duo .invoice-layout{grid-template-columns:minmax(0,1fr)}
+@media(max-width:600px){body.a1-duo .top-tabs .tabs-scroller{grid-template-columns:minmax(0,1fr)}}
