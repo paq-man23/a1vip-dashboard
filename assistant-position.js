@@ -1,32 +1,42 @@
-/* Non-overlapping docks, saved separately for each account on this device. */
+/* Movable companion and compact speech bubble; layout data stays on this device. */
 (function(root){
- const sanitize=value=>['left','right','bottom'].includes(value)?value:'right';
- const effective=(preference,width)=>width<1000?'bottom':sanitize(preference);
- if(typeof module!=='undefined'&&module.exports){module.exports={sanitize,effective};return;}
+ const clamp=(v,min,max)=>Math.min(Math.max(v,min),Math.max(min,max));
+ const fit=(x,y,w,h,vw,vh)=>({x:clamp(x,8,vw-w-8),y:clamp(y,8,vh-h-8)});
+ const dimensions=(w,h,vw,vh)=>({width:clamp(Number(w)||300,Math.min(250,vw-16),Math.min(560,vw-16)),height:clamp(Number(h)||220,Math.min(160,vh-24),Math.min(600,vh-24))});
+ if(typeof module!=='undefined'&&module.exports){module.exports={fit,dimensions};return;}
  root.A1AssistantPosition={init(launcher,panel){
-  let preference='right',drag=null,suppress=false;
-  const key=()=>{const email=root.A1Data?.account()?.email;return email?'a1-al-dock:'+email.toLowerCase():null;};
-  function apply(){const dock=effective(preference,innerWidth);document.body.dataset.alDock=dock;select.value=dock;}
-  function save(value){preference=sanitize(value);try{if(key())localStorage.setItem(key(),preference);}catch{}apply();}
-  function restore(){let saved;try{saved=key()&&localStorage.getItem(key());}catch{}preference=sanitize(saved);apply();}
-  const label=document.createElement('label');label.className='copilot-position';label.textContent='Al dock';
-  const select=document.createElement('select');select.setAttribute('aria-label','Al dock position');
-  for(const [value,text] of [['','Move Al…'],['left','Left side'],['right','Right side'],['bottom','Bottom']]){const option=document.createElement('option');option.value=value;option.textContent=text;select.append(option);}
-  select.addEventListener('change',()=>{if(select.value)save(select.value);});label.append(select);panel.querySelector('.copilot-form').before(label);
-  const handle=document.getElementById('a1AssistantTab')||launcher;
-  handle.title='Open Al. Drag toward the left, right, or bottom to change his dock. Keyboard: Alt + arrow keys.';
-  handle.addEventListener('pointerdown',event=>{if(event.button!==0||!root.A1Data?.authenticated())return;drag={id:event.pointerId,x:event.clientX,y:event.clientY,moved:false};handle.setPointerCapture(event.pointerId);});
-  handle.addEventListener('pointermove',event=>{if(!drag||drag.id!==event.pointerId)return;if(Math.hypot(event.clientX-drag.x,event.clientY-drag.y)>20){drag.moved=true;event.preventDefault();handle.classList.add('is-repositioning');}});
-  function finish(event){
-   if(!drag||drag.id!==event.pointerId)return;const moved=drag.moved;drag=null;handle.classList.remove('is-repositioning');
-   if(moved&&event.type!=='pointercancel'){save(event.clientY>innerHeight*.75?'bottom':event.clientX<innerWidth/2?'left':'right');suppress=true;setTimeout(()=>suppress=false,300);}
-   if(handle.hasPointerCapture(event.pointerId))handle.releasePointerCapture(event.pointerId);
+  let position=null,size={width:300,height:220},drag=null,resizing=null,suppress=false;
+  const key=()=>{const email=root.A1Data?.account()?.email;return email?'a1-al-companion:'+email.toLowerCase():null;};
+  function persist(){try{if(key())localStorage.setItem(key(),JSON.stringify({position,size}));}catch{}}
+  function apply(){
+   document.body.classList.remove('al-chat-open');size=dimensions(size.width,size.height,innerWidth,innerHeight);
+   const r=launcher.getBoundingClientRect(),w=r.width||72,h=r.height||80;
+   const p=position?fit(position.x*(innerWidth-w),position.y*(innerHeight-h),w,h,innerWidth,innerHeight):fit(innerWidth-w-18,innerHeight-h-18,w,h,innerWidth,innerHeight);
+   Object.assign(launcher.style,{left:p.x+'px',top:p.y+'px',right:'auto',bottom:'auto'});
+   if(panel.hidden)return;
+   const above=p.y-size.height-12,below=p.y+h+12;
+   const q=fit(p.x+w-size.width,above>=8?above:below,size.width,size.height,innerWidth,innerHeight);
+   Object.assign(panel.style,{left:q.x+'px',top:q.y+'px',right:'auto',bottom:'auto',width:size.width+'px',height:size.height+'px'});
+   panel.classList.toggle('bubble-below',above<8);panel.style.setProperty('--al-tail-left',clamp(p.x+w/2-q.x,20,size.width-24)+'px');
   }
-  handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',finish);
-  handle.addEventListener('click',event=>{if(suppress){event.preventDefault();event.stopImmediatePropagation();suppress=false;}},true);
-  handle.addEventListener('keydown',event=>{if(!event.altKey||!['ArrowLeft','ArrowRight','ArrowDown'].includes(event.key))return;event.preventDefault();save({ArrowLeft:'left',ArrowRight:'right',ArrowDown:'bottom'}[event.key]);});
-  root.addEventListener('resize',apply);root.addEventListener('a1-layout-changed',apply);root.addEventListener('a1-dashboard-ready',restore);
-  root.addEventListener('a1-signed-out',()=>{drag=null;preference='right';apply();});
+  function restore(){
+   position=null;size={width:300,height:220};drag=null;let saved;
+   try{saved=key()&&JSON.parse(localStorage.getItem(key()));}catch{}
+   if(saved?.position&&Number.isFinite(saved.position.x)&&Number.isFinite(saved.position.y))position={x:clamp(saved.position.x,0,1),y:clamp(saved.position.y,0,1)};
+   if(saved?.size)size=dimensions(saved.size.width,saved.size.height,innerWidth,innerHeight);apply();
+  }
+  launcher.title='Click to talk with Al. Drag to move him. Keyboard: Alt + arrow keys.';
+  launcher.addEventListener('pointerdown',event=>{if(event.button!==0||!root.A1Data?.authenticated())return;const r=launcher.getBoundingClientRect();drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:r.left,top:r.top,moved:false};launcher.setPointerCapture(event.pointerId);});
+  launcher.addEventListener('pointermove',event=>{if(!drag||drag.id!==event.pointerId)return;const dx=event.clientX-drag.x,dy=event.clientY-drag.y;if(!drag.moved&&Math.hypot(dx,dy)<7)return;drag.moved=true;event.preventDefault();const r=launcher.getBoundingClientRect(),p=fit(drag.left+dx,drag.top+dy,r.width,r.height,innerWidth,innerHeight);position={x:p.x/Math.max(1,innerWidth-r.width),y:p.y/Math.max(1,innerHeight-r.height)};apply();});
+  function finish(event){if(!drag||drag.id!==event.pointerId)return;const moved=drag.moved;drag=null;if(moved){persist();suppress=true;setTimeout(()=>suppress=false,300);}if(launcher.hasPointerCapture(event.pointerId))launcher.releasePointerCapture(event.pointerId);}
+  launcher.addEventListener('pointerup',finish);launcher.addEventListener('pointercancel',finish);launcher.addEventListener('click',event=>{if(suppress){event.preventDefault();event.stopImmediatePropagation();suppress=false;}},true);
+  launcher.addEventListener('keydown',event=>{if(!event.altKey||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;event.preventDefault();const r=launcher.getBoundingClientRect(),p=fit(r.left+(event.key==='ArrowRight'?24:event.key==='ArrowLeft'?-24:0),r.top+(event.key==='ArrowDown'?24:event.key==='ArrowUp'?-24:0),r.width,r.height,innerWidth,innerHeight);position={x:p.x/Math.max(1,innerWidth-r.width),y:p.y/Math.max(1,innerHeight-r.height)};apply();persist();});
+  const grip=document.createElement('div');grip.className='al-bubble-resize';grip.tabIndex=0;grip.setAttribute('role','button');grip.setAttribute('aria-label','Resize Al chat bubble');grip.title='Drag to resize. Arrow keys adjust the bubble size.';panel.append(grip);
+  grip.addEventListener('pointerdown',event=>{if(event.button!==0)return;event.preventDefault();resizing={id:event.pointerId,x:event.clientX,y:event.clientY,...size};grip.setPointerCapture(event.pointerId);});
+  grip.addEventListener('pointermove',event=>{if(!resizing||event.pointerId!==resizing.id)return;event.preventDefault();size=dimensions(resizing.width+event.clientX-resizing.x,resizing.height+event.clientY-resizing.y,innerWidth,innerHeight);apply();});
+  const end=event=>{if(!resizing||event.pointerId!==resizing.id)return;resizing=null;persist();if(grip.hasPointerCapture(event.pointerId))grip.releasePointerCapture(event.pointerId);};grip.addEventListener('pointerup',end);grip.addEventListener('pointercancel',end);
+  grip.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;event.preventDefault();size=dimensions(size.width+(event.key==='ArrowRight'?20:event.key==='ArrowLeft'?-20:0),size.height+(event.key==='ArrowDown'?20:event.key==='ArrowUp'?-20:0),innerWidth,innerHeight);apply();persist();});
+  root.addEventListener('resize',apply);root.addEventListener('a1-layout-changed',apply);root.addEventListener('a1-dashboard-ready',restore);root.addEventListener('a1-signed-out',()=>{position=null;size={width:300,height:220};apply();});
   restore();return {restore,layoutPanel:apply};
  }};
 })(typeof window==='undefined'?globalThis:window);

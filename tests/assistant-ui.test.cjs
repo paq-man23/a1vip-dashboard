@@ -36,15 +36,15 @@ test('global link search excludes denied categories while searching all allowed 
  await h.submit('find Yankees');assert.deepEqual(h.opened,['luxury']);assert.deepEqual(h.loads,[]);assert.match(h.text(),/under Suites/);assert.doesNotMatch(h.text(),/Ticket Accounts/);
 });
 
-test('minimizing hides the bubble and AI category icon reopens the same conversation',async()=>{
+test('closing the speech bubble keeps Al visible and AI icon reopens the conversation',async()=>{
  const h=harness({withTab:true});await h.submit('find customer Jane');const before=h.text();
- h.panel.children[0].children[2].onclick();assert.equal(h.panel.hidden,true);assert.equal(h.launcher.hidden,true);assert.equal(h.tab.attributes['aria-expanded'],'false');
- h.tab.onclick();assert.equal(h.panel.hidden,false);assert.equal(h.launcher.hidden,true);assert.equal(h.text(),before);assert.equal(h.tab.attributes['aria-expanded'],'true');
+ h.panel.children[0].children[2].onclick();assert.equal(h.panel.hidden,true);assert.equal(h.launcher.hidden,false);assert.equal(h.tab.attributes['aria-expanded'],'false');
+ h.tab.onclick();assert.equal(h.panel.hidden,false);assert.equal(h.launcher.hidden,false);assert.equal(h.text(),before);assert.equal(h.tab.attributes['aria-expanded'],'true');
 });
 
 test('Al welcomes the user conversationally and shows examples on Help',async()=>{
- const h=harness();assert.match(h.text(),/Hi, I’m Al/);assert.match(h.text(),/Type Help/);assert.doesNotMatch(h.text(),/Your dashboard flight/);
- await h.submit('help');assert.match(h.text(),/create an invoice/);await h.submit('hello Al');assert.match(h.log.children.at(-1).textContent,/Hi, I’m Al/);
+ const h=harness();assert.match(h.text(),/Hi, I’m Al/);assert.equal(h.log.children[0].children.length,0);assert.doesNotMatch(h.text(),/examples/);assert.doesNotMatch(h.text(),/Your dashboard flight/);
+ await h.submit('help');assert.match(h.text(),/create an invoice/);assert.equal(h.log.children.at(-1).children.length,0);await h.submit('hello Al');assert.match(h.log.children.at(-1).textContent,/Hi, I’m Al/);
 });
 
 test('greeting uses the current username and does not substitute another account',async()=>{

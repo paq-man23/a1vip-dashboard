@@ -6,9 +6,9 @@
  const allowed=id=>A1Data.authenticated()&&A1Data.canAccess(id);
  function requireAccess(id){if(!allowed(id))throw new Error('That section is not enabled for your account.');}
  function valid(token){return epoch===token&&A1Data.authenticated()&&owner===A1Data.account()?.email;}
- function stopVoice(){const old=recognition;recognition=null;if(old){old.onresult=null;old.onend=null;old.onerror=null;old.abort();}if(mic){mic.textContent='Use Microphone';mic.setAttribute('aria-pressed','false');}}
- function close(){document.body.classList.remove('al-chat-open');stopVoice();panel.hidden=true;launcher.hidden=!!aiTab;launcher.setAttribute('aria-expanded','false');aiTab?.setAttribute('aria-expanded','false');aiTab?.classList.remove('is-active');(aiTab||launcher).focus();}
- function clear(){document.body.classList.remove('al-chat-open');document.querySelectorAll('.al-found-link').forEach(n=>n.classList.remove('al-found-link'));epoch++;waiting=null;busy=false;owner=null;stopVoice();if(log)log.replaceChildren();if(input)input.value='';if(status)status.textContent='';if(panel)panel.hidden=true;if(launcher){launcher.hidden=!!aiTab;launcher.setAttribute('aria-expanded','false');}aiTab?.setAttribute('aria-expanded','false');aiTab?.classList.remove('is-active');if(send)send.disabled=false;}
+ function stopVoice(){const old=recognition;recognition=null;if(old){old.onresult=null;old.onend=null;old.onerror=null;old.abort();}if(mic){mic.textContent='🎙';mic.setAttribute('aria-pressed','false');}}
+ function close(){document.body.classList.remove('al-chat-open');stopVoice();panel.hidden=true;launcher.hidden=false;launcher.setAttribute('aria-expanded','false');aiTab?.setAttribute('aria-expanded','false');aiTab?.classList.remove('is-active');(aiTab||launcher).focus();}
+ function clear(){document.body.classList.remove('al-chat-open');document.querySelectorAll('.al-found-link').forEach(n=>n.classList.remove('al-found-link'));epoch++;waiting=null;busy=false;owner=null;stopVoice();if(log)log.replaceChildren();if(input)input.value='';if(status)status.textContent='';if(panel)panel.hidden=true;if(launcher){launcher.hidden=false;launcher.setAttribute('aria-expanded','false');}aiTab?.setAttribute('aria-expanded','false');aiTab?.classList.remove('is-active');if(send)send.disabled=false;}
  function message(text,user=false){const n=el('div',text,user?'copilot-message is-user':'copilot-message');log.append(n);while(log.children.length>60)log.firstElementChild.remove();log.scrollTop=log.scrollHeight;return n;}
  function action(parent,label,fn){const token=epoch;const b=el('button',label,'copilot-action');b.type='button';b.onclick=async()=>{
   if(!valid(token)){message('Your account access changed. Start a new request.');return;}
@@ -17,11 +17,14 @@
  };parent.append(b);log.scrollTop=log.scrollHeight;return b;}
  async function load(section,token){requireAccess(section);status.textContent='Loading '+(core.sections.find(s=>s[0]===section)?.[1]||section)+'…';await A1Data.loadSection(section);if(!valid(token))throw new Error('Session changed.');requireAccess(section);status.textContent='';}
  function go(id){requireAccess(id);showSection(id);}
- function greet(){waiting=null;const account=A1Data.account(),name=account?.username||account?.name;const hello=name&&name!==account.email?'Hi '+name+', I’m Al!':'Hi, I’m Al!';const card=message(hello+' What would you like help with today? Type Help and I can show you some examples of what I can help you with.');action(card,'Help · Show Examples',()=>help());}
+ function greet(){waiting=null;const account=A1Data.account(),name=account?.username||account?.name;message((name&&name!==account.email?'Hi '+name+', I’m Al!':'Hi, I’m Al!')+' I’m here if you need a hand.');}
  function help(){
-  waiting=null;const card=message('I can find saved records, open a dashboard section, or walk you through a new invoice or purchase order. Search “Yankees” to find buttons across categories and related contacts. Try “add button for example.com in main”, “find customer Jane Smith”, “create an invoice for Acme”, or “find invoice 4100”.');
-  for(const [label,request,section] of [['Find a Customer','find customer','customers'],['Find a Vendor','find vendor','vendors'],['Start an Invoice','create invoice','invoices'],['Find an Invoice','find invoice','invoices'],['Find a Trip','find trip','tripItinerary'],['Find a Letter','find letter','formLetter'],['Find a Link','find link','main']])if(allowed(section))action(card,label,()=>ask(request));
-  const nav=message('Or choose a section and I’ll take you there:');for(const [id,label] of core.sections)if(allowed(id))action(nav,label,()=>go(id));
+  waiting=null;const examples=['“Yankees” — find matching links and related contacts'];
+  if(allowed('customers'))examples.push('“find customer Jane Smith”');
+  if(allowed('vendors'))examples.push('“find vendor Acme”');
+  if(allowed('invoices'))examples.push('“find invoice 4100” or “create an invoice for Acme”');
+  if(allowed('main'))examples.push('“add button for example.com in main”');
+  message('Here are a few things you can ask me:\n'+examples.join('\n'));
  }
  function focusField(id){const field=document.getElementById(id);if(field){field.scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});field.focus();}}
  async function draft(contact,purchase,token){
@@ -134,26 +137,26 @@
   const token=epoch;recognition=new Speech();const current=recognition;current.lang='en-US';current.continuous=false;current.interimResults=false;
   current.onresult=event=>{if(valid(token)&&recognition===current){input.value=event.results[0][0].transcript;status.textContent='Review your words, then press Send.';input.focus();}};
   current.onerror=event=>{if(valid(token))status.textContent=event.error==='not-allowed'?'Microphone permission was denied. You can still type your request.':'Voice input could not finish. Try again or type your request.';};
-  current.onend=()=>{if(recognition===current){recognition=null;mic.textContent='Use Microphone';mic.setAttribute('aria-pressed','false');}};
-  try{current.start();mic.textContent='Stop Microphone';mic.setAttribute('aria-pressed','true');status.textContent='Listening…';}catch{stopVoice();status.textContent='Voice input is unavailable. Type your request or use keyboard dictation.';}
+  current.onend=()=>{if(recognition===current){recognition=null;mic.textContent='🎙';mic.setAttribute('aria-pressed','false');}};
+  try{current.start();mic.textContent='■';mic.setAttribute('aria-pressed','true');status.textContent='Listening…';}catch{stopVoice();status.textContent='Voice input is unavailable. Type your request or use keyboard dictation.';}
  }
  function init(){
   launcher=el('button',undefined,'copilot-launcher');launcher.type='button';launcher.setAttribute('aria-label','Open Al dashboard assistant');launcher.setAttribute('aria-controls','a1Copilot');launcher.setAttribute('aria-expanded','false');
-  const image=el('img');image.src='./assets/al-ticket.png';image.alt='';image.setAttribute('aria-hidden','true');launcher.append(image,el('span','Ask Al'));document.body.append(launcher);
+  const image=el('img');image.src='./assets/al-ticket.png';image.alt='';image.setAttribute('aria-hidden','true');launcher.append(image);document.body.append(launcher);
   panel=el('section',undefined,'copilot-panel');panel.id='a1Copilot';panel.hidden=true;panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','copilotTitle');
-  const header=el('header',undefined,'copilot-header');const title=el('div');const h=el('h2','Al');h.id='copilotTitle';const mascot=el('img');mascot.src='./assets/al-ticket.png';mascot.alt='';mascot.className='copilot-header-mascot';title.append(mascot,h,el('p','Your dashboard assistant'));header.append(title);
-  const clearButton=el('button','Clear','copilot-small');clearButton.type='button';clearButton.onclick=()=>{clear();owner=A1Data.account()?.email;document.body.classList.add('al-chat-open');panel.hidden=false;launcher.setAttribute('aria-expanded','true');aiTab?.setAttribute('aria-expanded','true');aiTab?.classList.add('is-active');placement?.layoutPanel();greet();input.focus();};header.append(clearButton);
-  const closeButton=el('button','Minimize','copilot-small');closeButton.type='button';closeButton.onclick=close;header.append(closeButton);panel.append(header);
+  const header=el('header',undefined,'copilot-header');const title=el('div');const h=el('h2','Al');h.id='copilotTitle';title.append(h);header.append(title);
+  const clearButton=el('button','Clear','copilot-small');clearButton.type='button';clearButton.onclick=()=>{clear();owner=A1Data.account()?.email;panel.hidden=false;launcher.setAttribute('aria-expanded','true');aiTab?.setAttribute('aria-expanded','true');aiTab?.classList.add('is-active');placement?.layoutPanel();greet();input.focus();};const settings=el('details',undefined,'copilot-settings');const summary=el('summary','⚙');summary.setAttribute('aria-label','Al settings');settings.append(summary,clearButton);header.append(settings);
+  const closeButton=el('button','×','copilot-small');closeButton.type='button';closeButton.setAttribute('aria-label','Minimize Al');closeButton.title='Minimize Al';closeButton.onclick=close;header.append(closeButton);panel.append(header);
   panel.append(el('p','Guided mode · Search dashboard links and saved records, add a website button, or get step-by-step help with a draft.','copilot-mode'));
   log=el('div',undefined,'copilot-log');log.setAttribute('role','log');log.setAttribute('aria-label','Assistant conversation');log.setAttribute('aria-live','polite');panel.append(log);
   status=el('p','','copilot-status');status.setAttribute('role','status');panel.append(status);
-  const form=el('form',undefined,'copilot-form');input=el('textarea');input.rows=2;input.maxLength=600;input.placeholder='Find a customer or help me create an invoice…';input.setAttribute('aria-label','Message to dashboard assistant');form.append(input);
-  const controls=el('div');mic=el('button','Use Microphone','copilot-small');mic.type='button';mic.title='Voice input uses your browser’s speech service. Review the transcript before sending.';mic.setAttribute('aria-pressed','false');mic.onclick=voice;send=el('button','Send','copilot-send');send.type='submit';controls.append(mic,send);form.append(controls);form.onsubmit=submit;panel.append(form);
+  const form=el('form',undefined,'copilot-form');input=el('textarea');input.rows=1;input.maxLength=600;input.placeholder='Ask Al… or type Help';input.setAttribute('aria-label','Message to dashboard assistant');form.append(input);
+  const controls=el('div');mic=el('button','🎙','copilot-small');mic.type='button';mic.setAttribute('aria-label','Use microphone through your browser speech service');mic.title='Voice input uses your browser’s speech service. Review the transcript before sending.';mic.setAttribute('aria-pressed','false');mic.onclick=voice;send=el('button','Send','copilot-send');send.type='submit';controls.append(mic,send);form.append(controls);form.onsubmit=submit;panel.append(form);
   const supported=!!(window.SpeechRecognition||window.webkitSpeechRecognition);mic.hidden=!supported;
-  panel.append(el('p',supported?'Microphone input uses your browser’s speech service. Review the transcript before sending. Chat is cleared on sign-out.':'Type your request or use your keyboard’s dictation microphone. Chat is cleared on sign-out.','copilot-note'));
+  settings.append(el('p',supported?'Microphone input uses your browser’s speech service. Review the transcript before sending. Chat is cleared on sign-out.':'Type your request or use your keyboard’s dictation microphone. Chat is cleared on sign-out.','copilot-note'));
   document.body.append(panel);
-  function open(){if(!A1Data.authenticated())return;if(!panel.hidden){close();return;}if(owner!==A1Data.account()?.email){clear();owner=A1Data.account()?.email;}launcher.hidden=!!aiTab;document.body.classList.add('al-chat-open');panel.hidden=false;launcher.setAttribute('aria-expanded','true');aiTab?.setAttribute('aria-expanded','true');aiTab?.classList.add('is-active');placement?.layoutPanel();if(!log.children.length)greet();input.focus();}
-  launcher.onclick=open;aiTab=document.getElementById('a1AssistantTab');if(aiTab){launcher.hidden=true;}if(aiTab)aiTab.onclick=()=>{if(!panel.hidden){close();return;}open();};
+  function open(){if(!A1Data.authenticated())return;if(!panel.hidden){close();return;}if(owner!==A1Data.account()?.email){clear();owner=A1Data.account()?.email;}launcher.hidden=false;panel.hidden=false;launcher.setAttribute('aria-expanded','true');aiTab?.setAttribute('aria-expanded','true');aiTab?.classList.add('is-active');placement?.layoutPanel();if(!log.children.length)greet();input.focus();}
+  launcher.onclick=open;aiTab=document.getElementById('a1AssistantTab');if(aiTab)aiTab.onclick=()=>{if(!panel.hidden){close();return;}open();};
   placement=window.A1AssistantPosition?.init(launcher,panel);
   panel.addEventListener('keydown',event=>{if(event.key==='Escape')close();});
   window.addEventListener('a1-signed-out',clear);window.addEventListener('a1-password-recovery',clear);window.addEventListener('a1-access-changed',clear);
