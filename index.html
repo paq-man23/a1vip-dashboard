@@ -414,8 +414,8 @@
     <button class="btn btn-quick-add" onclick="addQuickLinkButton()">Add to Main</button>
   </div>
 
-  <nav class="top-tabs is-open">
-    <div class="mobile-section-bar"><span id="mobileSectionTitle">Main Links</span><button id="mobileSectionToggle" type="button" aria-expanded="true" aria-controls="categoryNavigation" onclick="toggleSectionMenu()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span id="mobileSectionToggleLabel">Collapse</span></button></div>
+  <nav class="top-tabs">
+    <div class="mobile-section-bar"><span id="mobileSectionTitle">Main Links</span><button id="mobileSectionToggle" type="button" aria-expanded="false" aria-controls="categoryNavigation" onclick="toggleSectionMenu()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span id="mobileSectionToggleLabel">Sections</span></button></div>
     <div id="categoryNavigation" class="tabs-scroller">
       <button class="tab tab-main is-active" data-category="main" onclick="showSection('main')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/></svg><span class="tab-label">Main Links</span></button>
       <button class="tab tab-luxury" data-category="luxury" onclick="showSection('luxury')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 6 4 4 5-7 5 7 4-4-2 13H5Z"/><path d="M6 15h12"/></svg><span class="tab-label">Suites</span></button>
@@ -1645,6 +1645,7 @@
       const activeCategory=document.querySelector('[data-category="'+id+'"] .tab-label');
       document.getElementById('mobileSectionTitle').textContent=activeCategory?.textContent||({account:'Account Settings',system:'System',upload:'Uploads',buttonManager:'Button Manager',domains:'Domains'})[id]||'Main Links';
       if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
+      if (window.matchMedia('(max-width:760px), (orientation:landscape) and (max-height:600px) and (max-width:1100px)').matches) setSectionMenuExpanded(false);
     }
 
 

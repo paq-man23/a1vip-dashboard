@@ -107,3 +107,27 @@ header{padding-top:calc(14px + env(safe-area-inset-top))}.mobile-section-bar{dis
  header .dashboard-brand-logo{width:60px}
  header .title{font-size:16px}
 }
+
+/* Phone chrome should leave the screen available for dashboard content. */
+@media screen and (max-width:760px) and (min-height:601px){
+ header{gap:8px;padding-top:calc(6px + env(safe-area-inset-top));padding-bottom:6px}
+ header .dashboard-brand-logo{width:44px;padding:2px;border-radius:6px}
+ header .title{font-size:16px;line-height:1.15;flex:1}
+ header .title small{font-size:10px}
+ .header-account{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:0 8px;max-width:48%;min-width:0}
+ #signedInUser{flex-basis:100%;font-size:10px;line-height:1.2}
+ .header-password-btn{font-size:10px;min-height:44px;white-space:normal;max-width:76px}
+ .logout-btn{margin-left:0;min-height:44px;padding:6px 10px;font-size:11px}
+ .link-status:empty{display:none}
+ .quick-link-bar{padding-top:4px;padding-bottom:4px}
+ .quick-link-bar .btn{padding:6px 8px;font-size:10px}
+ .quick-link-bar input{width:0;min-height:36px;padding:6px 8px}
+ .top-tabs{padding-top:4px;padding-bottom:6px}
+ .mobile-section-bar{min-height:44px}
+ .top-tabs.is-open{max-height:34dvh}
+ .top-tabs .tab{min-height:52px;gap:3px;padding:5px 3px}
+ .top-tabs .tab svg{width:18px;height:18px}
+ .button-move-hint{font-size:10px!important;line-height:1.4!important;margin-bottom:8px!important}
+ main .grid>.btn{min-height:48px;padding:8px 6px;font-size:11px;border-radius:10px}
+ .section>h3{font-size:18px;margin-bottom:8px}
+}
