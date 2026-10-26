@@ -24,10 +24,9 @@ test('Al never loads a category the account cannot access',async()=>{
 test('signout clears chat and rejects in-flight contact search results',async()=>{
  let release;const pause=new Promise(r=>release=r),h=harness({pause});const pending=h.submit('find customer Jane');h.signout();release();await pending;assert.equal(h.log.children.length,0);assert.equal(h.panel.hidden,true);assert.equal(h.input.value,'');
 });
-test('voice transcription fills the composer without running actions and stops on logout',()=>{
- const h=harness({voice:true});h.mic.onclick();h.recognizer.onresult({results:[[{transcript:'create invoice for Jane'}]]});assert.equal(h.input.value,'create invoice for Jane');assert.deepEqual(h.loads,[]);h.signout();assert.equal(h.aborted(),1);assert.equal(h.input.value,'');
+test('internal mode disables browser speech services even when available',()=>{
+ const h=harness({voice:true});assert.equal(h.mic.hidden,true);h.mic.onclick();assert.equal(h.recognizer,undefined);assert.match(h.status.textContent,/disabled/);assert.deepEqual(h.loads,[]);
 });
-
 test('Yankees search navigates to the ticket button, reports suites and finds contacts by notes',async()=>{
  const h=harness({permissions:['main','accounts','luxury','customers'],links:[{label:'Yankee Suites',section:'luxury'},{label:'Yankees Ticketmaster Account',section:'accounts'},{label:'Yankees Hidden',section:'main',hidden:true}],contactRows:[{kind:'customer',id:'j',displayName:'Jane Smith',notes:'Yankees season tickets'}]});
  await h.submit('Yankees');assert.deepEqual(h.opened,['accounts']);assert.equal(h.buttons[1].classList.contains('al-found-link'),true);assert.match(h.text(),/Jane Smith/);assert.match(h.text(),/under Suites/);assert.doesNotMatch(h.text(),/Yankees Hidden/);
@@ -58,17 +57,9 @@ test('add-button command shows a proposal without saving until the action is sel
 test('Al answers how-to questions directly without loading or changing dashboard records',async()=>{
  const h=harness();await h.submit('how do I move buttons?');assert.match(h.text(),/press and hold/);assert.match(h.text(),/Confirm the move/);assert.equal(h.loads.length,0);assert.equal(h.opened.length,0);
 });
-test('voice contact search lists both Sonia and Sonya separately for explicit selection',async()=>{
- const h=harness({voice:true,contactRows:[{kind:'customer',id:'1',displayName:'Sonia Green'},{kind:'customer',id:'2',displayName:'Sonya Green'}]});
- h.mic.onclick();h.recognizer.onresult({results:[[{transcript:'find customer Sonia Green'}]]});await h.submit(h.input.value);
- assert.match(h.text(),/Sonia Green/);assert.match(h.text(),/Sonya Green/);assert.match(h.text(),/similar-sounding/);assert.equal(h.opened.length,0);
+test('internal text search never calls the external AI adapter',async()=>{
+ let calls=0;const h=harness({ai:async()=>{calls++;throw new Error('External call forbidden');}});await h.submit('find customer Jane');assert.equal(calls,0);assert.match(h.text(),/Jane Smith/);
 });
-
-test('configured AI can request an allowed search without receiving rendered contact records',async()=>{
- const sent=[];const h=harness({ai:async body=>{sent.push(JSON.parse(JSON.stringify(body)));return {configured:true,reply:'Let’s look for Jane.',action:{action:'search',scope:'contact',query:'Jane',contactKind:'customer'}};}});
- await h.submit('Can you look up Jane for me?');assert.match(h.text(),/Jane Smith/);
- await h.submit('Could you show me that again?');assert.equal(sent[1].history[0].content,'Can you look up Jane for me?');assert.doesNotMatch(JSON.stringify(sent[1]),/jane@example/);
-});
-test('missing AI configuration falls back to the specific built-in guide',async()=>{
- let calls=0;const h=harness({ai:async()=>{calls++;return {configured:false};}});await h.submit('how do I move buttons?');await h.submit('how do I add buttons?');assert.equal(calls,1);assert.match(h.text(),/Confirm the move/);assert.match(h.text(),/To add a website button/);
+test('internal guidance works without any AI service',async()=>{
+ const h=harness();await h.submit('how do I move buttons?');assert.match(h.text(),/Confirm the move/);assert.equal(h.loads.length,0);
 });
