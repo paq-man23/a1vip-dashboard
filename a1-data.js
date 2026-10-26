@@ -132,10 +132,14 @@
   }
   async function restore() {
     clear();
-    const c = connect();
+    const c = connect(), restoreEpoch=dataEpoch;
     const session = check(await c.auth.getSession());
+    if(recoveryUserId)return false;
+    if(restoreEpoch!==dataEpoch)throw new Error('Sign-in check cancelled. Try again.');
     if (!session.session) { endRecovery(); return false; }
     const data = check(await c.auth.getUser());
+    if(recoveryUserId)return false;
+    if(restoreEpoch!==dataEpoch)throw new Error('Sign-in check cancelled. Try again.');
     if (!data.user) return false;
     user = data.user;
     if (recoveryUserId === user.id) { beginRecovery(user.id); return false; }
@@ -387,6 +391,7 @@
     return result.data;
   }
   window.A1Data = {
+    cancelRestore:()=>{window.A1Activity?.stop();clear();},
     loadSection, canAccess, refreshAccess, linkBlocked, blockedLinks:()=>copy(accountAccess.blocked_links),
     listAccounts:async()=>check(await requireAdmin().rpc('a1_list_accounts')),
     accountAction,

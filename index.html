@@ -1263,12 +1263,18 @@
         })]);
       } finally { clearTimeout(timer); }
     }
+    async function restoreWithDeadline(){
+      let timer;
+      try{return await Promise.race([A1Data.restore(),new Promise((_,reject)=>{
+        timer=setTimeout(()=>{A1Data.cancelRestore();reject(new Error('Saved sign-in could not finish. Reload the page to retry, or enter your credentials below.'));},25000);
+      })]);}finally{clearTimeout(timer);}
+    }
     async function initializeAuth(){
       try {
         showLogin(true);document.getElementById('sessionLoadingMessage').textContent='Checking your saved sign-in…';requireLoginClient();
         localStorage.removeItem('a1vip-auth-v1');
         localStorage.removeItem('a1vip-auth-override');
-        if (await A1Data.restore()) { hideLogin(); refreshCloudViews(); }
+        if (await restoreWithDeadline()) { hideLogin(); refreshCloudViews(); }
         else if (A1Data.recovering()) showPasswordRecovery();
         else showLogin();
       } catch(error) {

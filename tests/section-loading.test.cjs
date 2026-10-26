@@ -25,3 +25,10 @@ test('failed section load offers a usable retry while keeping unloaded editors b
   await ui.run('invoices');assert.equal(ui.content.inert,true);assert.match(ui.section.status.textContent,/Offline/);
   fail=false;await ui.section.status.button.onclick();assert.equal(ui.content.inert,false);assert.equal(ui.renders(),1);
 });
+
+test('stalled saved sign-in is cancelled and returns a retryable error',async()=>{
+ const source=fs.readFileSync('index.html','utf8');let expire,cancelled=false;
+ const context={A1Data:{restore:()=>new Promise(()=>{}),cancelRestore:()=>cancelled=true},setTimeout:fn=>{expire=fn;return 1;},clearTimeout:()=>{}};
+ vm.createContext(context);vm.runInContext(source.slice(source.indexOf('    async function restoreWithDeadline(){'),source.indexOf('    async function initializeAuth(){')),context);
+ const pending=context.restoreWithDeadline();expire();await assert.rejects(pending,/Reload the page/);assert.equal(cancelled,true);
+});
