@@ -8,9 +8,9 @@ function harness({permissions=['main','customers','invoices'],pause,voice=false,
  if(ai)data.assistantRequest=ai;
  const root={A1AssistantActions:require('../assistant-actions.js'),A1AssistantCore:require('../assistant-core.js'),addEventListener:(k,v)=>events[k]=v};
  if(voice)root.SpeechRecognition=class{constructor(){recognizer=this;}start(){}abort(){aborted++;}};
- const buttons=links.map(row=>{const classes=new Set(row.hidden?['a1-personally-hidden']:[]);return {...row,isConnected:true,dataset:{label:row.label,url:'https://example.com'},classList:{contains:k=>classes.has(k),add:k=>classes.add(k),remove:k=>classes.delete(k)},closest:()=>({dataset:{section:row.section}}),scrollIntoView(){},focus(){},getBoundingClientRect:()=>({left:100}),parentElement:null};});
+ const buttons=links.map(row=>{const classes=new Set(row.hidden?['a1-personally-hidden']:[]);return {...row,isConnected:true,dataset:{label:row.label,url:row.url||'https://example.com'},classList:{contains:k=>classes.has(k),add:k=>classes.add(k),remove:k=>classes.delete(k)},closest:()=>({dataset:{section:row.section}}),scrollIntoView(){},focus(){},getBoundingClientRect:()=>({left:100}),parentElement:null};});
  const document={body,createElement:node,addEventListener:(k,v)=>listeners[k]=v,getElementById:id=>id==='a1AssistantTab'?tab:null,querySelectorAll:selector=>selector.includes('grid[data-section]')?buttons:[]};
- vm.runInNewContext(fs.readFileSync('a1-assistant.js','utf8'),{window:root,A1Data:data,document,console,showSection:id=>opened.push(id)});listeners.DOMContentLoaded();
+ vm.runInNewContext(fs.readFileSync('a1-assistant.js','utf8'),{window:root,A1Data:data,document,console,URL,showSection:id=>opened.push(id)});listeners.DOMContentLoaded();
  const launcher=body.children[0],panel=body.children[1],log=panel.children[2],status=panel.children[3],form=panel.children[4],input=form.children[0],mic=form.children[1].children[0];
  launcher.onclick();
  return {panel,launcher,tab,log,status,input,mic,loads,opened,buttons,get recognizer(){return recognizer;},aborted:()=>aborted,submit:async text=>{input.value=text;await form.onsubmit({preventDefault(){}});},signout:()=>{authenticated=false;events['a1-signed-out']();},text:()=>log.children.map(x=>x.textContent).join(' ')};
@@ -74,4 +74,22 @@ test('incomplete button requests keep the requested category and support cancell
 });
 test('vague action requests do not load customer records as a search fallback',async()=>{
  const h=harness();await h.submit('rename a button');assert.deepEqual(h.loads,[]);assert.doesNotMatch(h.text(),/No matching dashboard/);
+});
+
+test('adding an existing website highlights its button across categories before asking for category',async()=>{
+ const h=harness({permissions:['main','accounts'],links:[{label:'Yankees Ticketmaster',section:'accounts',url:'http://www.example.com/'}]});
+ await h.submit('add a button');await h.submit('https://example.com');
+ assert.deepEqual(h.opened,['accounts']);assert.match(h.text(),/already exists/);assert.equal(h.buttons[0].classList.contains('al-found-link'),true);assert.doesNotMatch(h.text(),/Which category|Add this button/);assert.deepEqual(h.loads,[]);
+});
+test('complete add request checks existing names across accessible categories',async()=>{
+ const h=harness({permissions:['main','luxury'],links:[{label:'Yankees',section:'luxury',url:'https://tickets.example.org'}]});
+ await h.submit('add button named "Yankees" for new.example.com in main');assert.deepEqual(h.opened,['luxury']);assert.match(h.text(),/already exists/);assert.doesNotMatch(h.text(),/Add this button/);
+});
+test('duplicate check excludes denied and hidden links and keeps distinct website paths',async()=>{
+ const h=harness({links:[{label:'Secret',section:'accounts'},{label:'Hidden',section:'main',hidden:true},{label:'Other page',section:'main',url:'https://example.com/other'}]});
+ await h.submit('add button for example.com in main');assert.match(h.text(),/Add this button/);assert.deepEqual(h.opened,[]);
+});
+test('confirmation rechecks buttons added since the proposal and highlights instead of writing',async()=>{
+ const h=harness({links:[{label:'Existing',section:'main',url:'https://other.example.com'}]});
+ await h.submit('add button for example.com in main');const card=h.log.children.at(-1);h.buttons[0].dataset.url='https://example.com/';await card.children[0].onclick();assert.match(h.text(),/already exists/);assert.deepEqual(h.opened,['main']);
 });

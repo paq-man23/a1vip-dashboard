@@ -101,13 +101,30 @@
    if(allowed('invoices'))action(card,'Start '+(contact.kind==='vendor'?'Purchase Order':'Invoice'),t=>draft(contact,contact.kind==='vendor',t));
   }
  }
+ function existingButtons(item){
+  const address=value=>{try{const u=new URL(value);return u.hostname.toLowerCase().replace(/^www\./,'')+u.pathname.replace(/\/+$/,'')+u.search;}catch{return '';}};
+  const key=address(item.url);
+  return [...document.querySelectorAll('.grid[data-section]>.btn')].filter(linkAvailable).filter(b=>
+   (key&&address(b.dataset.url)===key)||core.normalize(b.dataset.label||b.textContent)===core.normalize(item.label));
+ }
+ function showExistingButton(item){
+  const found=existingButtons(item);if(!found.length)return false;
+  waiting=null;
+  const category=locate(found[0]);
+  message('That button already exists. I found '+(found[0].dataset.label||found[0].textContent.trim())+' in '+category+' and highlighted it. No duplicate was added.');
+  if(found.length>1){const card=message('I also found these existing buttons:');for(const button of found.slice(1,12))action(card,(button.dataset.label||button.textContent.trim())+' · Show & Highlight',()=>locate(button));}
+  return true;
+ }
  function proposeButton(request){
-  const item=window.A1AssistantActions.proposal(request);requireAccess(item.section);
+  const item=window.A1AssistantActions.proposal(request);
+  if(showExistingButton(item))return;
+  requireAccess(item.section);
   if(A1Data.linkBlocked(item.url))throw new Error('This link is restricted by your administrator.');
   const category=core.sections.find(s=>s[0]===item.section)?.[1]||item.section;
   const card=message('Add this button?\nLabel: '+item.label+'\nWebsite: '+item.url+'\nCategory: '+category+'\n'+(A1Data.isAdmin()?'This adds a shared dashboard button.':'This adds a button to your personal layout.'));
   action(card,'Add Button',async token=>{
    if(card.dataset.saved)return;
+   if(showExistingButton(item)){card.dataset.saved='true';return;}
    const saved=await window.A1AssistantActions.add({...request,label:item.label},{data:A1Data,
     exists:entry=>[...document.querySelectorAll('.grid[data-section]>.btn')].some(b=>b.closest('.grid').dataset.section===entry.section&&!b.classList.contains('a1-personally-hidden')&&(core.normalize(b.dataset.label||b.textContent)===core.normalize(entry.label)||b.dataset.url===entry.url)),
     local:()=>loadState(),apply:state=>{saveState(state);applyState(state);broadcastRefresh();},refreshPersonal:()=>A1Activity.loadButtons()});
@@ -126,6 +143,7 @@
   const draft=waiting;
   if(!draft.website){
    let item;try{item=window.A1AssistantActions.proposal({website:text,category:'main'});}catch(error){message(error.message+' What website should I use?');return;}
+   if(showExistingButton(item))return;
    draft.website=item.url;
    if(!draft.category){message('Got it. Which category should I put it in? '+linkCategories.filter(([id])=>allowed(id)).map(([,label])=>label).join(', ')+'.');return;}
   }else draft.category=text.replace(/^["“]|["”]$/g,'').trim();
