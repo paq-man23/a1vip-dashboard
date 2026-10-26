@@ -93,3 +93,13 @@ test('confirmation rechecks buttons added since the proposal and highlights inst
  const h=harness({links:[{label:'Existing',section:'main',url:'https://other.example.com'}]});
  await h.submit('add button for example.com in main');const card=h.log.children.at(-1);h.buttons[0].dataset.url='https://example.com/';await card.children[0].onclick();assert.match(h.text(),/already exists/);assert.deepEqual(h.opened,['main']);
 });
+
+test('visible New Chat clears history and an unfinished task while keeping Al open',async()=>{
+ const h=harness();await h.submit('add a button');h.input.value='unfinished';
+ const reset=h.panel.children[0].children.find(n=>n.textContent==='New Chat');assert.ok(reset);assert.match(reset.attributes['aria-label'],/clear Al conversation/);reset.onclick();
+ assert.equal(h.panel.hidden,false);assert.equal(h.log.children.length,1);assert.match(h.text(),/Hi, I’m Al/);assert.equal(h.input.value,'');assert.doesNotMatch(h.text(),/what website/);
+ await h.submit('example.com');assert.doesNotMatch(h.text(),/Which category/);
+});
+test('New Chat discards delayed results from the previous conversation',async()=>{
+ let release;const pause=new Promise(r=>release=r),h=harness({pause});const pending=h.submit('find customer Jane');h.panel.children[0].children.find(n=>n.textContent==='New Chat').onclick();release();await pending;assert.equal(h.log.children.length,1);assert.doesNotMatch(h.text(),/Jane Smith/);
+});
