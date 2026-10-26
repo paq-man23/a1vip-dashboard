@@ -377,7 +377,7 @@
     fetchActivity: async () => check(await requireAdmin().from('a1_activity_sessions').select('id,user_id,display_name,started_at,last_active_at,ended_at,end_reason').order('started_at',{ascending:false}).limit(500)),
     recordWebsite: async args => check(await connect().rpc('a1_website_view',args)),
     fetchWebsiteViews: async () => check(await requireAdmin().from('a1_website_views').select('id,display_name,site_host,label,started_at,ended_at,visible_seconds').order('started_at',{ascending:false}).limit(500)),
-    preferenceUsers: async () => check(await requireAdmin().rpc('a1_preference_users')),
+    preferenceUsers: async () => {const rows=check(await requireAdmin().rpc('a1_list_accounts'));return rows.map(row=>({user_id:row.id,email:row.email}));},
     fetchPreferences: async target => { const c=target?requireAdmin():requireReady(); const row=check(await c.from('a1_user_preferences').select('hidden_buttons,added_links').eq('user_id',target||user.id).maybeSingle()); const profile=target?check(await c.from('a1_account_profiles').select('blocked_links,allowed_sections').eq('user_id',target).single()):accountAccess;return {hidden_buttons:row?.hidden_buttons||[],added_links:row?.added_links||[],blocked_links:profile?.blocked_links||[],allowed_sections:profile?.allowed_sections||null}; },
     savePreferences: async (state,target) => { const c=target?requireAdmin():requireReady(); check(await c.from('a1_user_preferences').upsert({user_id:target||user.id,hidden_buttons:state.hidden_buttons,added_links:state.added_links})); },
     fetchSyncRuns: async () => { const c=requireAdmin(); return check(await c.from('a1_skybox_sync_runs').select('machine_label,started_at,finished_at,status,summary').order('started_at',{ascending:false}).limit(5)); },

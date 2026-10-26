@@ -62,7 +62,8 @@ export function createHandler({env,fetchImpl=fetch}){
    if(action==='edit'){
     const name=username(input.username),display=String(input.name||'').trim();
     if(!validUsername(name)||display.length>120)return reply({error:'Enter a valid username and name.'},400);
-    await manage('edit',input.id,name,display);return reply({ok:true});
+    const profiles=await api('/rest/v1/a1_account_profiles?select=user_id&user_id=eq.'+input.id);
+    await manage(profiles?.length?'edit':'register',input.id,name,display);return reply({ok:true});
    }
    if(action==='password'){
     if(typeof input.password!=='string'||input.password.length<8||input.password.length>200)return reply({error:'Choose a password with at least 8 characters.'},400);
