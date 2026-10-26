@@ -1208,13 +1208,14 @@
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('loginPass').value = '';
       document.getElementById('sessionLoadingPanel').style.display='none';
+      const active=[...document.querySelectorAll('.section')].find(el=>el.style.display==='block');if(active)loadSectionData(active.id);
     }
     function showPasswordRecovery(){
       showLogin();
       document.getElementById('normalLoginPanel').style.display = 'none';
       document.getElementById('passwordRecoveryPanel').style.display = 'block';
     }
-    window.addEventListener('a1-access-changed',()=>{refreshCloudViews();if(!A1Data.canAccess('invoices'))startNewInvoice();if(!A1Data.canAccess('formLetter'))startNewLetter();if(!A1Data.canAccess('tripItinerary'))startNewItinerary();});
+    window.addEventListener('a1-access-changed',()=>{refreshCloudViews();const active=[...document.querySelectorAll('.section')].find(el=>el.style.display==='block');if(active&&A1Data.canAccess(active.id))loadSectionData(active.id);if(!A1Data.canAccess('invoices'))startNewInvoice();if(!A1Data.canAccess('formLetter'))startNewLetter();if(!A1Data.canAccess('tripItinerary'))startNewItinerary();});
     window.addEventListener('a1-password-recovery', showPasswordRecovery);
     window.addEventListener('a1-restoring-session',()=>{
       if(A1Data.recovering())return;
@@ -1285,7 +1286,7 @@
         await waitForAuthStartup(); requireLoginClient();
         if(A1Data.authenticated?.()){err.textContent='';hideLogin();refreshCloudViews();return;}
         if(!document.getElementById('loginUser').value.trim()||!document.getElementById('loginPass').value)throw new Error('Enter your username and password.');
-        err.textContent = 'Signing in and loading shared documents…';
+        err.textContent = 'Signing in…';
         await A1Data.login(document.getElementById('loginUser').value.trim(), document.getElementById('loginPass').value);
         err.textContent = ''; hideLogin(); refreshCloudViews(); startNewInvoice(); startNewLetter(); startNewItinerary();
       } catch(error) { showLogin(); err.textContent = error.message; }
@@ -1327,7 +1328,7 @@
       } finally { button.disabled = false; }
     }
     async function refreshInvoiceHistory(){
-      try { await A1Data.refresh(); refreshCloudViews(); }
+      try { const section=[...document.querySelectorAll('.section')].find(el=>el.style.display==='block')?.id; if(section==='admin'){await A1Data.refresh();refreshCloudViews();}else await loadSectionData(section||'invoices',true); }
       catch(error) { alert('Could not refresh invoices: ' + error.message); }
     }
     let importingDocuments = false;
@@ -1711,7 +1712,22 @@
       document.getElementById('mobileSectionTitle').textContent=activeCategory?.textContent||({account:'Account Settings',system:'System',upload:'Uploads',buttonManager:'Button Manager',domains:'Domains'})[id]||'Main Links';
       if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
       if (window.matchMedia('(max-width:760px), (orientation:landscape) and (max-height:600px) and (max-width:1100px)').matches) setSectionMenuExpanded(false);
+      loadSectionData(id);
       if(id==='admin'){window.A1Activity?.history();window.A1Accounts?.load();}
+    }
+
+    async function loadSectionData(id,force=false){
+      if(!['invoices','formLetter','tripItinerary','customers','vendors','admin'].includes(id)||!A1Data.authenticated())return;
+      const section=document.getElementById(id);
+      let status=section.querySelector('.section-load-status');
+      if(!status){status=document.createElement('div');status.className='section-load-status';status.setAttribute('role','status');section.prepend(status);}
+      const request={};section._loadRequest=request;
+      status.textContent='Loading shared records…';
+      const content=[...section.children].filter(el=>el!==status);
+      content.forEach(el=>el.inert=true);
+      try{await A1Data.loadSection(id,force);if(section._loadRequest!==request)return;status.textContent='';refreshCloudViews();}
+      catch(error){if(section._loadRequest!==request)return;status.textContent='Could not load shared records: '+error.message+' ';const retry=document.createElement('button');retry.className='btn';retry.textContent='Retry';retry.onclick=()=>loadSectionData(id,true);status.append(retry);}
+      finally{if(section._loadRequest===request)content.forEach(el=>el.inert=!!status.textContent);}
     }
 
 

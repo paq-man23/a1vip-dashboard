@@ -2,9 +2,9 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-function harness({ member = true, admin = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [] } = {}) {
+function harness({ member = true, admin = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [], beforeRead = async()=>{}, allowedSections = null } = {}) {
   let callback, savedArgs, loginArgs, resetArgs, updateArgs;
-  const calls = [], filters = [];
+  const calls = [], filters = [], reads = [];
   const rows = [{ id: 'inv-one', version: 3, document: { id: 'inv-one', number: '4100', clientCompany: 'A1' } }];
   const client = {
     functions: {invoke:async()=>({error:{message:'Invalid username or password.'}})},
@@ -18,9 +18,10 @@ function harness({ member = true, admin = true, failSave = false, recoverySessio
       signOut: async () => { callback('SIGNED_OUT'); return {}; }
     },
     from: table => {
-      const query = { select() { if (this.deleting) return Promise.resolve({ data: [{id:'deleted'}] }); return this; }, delete() { this.deleting = true; return this; }, eq(key, value) { filters.push([key,value]); return this; }, order() { return this; },
-        maybeSingle: async () => ({ data: member ? { user_id: 'staff',is_admin:admin } : null }),
-        range: async () => ({ data: ['a1_invoices','a1_invoice_history'].includes(table) ? rows : table === 'a1_contacts' ? contactRows : table === 'a1_documents' ? documentRows : table === 'a1_import_conflicts' ? conflictRows : [] }) };
+      reads.push(table); const where={};
+      const query = { select() { if (this.deleting) return Promise.resolve({ data: [{id:'deleted'}] }); return this; }, delete() { this.deleting = true; return this; }, eq(key, value) { filters.push([key,value]); where[key]=value; return this; }, order() { return this; },
+        maybeSingle: async () => ({ data: table==='a1_account_profiles' ? {allowed_sections:allowedSections} : member ? { user_id: 'staff',is_admin:admin } : null }),
+        range: async () => { await beforeRead(table); return ({ data: ['a1_invoices','a1_invoice_history'].includes(table) ? rows : table === 'a1_contacts' ? contactRows.filter(row=>!where.kind||row.document.kind===where.kind) : table === 'a1_documents' ? documentRows.filter(row=>!where.kind||row.kind===where.kind) : table === 'a1_import_conflicts' ? conflictRows : [] }); } };
       return query;
     },
     rpc: async (name, args) => {
@@ -41,10 +42,10 @@ function harness({ member = true, admin = true, failSave = false, recoverySessio
   const window = { A1_SUPABASE_CONFIG: { url: 'https://test.supabase.co', publishableKey: 'public', adminAliases: { JAW: 'jaw@a1eei.com', JV: 'vollario@mac.com' }, passwordResetRedirect: 'https://a1dash.a1eei.com/reset-password.html' },
     supabase: { createClient: () => client }, dispatchEvent() {} };
   vm.runInNewContext(fs.readFileSync('a1-data.js','utf8'), { window, Event: class { constructor(type) { this.type = type; } }, sessionStorage: { getItem: key => session.get(key), setItem: (key, value) => session.set(key, value), removeItem: key => session.delete(key) }, localStorage: { getItem: key => storage.get(key) } });
-  return { data: window.A1Data, storage, args: () => savedArgs, loginArgs: () => loginArgs, resetArgs: () => resetArgs, updateArgs: () => updateArgs, authEvent: (event, value) => callback(event, value), calls, filters, session, window };
+  return { data: window.A1Data, storage, args: () => savedArgs, loginArgs: () => loginArgs, resetArgs: () => resetArgs, updateArgs: () => updateArgs, authEvent: (event, value) => callback(event, value), calls, filters, reads, session, window };
 }
 test('approved staff restore invoice history; callers cannot mutate the cache', async () => {
-  const { data } = harness(); await data.restore();
+  const { data } = harness(); await data.restore(); if(data.authenticated())await data.refresh();
   assert.equal(data.authenticated(), true);
   const invoice = data.invoices()[0]; invoice.number = 'bad';
   assert.equal(data.invoices()[0].number, '4100');
@@ -56,24 +57,24 @@ test('unapproved accounts cannot read or save invoices', async () => {
   await assert.rejects(data.save({ id: 'inv-new' }), /Sign in/);
 });
 test('failed cloud save preserves history and sends the expected version', async () => {
-  const { data, args } = harness({ failSave: true }); await data.restore();
+  const { data, args } = harness({ failSave: true }); await data.restore(); if(data.authenticated())await data.refresh();
   await assert.rejects(data.save({ id: 'inv-one', number: '4200' }), /stale edit/);
   assert.equal(args().p_expected_version, 3);
   assert.equal(data.invoices()[0].number, '4100');
 });
 test('new save updates in-memory history only after cloud success', async () => {
-  const { data, args } = harness(); await data.restore();
+  const { data, args } = harness(); await data.restore(); if(data.authenticated())await data.refresh();
   await data.save({ id: 'inv-new', number: '4101' });
   assert.equal(args().p_expected_version, null);
   assert.equal(data.invoices()[0].number, '4101');
 });
 test('sign out drops loaded invoices and blocks subsequent saves', async () => {
-  const { data } = harness(); await data.restore(); await data.logout();
+  const { data } = harness(); await data.restore(); if(data.authenticated())await data.refresh(); await data.logout();
   assert.equal(data.invoices().length, 0);
   await assert.rejects(data.save({ id: 'inv-new' }), /Sign in/);
 });
 test('legacy import reports conflicts and preserves the original browser backup', async () => {
-  const { data, storage, calls } = harness({ importResults: [{outcome:'conflict'}, {outcome:'imported'}] }); await data.restore();
+  const { data, storage, calls } = harness({ importResults: [{outcome:'conflict'}, {outcome:'imported'}] }); await data.restore(); if(data.authenticated())await data.refresh();
   const legacy = JSON.stringify([{ id: 'inv-one', number: 'OLD' }, { id: 'inv-new', number: '4101' }]);
   storage.set('a1vip-invoices-v1', legacy);
   const summary = await data.migrateLegacy();
@@ -108,12 +109,12 @@ test('forgot-password resolves JAW and uses the configured recovery page', async
   assert.equal(resetArgs().options.redirectTo, 'https://a1dash.a1eei.com/reset-password.html');
 });
 test('signed-in reset requests use the current account rather than caller input', async () => {
-  const { data, resetArgs } = harness(); await data.restore();
+  const { data, resetArgs } = harness(); await data.restore(); if(data.authenticated())await data.refresh();
   await data.requestPasswordReset('someone-else@example.com');
   assert.equal(resetArgs().email, 'staff@example.com');
 });
 test('password changes reauthenticate and update the password without changing email', async () => {
-  const { data, loginArgs, updateArgs } = harness(); await data.restore();
+  const { data, loginArgs, updateArgs } = harness(); await data.restore(); if(data.authenticated())await data.refresh();
   await data.updateAccount('current-password', 'new-password');
   assert.equal(loginArgs().email, 'staff@example.com');
   assert.equal(loginArgs().password, 'current-password');
@@ -142,7 +143,7 @@ test('an emailed recovery session does not restore ordinary dashboard access', a
   await assert.rejects(data.refresh(), /Choose your new password/);
 });
 test('recovery arriving in an already signed-in page clears invoice access', async () => {
-  const { data, authEvent } = harness(); await data.restore();
+  const { data, authEvent } = harness(); await data.restore(); if(data.authenticated())await data.refresh();
   authEvent('PASSWORD_RECOVERY', { user: { id: 'staff' } });
   assert.equal(data.authenticated(), false);
   assert.equal(data.invoices().length, 0);
@@ -153,7 +154,7 @@ test('reloading a pending recovery stays in password reset mode', async () => {
   assert.equal(data.recovering(), true);
 });
 test('the new password is submitted and recovery is cleared after success', async () => {
-  const { data, updateArgs, session } = harness({ recoverySession: true }); await data.restore();
+  const { data, updateArgs, session } = harness({ recoverySession: true }); await data.restore(); if(data.authenticated())await data.refresh();
   await data.finishPasswordReset('replacement-password');
   assert.equal(updateArgs().password, 'replacement-password');
   assert.equal(data.recovering(), false);
@@ -161,14 +162,14 @@ test('the new password is submitted and recovery is cleared after success', asyn
   assert.equal(session.has('a1vip-password-recovery'), false);
 });
 test('ordinary sessions cannot invoke recovery password updates', async () => {
-  const { data } = harness(); await data.restore();
+  const { data } = harness(); await data.restore(); if(data.authenticated())await data.refresh();
   await assert.rejects(data.finishPasswordReset('replacement-password'), /valid password reset link/);
 });
 
 test('letters and complete travel itineraries are loaded from the shared database', async () => {
   const trip = { id: 'itin-trip', hotelReservations:[{roomNumber:'123'}], rentalCars:[{company:'Example'}], flightDetails:[{flightNumber:'123'}] };
   const { data } = harness({ documentRows:[{kind:'letter',id:'letter-one',version:2,document:{id:'letter-one',body:'Saved letter'}},{kind:'itinerary',id:'itin-trip',version:3,document:trip}] });
-  await data.restore();
+  await data.restore(); if(data.authenticated())await data.refresh();
   assert.equal(data.documents('letter')[0].body, 'Saved letter');
   assert.equal(data.documents('itinerary')[0].hotelReservations[0].roomNumber, '123');
   const copy = data.documents('itinerary'); copy[0].flightDetails[0].flightNumber = 'changed';
@@ -176,21 +177,21 @@ test('letters and complete travel itineraries are loaded from the shared databas
 });
 test('saving a shared letter uses its loaded version and a failed save preserves history', async () => {
   const { data, args } = harness({ failSave:true, documentRows:[{kind:'letter',id:'letter-one',version:2,document:{id:'letter-one',body:'Original'}}] });
-  await data.restore();
+  await data.restore(); if(data.authenticated())await data.refresh();
   await assert.rejects(data.saveDocument('letter', {id:'letter-one',body:'Edited'}), /stale edit/);
   assert.equal(args().p_expected_version, 2);
   assert.equal(data.documents('letter')[0].body, 'Original');
 });
 test('document deletion includes both kind and loaded version', async () => {
   const { data, filters } = harness({ documentRows:[{kind:'itinerary',id:'itin-trip',version:4,document:{id:'itin-trip'}}] });
-  await data.restore(); await data.removeDocument('itinerary','itin-trip');
+  await data.restore(); if(data.authenticated())await data.refresh(); await data.removeDocument('itinerary','itin-trip');
   assert.ok(filters.some(([key,value]) => key==='kind' && value==='itinerary'));
   assert.ok(filters.some(([key,value]) => key==='version' && value===4));
   assert.equal(data.documents('itinerary').length, 0);
 });
 test('combined browser migration imports each category and continues past a failed record', async () => {
   const { data, storage, calls } = harness({ importResults:[{outcome:'imported'},{error:'Invalid record'},{outcome:'skipped'},{outcome:'imported',copied:true}] });
-  await data.restore();
+  await data.restore(); if(data.authenticated())await data.refresh();
   storage.set('a1vip-invoices-v1',JSON.stringify([{id:'inv-a',number:'1'},{id:'inv-b',number:'2'}]));
   storage.set('a1vip-form-letters-v1',JSON.stringify([{id:'letter-a',body:'body'}]));
   storage.set('a1vip-itineraries-v1',JSON.stringify([{id:'itin-a',flightDetails:[{flightNumber:'ABC'}]}]));
@@ -202,46 +203,46 @@ test('combined browser migration imports each category and continues past a fail
 });
 test('signout clears shared documents and imported conflicts', async () => {
   const { data } = harness({ documentRows:[{kind:'letter',id:'letter-a',version:1,document:{id:'letter-a'}}], conflictRows:[{kind:'invoice',source_hash:'abc',document:{id:'inv-a'}}] });
-  await data.restore(); await data.logout();
+  await data.restore(); if(data.authenticated())await data.refresh(); await data.logout();
   assert.equal(data.documents('letter').length,0); assert.equal(data.conflicts().length,0);
 });
 test('an editor keeps its original version even after history refreshes to a newer version', async () => {
   const { data, args } = harness({ documentRows:[{kind:'letter',id:'letter-a',version:5,document:{id:'letter-a',body:'New cloud version'}}] });
-  await data.restore();
+  await data.restore(); if(data.authenticated())await data.refresh();
   await data.saveDocument('letter',{id:'letter-a',body:'Earlier draft'},2);
   assert.equal(args().p_expected_version,2);
 });
 test('an explicit new-draft version does not turn into a cloud update', async () => {
-  const { data, args } = harness(); await data.restore();
+  const { data, args } = harness(); await data.restore(); if(data.authenticated())await data.refresh();
   await data.save({id:'inv-one',number:'4200'}, {}, null);
   assert.equal(args().p_expected_version,null);
 });
 
 test('shared imported contacts are copied and cleared on signout', async () => {
-  const {data}=harness({contactRows:[{document:{id:'123',kind:'vendor',displayName:'Example'}}]});await data.restore();
+  const {data}=harness({contactRows:[{document:{id:'123',kind:'vendor',displayName:'Example'}}]});await data.restore(); if(data.authenticated())await data.refresh();
   const c=data.contacts();assert.equal(c[0].displayName,'Example');c[0].displayName='Altered';assert.equal(data.contacts()[0].displayName,'Example');
   await data.logout();assert.equal(data.contacts().length,0);await assert.rejects(data.importSkybox([]),/Sign in/);
 });
 
 test('Skybox imports use batches of 50 and report progress without importing invalid previews', async () => {
- const {data,calls}=harness();await data.restore();const items=Array.from({length:51},(_,i)=>({kind:'vendor',sourceId:String(i+1),record:{},document:{},presets:{}}));const progress=[];
+ const {data,calls}=harness();await data.restore(); if(data.authenticated())await data.refresh();const items=Array.from({length:51},(_,i)=>({kind:'vendor',sourceId:String(i+1),record:{},document:{},presets:{}}));const progress=[];
  const result=await data.importSkybox(items,(done,total)=>progress.push([done,total]));assert.equal(result.imported,51);assert.deepEqual(progress,[[50,51],[51,51]]);
  assert.deepEqual(calls.filter(c=>c.name==='a1_import_skybox_batch').map(c=>c.args.p_items.length),[50,1]);
  await assert.rejects(data.importSkybox([{error:'bad data'}]),/blocked preview/);
 });
 
 test('new dashboard invoices receive their number from the database and return the saved document',async()=>{
- const {data,calls}=harness();await data.restore();const saved=await data.save({id:'inv-fresh',autoNumber:true,number:''},{},null);
+ const {data,calls}=harness();await data.restore(); if(data.authenticated())await data.refresh();const saved=await data.save({id:'inv-fresh',autoNumber:true,number:''},{},null);
  assert.equal(calls.at(-1).name,'a1_save_dashboard_invoice');assert.equal(saved.number,'4101');assert.equal(saved.numberAssignedByDB,true);assert.equal(data.invoices()[0].number,'4101');
  await data.save(saved,{},1);assert.equal(calls.at(-1).name,'a1_save_invoice');assert.equal(calls.at(-1).args.p_expected_version,1);
 });
 
 test('contact saves send the loaded version and update the shared picker cache only after success',async()=>{
- const {data,args}=harness({contactRows:[{document:{kind:'customer',id:'123',displayName:'Example',phone:'111'},version:2}]});await data.restore();assert.equal(data.contactVersion('customer','123'),2);
+ const {data,args}=harness({contactRows:[{document:{kind:'customer',id:'123',displayName:'Example',phone:'111'},version:2}]});await data.restore(); if(data.authenticated())await data.refresh();assert.equal(data.contactVersion('customer','123'),2);
  await data.saveContact('customer','123',{phone:'222'},2);assert.equal(args().p_expected_version,2);assert.equal(data.contacts()[0].phone,'222');assert.equal(data.contactVersion('customer','123'),4);await data.logout();assert.equal(data.contactVersion('customer','123'),0);
 });
 test('failed contact saves leave the shared contact unchanged',async()=>{
- const {data}=harness({failSave:true,contactRows:[{document:{kind:'customer',id:'123',displayName:'Example',phone:'111'},version:2}]});await data.restore();await assert.rejects(data.saveContact('customer','123',{phone:'222'},2),/stale edit/);assert.equal(data.contacts()[0].phone,'111');assert.equal(data.contactVersion('customer','123'),2);
+ const {data}=harness({failSave:true,contactRows:[{document:{kind:'customer',id:'123',displayName:'Example',phone:'111'},version:2}]});await data.restore(); if(data.authenticated())await data.refresh();await assert.rejects(data.saveContact('customer','123',{phone:'222'},2),/stale edit/);assert.equal(data.contacts()[0].phone,'111');assert.equal(data.contactVersion('customer','123'),2);
 });
 
 test('header account identity resolves aliases only after staff authentication and clears on signout',async()=>{
@@ -254,7 +255,7 @@ test('admin access comes from the protected staff role, not the JAW/JV display a
 
 
 test('shared link saves use an admin session and an explicit cloud version',async()=>{
- const {data,args}=harness();await data.restore();const saved=await data.saveButtonLayout({added:{main:[{label:'Example',url:'https://example.invalid'}]},removed:{},cloudVersion:3,pendingMoves:['local only']});assert.equal(args().p_expected_version,3);assert.equal(saved.cloudVersion,4);assert.equal(args().p_state.pendingMoves,undefined);await assert.rejects(data.saveButtonLayout({added:{},removed:{}}),/Refresh links/);await data.logout();await assert.rejects(data.saveButtonLayout({cloudVersion:4}),/Sign in/);
+ const {data,args}=harness();await data.restore(); if(data.authenticated())await data.refresh();const saved=await data.saveButtonLayout({added:{main:[{label:'Example',url:'https://example.invalid'}]},removed:{},cloudVersion:3,pendingMoves:['local only']});assert.equal(args().p_expected_version,3);assert.equal(saved.cloudVersion,4);assert.equal(args().p_state.pendingMoves,undefined);await assert.rejects(data.saveButtonLayout({added:{},removed:{}}),/Refresh links/);await data.logout();await assert.rejects(data.saveButtonLayout({cloudVersion:4}),/Sign in/);
 });
 test('regular staff cannot save shared links even when using the JV alias',async()=>{
  const {data,calls}=harness({admin:false});await data.login('JV','test');await assert.rejects(data.saveButtonLayout({cloudVersion:1}),/Administrator/);assert.equal(calls.filter(x=>x.name==='a1_save_button_layout').length,0);
@@ -271,5 +272,50 @@ for (const name of ['user1','user2']) test(name+' username resolves without gran
 });
 
 test('admin layout setup includes disabled accounts so they can be prepared before restoring access',async()=>{
- const {data}=harness();await data.restore();const users=await data.preferenceUsers();assert.equal(users.length,2);assert.equal(users[1].user_id,'disabled-staff');
+ const {data}=harness();await data.restore(); if(data.authenticated())await data.refresh();const users=await data.preferenceUsers();assert.equal(users.length,2);assert.equal(users[1].user_id,'disabled-staff');
+});
+
+
+test('login and session restore read only membership and profile, even when shared records are unavailable', async()=>{
+  for(const action of ['restore','login']){
+    const {data,reads}=harness({beforeRead:async()=>{throw new Error('Shared records offline');}});
+    if(action==='restore')await data.restore();else await data.login('JAW','password');
+    assert.equal(data.authenticated(),true);
+    assert.deepEqual(reads,['a1_staff','a1_account_profiles']);
+    assert.equal(data.invoices().length,0);assert.equal(data.contacts().length,0);
+  }
+});
+test('opening letters fetches letters and editor contacts, without invoices, trips or admin conflicts',async()=>{
+  const {data,reads,filters}=harness({documentRows:[{kind:'letter',id:'letter-one',version:2,document:{id:'letter-one'}}]});
+  await data.restore();reads.length=0;
+  await data.loadSection('formLetter');
+  assert.equal(data.documents('letter').length,1);
+  assert.equal(reads.includes('a1_invoice_history'),false);assert.equal(reads.includes('a1_import_conflicts'),false);
+  assert.equal(filters.some(([key,value])=>key==='kind'&&value==='itinerary'),false);
+  const count=reads.length;await data.loadSection('formLetter');assert.equal(reads.length,count);
+  await data.loadSection('formLetter',true);assert.ok(reads.length>count);
+});
+test('contact sections load independently and concurrent openings share one request',async()=>{
+  const {data,reads}=harness({contactRows:[{document:{id:'c',kind:'customer'},version:2},{document:{id:'v',kind:'vendor'},version:3}]});
+  await data.restore();reads.length=0;
+  await Promise.all([data.loadSection('customers'),data.loadSection('customers')]);
+  assert.deepEqual(reads,['a1_contacts']);assert.equal(data.contacts().length,1);
+  await data.loadSection('vendors');assert.equal(data.contacts().length,2);
+});
+test('failed section requests are retryable without ending the session',async()=>{
+  let fail=true;const {data}=harness({beforeRead:async()=>{if(fail)throw new Error('Offline');}});
+  await data.restore();await assert.rejects(data.loadSection('customers'),/Offline/);
+  assert.equal(data.authenticated(),true);fail=false;await data.loadSection('customers');
+});
+test('late section responses after signout cannot repopulate session records',async()=>{
+  let release;const gate=new Promise(resolve=>release=resolve);
+  const {data}=harness({contactRows:[{document:{kind:'customer',id:'c'},version:1}],beforeRead:()=>gate});
+  await data.restore();const pending=data.loadSection('customers');await data.logout();release();
+  await assert.rejects(pending,/Session changed/);assert.equal(data.contacts().length,0);
+});
+test('disabled categories are not fetched for an editor or direct section request',async()=>{
+  const {data,reads}=harness({admin:false,allowedSections:['invoices']});
+  await data.restore();reads.length=0;await data.loadSection('invoices');
+  assert.equal(reads.includes('a1_contacts'),false);
+  await assert.rejects(data.loadSection('customers'),/not enabled/);
 });

@@ -10,9 +10,9 @@
     try { sessionStorage.removeItem(RECOVERY_KEY); } catch {}
   }
   function beginRecovery(id) {
+    resetSharedData();
     recoveryUserId = id;
-    ready = false; admin=false; invoices = []; presets = {}; versions.clear();
-    documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; contacts = []; contactVersions.clear();
+    ready = false; admin=false;
     try { sessionStorage.setItem(RECOVERY_KEY, id); } catch {}
     window.dispatchEvent(new Event('a1-password-recovery'));
   }
@@ -49,66 +49,86 @@
     });
     return client;
   }
-  function clear() { user = null; ready = false; admin=false; invoices = []; presets = {}; versions.clear();
-    documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; contacts = []; contactVersions.clear(); }
+  function clear() { resetSharedData(); user = null; ready = false; admin=false; }
   function requireReady() {
     if(window.A1Activity?.expired())throw new Error('Session ended after inactivity. Sign in again.');
     if (!user || !ready || recoveryUserId) throw new Error('Sign in and load Supabase invoices before saving.');
     return client;
   }
-  async function refresh() {
+  // Shared records stay in memory only for this signed-in session.
+  let dataEpoch = 0;
+  const loadedResources = new Set(), pendingResources = new Map();
+  function resetSharedData() {
+    dataEpoch++; loadedResources.clear(); pendingResources.clear();
+    invoices=[]; presets={}; versions.clear(); contacts=[]; contactVersions.clear();
+    documents={letter:[],itinerary:[]}; documentVersions.clear(); conflicts=[];
+  }
+  const resourceSection={invoices:'invoices',letter:'formLetter',itinerary:'tripItinerary',customer:'customers',vendor:'vendors',conflicts:'admin'};
+  async function readPages(table,columns,filter,orders) {
+    const rows=[];
+    for(let offset=0;;offset+=500){
+      let query=client.from(table).select(columns);
+      if(filter)query=query.eq(...filter);
+      for(const field of orders)query=query.order(field);
+      const page=check(await query.range(offset,offset+499));rows.push(...page);
+      if(page.length<500)return rows;
+    }
+  }
+  async function loadResource(resource,force=false) {
+    requireReady();
+    if(!canAccess(resourceSection[resource]))return;
+    if(pendingResources.has(resource))return pendingResources.get(resource);
+    if(!force&&loadedResources.has(resource))return;
+    const identity=user.id, epoch=dataEpoch;
+    const task=(async()=>{
+      let rows,values;
+      if(resource==='invoices'){
+        [rows,values]=await Promise.all([
+          readPages('a1_invoice_history','id,document,version,origin',null,['id']),
+          readPages('a1_invoice_presets','category,value',null,['category','value'])
+        ]);
+      }else if(resource==='conflicts')rows=await readPages('a1_import_conflicts','kind,source_hash,document,reason',null,['kind','source_hash']);
+      else if(['customer','vendor'].includes(resource))rows=await readPages('a1_contacts','document,version',['kind',resource],['id']);
+      else rows=await readPages('a1_documents','kind,id,document,version',['kind',resource],['id']);
+      if(user?.id!==identity||epoch!==dataEpoch||recoveryUserId)throw new Error('Session changed. Open the section again.');
+      requireReady();
+      if(resource==='invoices'){
+        invoices=rows.map(row=>row.document);versions=new Map(rows.map(row=>[row.id,row.version]));presets={};
+        for(const row of values)(presets[row.category]||=[]).push(row.value);
+      }else if(resource==='conflicts')conflicts=rows;
+      else if(['customer','vendor'].includes(resource)){
+        contacts=[...contacts.filter(row=>row.kind!==resource),...rows.map(row=>row.document)];
+        for(const key of contactVersions.keys())if(key.startsWith(resource+':'))contactVersions.delete(key);
+        for(const row of rows)contactVersions.set(resource+':'+row.document.id,row.version||0);
+      }else{
+        documents[resource]=rows.map(row=>row.document);
+        for(const key of documentVersions.keys())if(key.startsWith(resource+':'))documentVersions.delete(key);
+        for(const row of rows)documentVersions.set(resource+':'+row.id,row.version);
+      }
+      loadedResources.add(resource);
+    })();
+    pendingResources.set(resource,task);
+    try{await task;}finally{if(pendingResources.get(resource)===task)pendingResources.delete(resource);}
+  }
+  async function loadSection(section,force=false) {
+    requireReady();
+    if(!canAccess(section))throw new Error('Your administrator has not enabled this category.');
+    const resources={invoices:['invoices','customer','vendor'],purchases:['invoices','customer','vendor'],formLetter:['letter','customer','vendor'],tripItinerary:['itinerary','customer','vendor'],customers:['customer'],vendors:['vendor'],admin:['conflicts','customer','vendor']}[section]||[];
+    await Promise.all(resources.map(resource=>loadResource(resource,force)));
+  }
+  async function refresh(mode='all') {
     if (recoveryUserId) throw new Error('Choose your new password before accessing invoices.');
     if (!user) throw new Error('Please sign in first.');
-    const identity = user.id;
-    const member = check(await client.from('a1_staff').select('user_id,is_admin').eq('user_id', identity).maybeSingle());
-    if (!member) { clear(); throw new Error('This account has not been approved for the A1 Dashboard.'); }
+    const identity=user.id,epoch=dataEpoch;
+    const member=check(await client.from('a1_staff').select('user_id,is_admin').eq('user_id',identity).maybeSingle());
+    if(user?.id!==identity||epoch!==dataEpoch)throw new Error('Session changed. Sign in again.');
+    if(!member){clear();throw new Error('This account has not been approved for the A1 Dashboard.');}
     const profile=check(await client.from('a1_account_profiles').select('allowed_sections,blocked_links,display_name').eq('user_id',identity).maybeSingle());
-    accountAccess={allowed_sections:profile?.allowed_sections||null,blocked_links:profile?.blocked_links||[],display_name:profile?.display_name||''};
-    const rows = [];
-    for (let offset = 0; ; offset += 500) {
-      const page = check(await client.from('a1_invoice_history').select('id,document,version,origin').order('id').range(offset, offset + 499));
-      rows.push(...page);
-      if (page.length < 500) break;
-    }
-    const values = [];
-    for (let offset = 0; ; offset += 500) {
-      const page = check(await client.from('a1_invoice_presets').select('category,value').order('category').order('value').range(offset, offset + 499));
-      values.push(...page);
-      if (page.length < 500) break;
-    }
-    const docRows = [], conflictRows = [];
-    for (let offset = 0; ; offset += 500) {
-      const page = check(await client.from('a1_documents').select('kind,id,document,version').order('kind').order('id').range(offset, offset + 499));
-      docRows.push(...page);
-      if (page.length < 500) break;
-    }
-    for (let offset = 0; ; offset += 500) {
-      const page = check(await client.from('a1_import_conflicts').select('kind,source_hash,document,reason').order('kind').order('source_hash').range(offset, offset + 499));
-      conflictRows.push(...page);
-      if (page.length < 500) break;
-    }
-    const contactRows = [];
-    for (const kind of ['customer','vendor']) for (let offset = 0; ; offset += 500) {
-      const page = check(await client.from('a1_contacts').select('document,version').eq('kind',kind).order('id').range(offset,offset+499));
-      contactRows.push(...page);
-      if (page.length < 500) break;
-    }
-    if (user?.id !== identity || recoveryUserId) throw new Error('Session changed. Sign in again.');
-    admin = member.is_admin===true;
-    contacts = contactRows.map(row=>row.document);
-    contactVersions = new Map(contactRows.map(row=>[row.document.kind+':'+row.document.id,row.version||0]));
-    invoices = rows.map(row => row.document);
-    versions = new Map(rows.map(row => [row.id, row.version]));
-    presets = {};
-    for (const row of values) (presets[row.category] ||= []).push(row.value);
-    documents = { letter: [], itinerary: [] };
-    documentVersions = new Map();
-    for (const row of docRows) {
-      documents[row.kind].push(row.document);
-      documentVersions.set(row.kind + ':' + row.id, row.version);
-    }
-    conflicts = conflictRows;
-    ready = true;
+    if(user?.id!==identity||epoch!==dataEpoch||recoveryUserId)throw new Error('Session changed. Sign in again.');
+    const next={allowed_sections:profile?.allowed_sections||null,blocked_links:profile?.blocked_links||[],display_name:profile?.display_name||''};
+    if(JSON.stringify(next)!==JSON.stringify(accountAccess)||admin!==(member.is_admin===true))resetSharedData();
+    accountAccess=next;admin=member.is_admin===true;ready=true;
+    if(mode!=='auth')await Promise.all(Object.keys(resourceSection).map(resource=>loadResource(resource,true)));
   }
   async function restore() {
     clear();
@@ -122,7 +142,7 @@
     endRecovery();
     window.dispatchEvent(new Event('a1-restoring-session'));
     await window.A1Activity?.start(user.id);
-    await refresh();
+    await refresh('auth');
     return true;
   }
   function loginEmail(identifier) {
@@ -147,12 +167,12 @@
       if(result.error||!result.data?.session)throw new Error('Invalid username or password.');
       const data=check(await client.auth.setSession({access_token:result.data.session.access_token,refresh_token:result.data.session.refresh_token}));
       user=data.user;
-      try{await window.A1Activity?.start(user.id);await refresh();}catch(error){await client.auth.signOut({scope:'local'});clear();throw error;}
+      try{await window.A1Activity?.start(user.id);await refresh('auth');}catch(error){await client.auth.signOut({scope:'local'});clear();throw error;}
       return;
     }
     const data = check(await connect().auth.signInWithPassword({ email, password }));
     user = data.user;
-    try { await window.A1Activity?.start(user.id); await refresh(); } catch (error) { await client.auth.signOut(); clear(); throw error; }
+    try { await window.A1Activity?.start(user.id); await refresh('auth'); } catch (error) { await client.auth.signOut(); clear(); throw error; }
   }
   async function save(document, presetValues = {}, expectedVersion = undefined) {
     const c = requireReady(), identity = user.id;
@@ -353,7 +373,7 @@
     if(user?.id!==identity)return;
     const next={allowed_sections:profile?.allowed_sections||null,blocked_links:profile?.blocked_links||[],display_name:profile?.display_name||''};
     if(JSON.stringify(next)!==JSON.stringify(accountAccess)||admin!==(member.is_admin===true)){
-      await refresh();window.dispatchEvent(new Event('a1-access-changed'));
+      await refresh('auth');window.dispatchEvent(new Event('a1-access-changed'));
     }
   }
   async function accountAction(body){
@@ -367,7 +387,7 @@
     return result.data;
   }
   window.A1Data = {
-    canAccess, refreshAccess, linkBlocked, blockedLinks:()=>copy(accountAccess.blocked_links),
+    loadSection, canAccess, refreshAccess, linkBlocked, blockedLinks:()=>copy(accountAccess.blocked_links),
     listAccounts:async()=>check(await requireAdmin().rpc('a1_list_accounts')),
     accountAction,
     accountPermissions:async id=>check(await requireAdmin().from('a1_account_profiles').select('allowed_sections,blocked_links,admin_role').eq('user_id',id).single()),
