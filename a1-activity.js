@@ -186,7 +186,10 @@
   function openSite(url,label){
     if(!A1Data.authenticated()||!validUrl(url))return;
     closeSite();
-    const u=new URL(url),dialog=document.getElementById('websiteViewer');
+    const u=new URL(url);
+    // Trade Desk blocks embedded viewing. Keep this exception limited to its exact host.
+    if(u.hostname.toLowerCase()==='tradedesk.ticketmaster.com'){window.open(u.href,'_blank','noopener,noreferrer');return;}
+    const dialog=document.getElementById('websiteViewer');
     document.getElementById('websiteViewerTitle').textContent=label||u.hostname;
     // Only the host and label are logged; query strings may contain private tokens.
     view={id:crypto.randomUUID(),host:u.host,label:label||u.hostname,ms:0,visibleAt:Date.now(),pending:Promise.resolve()};

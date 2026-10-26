@@ -38,3 +38,10 @@ for(const admin of [true,false])test(`${admin?'admin':'regular user'} website li
 });
 
 test('admin inactivity never triggers logout, including input after sleep',async()=>{const h=harness(true);await h.activity.start('admin');h.advance(24*60*60*1000);await h.tick();h.listeners.keydown({isTrusted:true});await h.tick();assert.equal(h.loggedOut(),0);assert.equal(h.activity.expired(),false);});
+test('Trade Desk alone opens outside for regular users, without starting an embedded view',()=>{
+ const opened=[],records=[],events={},frame={src:''},dialog={close(){},showModal(){this.shown=true;}};
+ const window={addEventListener(){},open:(...args)=>opened.push(args)},document={hasFocus:()=>true,getElementById:id=>id==='websiteFrame'?frame:id==='websiteViewer'?dialog:{textContent:''},addEventListener:(k,fn)=>events[k]=fn};
+ vm.runInNewContext(fs.readFileSync('a1-activity.js','utf8'),{window,document,A1Data:{authenticated:()=>true,recordWebsite:a=>records.push(a)},URL,console,crypto:{randomUUID:()=> 'fixture'},setInterval:()=>1,clearInterval(){}});
+ window.A1Activity.openSite('https://tradedesk.ticketmaster.com/orders','Trade Desk');assert.equal(opened.length,1);assert.equal(opened[0][0],'https://tradedesk.ticketmaster.com/orders');assert.equal(dialog.shown,undefined);assert.equal(records.length,0);
+ window.A1Activity.openSite('https://tradedesk.ticketmaster.com.other.example/','Other');assert.equal(opened.length,1);assert.equal(dialog.shown,true);assert.equal(frame.src,'https://tradedesk.ticketmaster.com.other.example/');
+});
