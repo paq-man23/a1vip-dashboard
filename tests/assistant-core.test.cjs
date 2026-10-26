@@ -43,3 +43,11 @@ test('voice phonetics generalizes across names while preserving typed exact matc
  }
  const rows=[{firstName:'John',notes:'Sonia'}];assert.equal(matches(rows,'Sonya',['firstName','notes'],{voice:true}).length,0);
 });
+test('bare and conversational task requests never become dashboard searches',()=>{
+ for(const text of ['Add a button','add button','Add a new button','please add a button','Can you add a button'])assert.equal(intent(text).type,'startButton',text);
+ assert.deepEqual(intent('add a button in main'),{type:'startButton',website:'',category:'main'});
+ assert.equal(intent('add a button for example.com').website,'example.com');
+ assert.deepEqual(intent('move a button'),{type:'guide',topic:'move'});
+});
+
+test("polite complete button commands retain website and category",()=>{const r=intent("Can you add a button for example.com in main");assert.equal(r.type,"addButton");assert.equal(r.website,"example.com");assert.equal(r.category,"main");});

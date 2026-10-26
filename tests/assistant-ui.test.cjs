@@ -63,3 +63,15 @@ test('internal text search never calls the external AI adapter',async()=>{
 test('internal guidance works without any AI service',async()=>{
  const h=harness();await h.submit('how do I move buttons?');assert.match(h.text(),/Confirm the move/);assert.equal(h.loads.length,0);
 });
+test('Add a button starts a guided website/category dialogue without contact searches',async()=>{
+ const h=harness();await h.submit('Add a button');assert.match(h.text(),/what website/);assert.deepEqual(h.loads,[]);
+ await h.submit('example.com');assert.match(h.text(),/Which category/);assert.deepEqual(h.loads,[]);
+ await h.submit('main');assert.match(h.text(),/Add this button/);assert.match(h.text(),/https:\/\/example.com\//);assert.deepEqual(h.loads,[]);assert.equal(h.opened.length,0);
+});
+test('incomplete button requests keep the requested category and support cancellation',async()=>{
+ const h=harness();await h.submit('add a button in main');await h.submit('example.com');assert.match(h.text(),/Add this button/);assert.deepEqual(h.loads,[]);
+ await h.submit('add a button');await h.submit('cancel');assert.match(h.log.children.at(-1).textContent,/Cancelled/);
+});
+test('vague action requests do not load customer records as a search fallback',async()=>{
+ const h=harness();await h.submit('rename a button');assert.deepEqual(h.loads,[]);assert.doesNotMatch(h.text(),/No matching dashboard/);
+});

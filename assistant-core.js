@@ -39,7 +39,12 @@
   let m;
   const topic=guideTopic(raw);if(topic)return {type:'guide',topic};
   if(/^(hi|hello|hey|good morning|good afternoon|good evening)(?:[ ,]+al)?$/i.test(raw))return {type:'greeting'};
-  if((m=raw.match(/^(?:please\s+)?add\s+(?:a\s+)?button(?:\s+(?:called|named)\s+["“]([^"”]+)["”])?\s+for\s+(.+?)\s+(?:in|to)\s+["“]?([^"”]+?)["”]?$/i)))return {type:'addButton',label:m[1]||'',website:m[2].replace(/^["“]|["”]$/g,''),category:m[3].trim()};
+  const conversational=raw.replace(/^(?:please\s+|(?:can|could|would) you\s+|i(?:’|')?d like to\s+|i want to\s+)/i,'');
+  if((m=conversational.match(/^(?:add|create|make)\s+(?:a\s+)?button(?:\s+(?:called|named)\s+["“]([^"”]+)["”])?\s+for\s+(.+?)\s+(?:in|to)\s+["“]?([^"”]+?)["”]?$/i)))return {type:'addButton',label:m[1]||'',website:m[2].replace(/^["“]|["”]$/g,''),category:m[3].trim()};
+  if((m=conversational.match(/^(?:add|create|make)\s+(?:a\s+)?(?:new\s+)?(?:button|website link)(?:\s+(?:in|to)\s+["“]?([^"”]+?)["”]?)?$/i)))return {type:'startButton',website:'',category:(m[1]||'').trim()};
+  if((m=conversational.match(/^(?:add|create|make)\s+(?:a\s+)?(?:new\s+)?button\s+for\s+(.+)$/i)))return {type:'startButton',website:m[1].replace(/^["“]|["”]$/g,''),category:''};
+  if(/^(?:move|reorder|drag)\s+(?:a\s+|the\s+)?(?:button|link)s?$/i.test(conversational))return {type:'guide',topic:'move'};
+  if(/^(?:hide|remove)\s+(?:a\s+|the\s+)?(?:button|link)s?$/i.test(conversational))return {type:'guide',topic:'hide'};
   if(/^(cancel|stop|reset|start over)$/i.test(raw))return {type:'cancel'};
   if((m=raw.match(/(?:create|make|start|new|prepare)\s+(?:a\s+|an\s+)?(?:new\s+)?(invoice|purchase order|po)(?:\s+(?:for|with)\s+(.+))?$/i)))return {type:'draft',purchase:!/^invoice$/i.test(m[1]),query:(m[2]||'').trim()};
   if((m=raw.match(/^(?:(?:find|search(?: for)?|look\s*up|show(?: me)?)\s+)?(?:a\s+|the\s+)?(customers?|vendors?|contacts?|invoices?|purchase orders?|trips?|itinerar(?:y|ies)|letters?|links?)\s*(?:named\s+|called\s+|for\s+|#\s*)?(.*)$/i))){

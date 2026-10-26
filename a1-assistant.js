@@ -115,14 +115,34 @@
    message('Added '+saved.label+' to '+category+'.');
   });
  }
+ const linkCategories=[['main','Main Links'],['luxury','Suites'],['accounts','Ticket Accounts'],['travel','Travel'],['social','Social'],['privatejet','Private Jet'],['luxhomes','Luxury Homes'],['yachts','Yachts'],['domains','Domains']];
+ function startButton(request){
+  if(!linkCategories.some(([id])=>allowed(id)))throw new Error('Your administrator has not enabled a link category for your account.');
+  waiting={type:'buttonWizard',website:'',category:request.category||''};
+  if(request.website){continueButton(request.website);return;}
+  message('Sure — what website should the new button open? Paste its address, such as example.com.');
+ }
+ function continueButton(text){
+  const draft=waiting;
+  if(!draft.website){
+   let item;try{item=window.A1AssistantActions.proposal({website:text,category:'main'});}catch(error){message(error.message+' What website should I use?');return;}
+   draft.website=item.url;
+   if(!draft.category){message('Got it. Which category should I put it in? '+linkCategories.filter(([id])=>allowed(id)).map(([,label])=>label).join(', ')+'.');return;}
+  }else draft.category=text.replace(/^["“]|["”]$/g,'').trim();
+  try{const request={website:draft.website,category:draft.category};const item=window.A1AssistantActions.proposal(request);requireAccess(item.section);proposeButton(request);waiting=null;}
+  catch(error){draft.category='';message(error.message+' Choose an enabled category for this button.');}
+ }
  async function ask(text,voice=false){
   text=String(text||'').trim().slice(0,600);if(!text||!A1Data.authenticated())return;
   const token=epoch;message(text,true);let request=core.intent(text);
+  if(request.type==='startButton'){startButton(request);return;}
+  if(waiting?.type==='buttonWizard'&&request.type==='unknown'){continueButton(text);return;}
   if(request.type==='guide'){waiting=null;message(core.guidance(request.topic,{admin:A1Data.isAdmin(),canAccess:allowed,vision:document.body.classList.contains('a1-vision')}));return;}
   if(request.type==='greeting'){greet();return;}
   if(request.type==='addButton'){waiting=null;proposeButton(request);return;}
   if(request.type==='cancel'){waiting=null;message('Cancelled. No changes were saved.');return;}
-  if(request.type==='unknown'&&waiting)request={...waiting,query:text};
+  if(request.type==='unknown'&&waiting&&waiting.type!=='buttonWizard')request={...waiting,query:text};
+  if(request.type==='unknown'&&/^(?:add|create|make|move|remove|delete|rename|change|update)\b/i.test(text)){message('I can help you add or move a button, or prepare an invoice. Tell me which task you want help with—for example, “add a button” or “how do I move a button?”');return;}
   request.voice=voice;
   if(request.type==='help'){help();return;}
   if(request.type==='unknown')request={type:'global',query:request.query,voice};
