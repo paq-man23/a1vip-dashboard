@@ -360,6 +360,7 @@
   <!-- Login Screen -->
   <div id="loginScreen" class="login-screen" style="display:flex;">
     <div class="login-card">
+      <p id="activityMonitoringNotice" style="font-size:13px;color:#cbd5e1;">This site is monitored for activity.</p>
       <div id="sessionLoadingPanel" role="status" aria-live="polite"><h2>A1 VIP Dashboard</h2><p id="sessionLoadingMessage">Checking your saved sign-in…</p></div>
       <form id="normalLoginPanel" style="display:none;" onsubmit="event.preventDefault();handleLogin()">
       <h2>A1 VIP Login</h2>
@@ -423,7 +424,7 @@
   </dialog>
   <dialog id="websiteViewer" style="width:96vw;max-width:none;height:92vh;max-height:96vh;padding:8px;background:#111827;color:#e5e7eb;border:1px solid #64748b;border-radius:12px;">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><strong id="websiteViewerTitle"></strong><button class="btn" type="button" onclick="A1Activity.closeSite()">Close Website</button></div>
-    <p style="font-size:13px;">This website is shown inside your dashboard. Your administrator can view panel viewing time. Some providers block embedded viewing; a blank page or refusal message means this site may not support it. Activity inside the website may not reset your 20-minute dashboard inactivity timer.</p>
+    <p style="font-size:13px;">Some websites do not support opening inside the dashboard.</p>
     <iframe id="websiteFrame" title="Website inside dashboard" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-modals" style="width:100%;height:calc(100% - 130px);border:0;background:white;"></iframe>
   </dialog>
   <header>
