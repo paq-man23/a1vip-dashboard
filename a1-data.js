@@ -51,6 +51,7 @@
   function clear() { user = null; ready = false; admin=false; invoices = []; presets = {}; versions.clear();
     documents = { letter: [], itinerary: [] }; documentVersions.clear(); conflicts = []; contacts = []; contactVersions.clear(); }
   function requireReady() {
+    if(window.A1Activity?.expired())throw new Error('Session ended after inactivity. Sign in again.');
     if (!user || !ready || recoveryUserId) throw new Error('Sign in and load Supabase invoices before saving.');
     return client;
   }
@@ -117,6 +118,7 @@
     if (recoveryUserId === user.id) { beginRecovery(user.id); return false; }
     endRecovery();
     window.dispatchEvent(new Event('a1-restoring-session'));
+    await window.A1Activity?.start(user.id);
     await refresh();
     return true;
   }
@@ -124,7 +126,7 @@
     const config = window.A1_SUPABASE_CONFIG || {};
     let email = String(identifier || '').trim();
     if (!email.includes('@')) {
-      const aliases = config.adminAliases || { [config.adminUsername || 'JAW']: config.adminEmail };
+      const aliases = { ...(config.adminAliases || { [config.adminUsername || 'JAW']: config.adminEmail }), ...(config.userAliases || {}) };
       const entry = Object.entries(aliases).find(([username]) => username.toLowerCase() === email.toLowerCase());
       if (!entry) throw new Error('Invalid username or password.');
       if (!entry[1]) throw new Error('This Supabase account still needs to be configured.');
@@ -138,7 +140,7 @@
     const email = loginEmail(identifier);
     const data = check(await connect().auth.signInWithPassword({ email, password }));
     user = data.user;
-    try { await refresh(); } catch (error) { await client.auth.signOut(); clear(); throw error; }
+    try { await window.A1Activity?.start(user.id); await refresh(); } catch (error) { await client.auth.signOut(); clear(); throw error; }
   }
   async function save(document, presetValues = {}, expectedVersion = undefined) {
     const c = requireReady(), identity = user.id;
@@ -199,6 +201,7 @@
   async function updateAccount(currentPassword, password) {
     requireReady();
     check(await client.auth.signInWithPassword({ email: user.email, password: currentPassword }));
+    await window.A1Activity?.start(user.id);
     check(await client.auth.updateUser({ password }));
   }
   async function finishPasswordReset(password) {
@@ -318,6 +321,13 @@
   }
   window.A1Data = {
     fetchButtonLayout,saveButtonLayout,
+    activitySession: async action => check(await connect().rpc('a1_activity_session', {p_action:action})),
+    fetchActivity: async () => check(await requireAdmin().from('a1_activity_sessions').select('id,user_id,display_name,started_at,last_active_at,ended_at,end_reason').order('started_at',{ascending:false}).limit(500)),
+    recordWebsite: async args => check(await connect().rpc('a1_website_view',args)),
+    fetchWebsiteViews: async () => check(await requireAdmin().from('a1_website_views').select('id,display_name,site_host,label,started_at,ended_at,visible_seconds').order('started_at',{ascending:false}).limit(500)),
+    preferenceUsers: async () => check(await requireAdmin().rpc('a1_preference_users')),
+    fetchPreferences: async target => { const c=target?requireAdmin():requireReady(); const row=check(await c.from('a1_user_preferences').select('hidden_buttons,added_links').eq('user_id',target||user.id).maybeSingle()); return {hidden_buttons:row?.hidden_buttons||[],added_links:row?.added_links||[]}; },
+    savePreferences: async (state,target) => { const c=target?requireAdmin():requireReady(); check(await c.from('a1_user_preferences').upsert({user_id:target||user.id,hidden_buttons:state.hidden_buttons,added_links:state.added_links})); },
     fetchSyncRuns: async () => { const c=requireAdmin(); return check(await c.from('a1_skybox_sync_runs').select('machine_label,started_at,finished_at,status,summary').order('started_at',{ascending:false}).limit(5)); },
     isAdmin: () => !!user && ready && admin && !recoveryUserId,
     importSkybox, contacts: () => copy(contacts), saveContact, uploadContactPhoto, contactPhotoUrl, removeContactPhoto,
@@ -327,7 +337,17 @@
     version: (kind, id) => kind === 'invoice' ? (versions.get(id) ?? null) : (documentVersions.get(kind + ':' + id) ?? null),
     documents: kind => { validKind(kind); return copy(documents[kind]); },
     conflicts: () => copy(conflicts),
-    logout: async () => { const c = connect(); check(await c.auth.signOut()); endRecovery(); clear(); },
+    logout: async (reason = 'logout') => {
+      const c=connect();
+      try { await window.A1Activity?.finishSite?.(); if(user&&!recoveryUserId) await c.rpc('a1_activity_session',{p_action:reason==='idle'?'idle':'logout'}); }
+      finally {
+        // Lock and drop loaded data even if the network cannot revoke the session.
+        // A persisted expired timer also prevents restoring it after a reload.
+        window.A1Activity?.stop(); endRecovery(); clear();
+        window.dispatchEvent(new Event('a1-signed-out'));
+        check(await c.auth.signOut({scope:'local'}));
+      }
+    },
     recovering: () => !!recoveryUserId,
     account: () => {
       if(!user||!ready||recoveryUserId)return null;

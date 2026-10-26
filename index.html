@@ -396,6 +396,23 @@
     </div>
   </div>
 
+  <dialog id="personalButtons" style="max-width:620px;width:90%;max-height:80vh;overflow:auto;background:#111827;color:#e5e7eb;border:1px solid #64748b;border-radius:12px;">
+    <h3>My Visible Buttons</h3><p>Choose the links shown on your dashboard. These choices apply only to your account and do not change access permissions.</p>
+    <label id="preferenceUserLabel" hidden>User <select id="preferenceUser" onchange="A1Activity.changePreferenceUser()"></select></label>
+    <div id="personalButtonList"></div>
+    <h4>Add a Personal Web Link</h4>
+    <label>Button name <input id="personalLinkLabel" maxlength="100"></label>
+    <label>Website address <input id="personalLinkUrl" type="url" placeholder="https://example.com"></label>
+    <button class="btn" type="button" onclick="A1Activity.addPersonalLink()">Add Web Link</button>
+    <div id="personalAddedList"></div><p id="personalButtonMessage" role="status"></p>
+    <button class="btn" type="button" onclick="A1Activity.saveButtons()">Save Choices</button>
+    <button class="btn" type="button" onclick="document.getElementById('personalButtons').close()">Cancel</button>
+  </dialog>
+  <dialog id="websiteViewer" style="width:96vw;max-width:none;height:92vh;max-height:96vh;padding:8px;background:#111827;color:#e5e7eb;border:1px solid #64748b;border-radius:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><strong id="websiteViewerTitle"></strong><button class="btn" type="button" onclick="A1Activity.closeSite()">Close Website</button></div>
+    <p style="font-size:13px;">This website is shown inside your dashboard. Your administrator can view panel viewing time. Some providers block embedded viewing; a blank page or refusal message means this site may not support it. Activity inside the website may not reset your 20-minute dashboard inactivity timer.</p>
+    <iframe id="websiteFrame" title="Website inside dashboard" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-modals" style="width:100%;height:calc(100% - 130px);border:0;background:white;"></iframe>
+  </dialog>
   <header>
     <img class="dashboard-brand-logo" width="810" height="684" src="A1VIP_LOGO_WIDE_for_White_backgrounds_large.png" alt="A1VIP Entertainment logo">
     <div class="title"><span>A1 VIP</span><small>Ticket Dashboard</small></div>
@@ -403,6 +420,7 @@
       <select id="dashboardLayout" class="layout-picker" aria-label="Dashboard layout"><option value="auto">Layout: Auto</option><option value="duo">Tablet · Right</option></select>
       <span id="signedInUser" aria-live="polite"></span>
       <button class="header-password-btn" type="button" onclick="openAccountSettings()">Change Password</button>
+      <button class="header-password-btn" type="button" onclick="A1Activity.customize()">My Buttons</button>
       <button class="logout-btn" onclick="logout()">Logout</button>
     </div>
   </header>
@@ -855,6 +873,17 @@
       </form><div id="vendorDirectory" class="invoice-history-list"></div>
     </div>
     <div id="admin" class="section" style="display:none;">
+      <div class="upload-card" data-admin-only hidden>
+        <h3>User Login History / Punch Card</h3>
+        <button class="btn" type="button" onclick="A1Activity.customize(true)">Set User Link Defaults</button>
+        <p>Dashboard sessions and elapsed time. An unattended or closed session is estimated to end 20 minutes after its last recorded activity. This is not verified working time or time on outside websites. Shows the most recent 500 sessions.</p>
+        <label>User <select id="activityUser"><option value="">All users</option></select></label>
+        <label>From <input id="activityFrom" type="date"></label>
+        <label>Through <input id="activityThrough" type="date"></label>
+        <button class="btn" type="button" onclick="A1Activity.history()">Refresh History</button>
+        <div id="activityHistory" role="status" aria-live="polite"></div>
+        <h4>Website Panel Viewing Time</h4><p>Reported time that an embedded panel was visible, not verified active work. Navigation within an outside website cannot be inspected. Shows the most recent 500 views.</p><div id="websiteHistory" role="status" aria-live="polite"></div>
+      </div>
       <div class="upload-card" style="margin-bottom:20px;">
         <h3>Import from Skybox</h3>
         <div class="invoice-toolbar"><a class="btn" href="./downloads/A1VIP-Skybox-Mac-Sync.zip" download>Download Mac Folder Sync</a><button class="btn" onclick="A1SkyboxUI.refreshSyncStatus()">Refresh Sync Status</button></div>
@@ -1093,6 +1122,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.1/dist/umd/supabase.js"></script>
 <script src="./supabase-config.js"></script>
 <script src="./a1-data.js"></script>
+<script src="./a1-activity.js"></script>
 <script src="./vendor/fflate-0.8.3.js"></script>
 <script src="./skybox-import.js"></script>
 <script src="./a1-history.js"></script>
@@ -1184,6 +1214,7 @@
       renderLetterHistory(); renderItineraryHistory(); renderImportConflicts();
       if (window.A1SkyboxUI) window.A1SkyboxUI.render();
       if(linksInitialized&&A1Data.authenticated?.())refreshFromRemoteIfChanged();
+      window.A1Activity?.loadButtons();
     }
     function requireLoginClient(){
       if (typeof A1Data === 'undefined') throw new Error('Login code could not load. Reload the page and check that the local server is running from the updated dashboard folder.');
@@ -1647,6 +1678,7 @@
       document.getElementById('mobileSectionTitle').textContent=activeCategory?.textContent||({account:'Account Settings',system:'System',upload:'Uploads',buttonManager:'Button Manager',domains:'Domains'})[id]||'Main Links';
       if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
       if (window.matchMedia('(max-width:760px), (orientation:landscape) and (max-height:600px) and (max-width:1100px)').matches) setSectionMenuExpanded(false);
+      if(id==='admin')window.A1Activity?.history();
     }
 
 
@@ -1726,6 +1758,7 @@ const PRIVATE_WINDOW_SHORTCUT_NAME = 'A1VIP Private Open';
 
 function openPrivateShortcut(url, label){
   if (!url) return;
+  if(A1Data.authenticated?.()&&!A1Data.isAdmin?.()&&/^https?:\/\//i.test(url)){A1Activity.openSite(url,label);return;}
   if (!/^https?:\/\//i.test(url)) {
     openPopup(url, label);
     return;
@@ -1749,6 +1782,7 @@ function openPrivateShortcut(url, label){
 
     function openPopup(url, label){
   if (!url) return;
+  if(A1Data.authenticated?.()&&!A1Data.isAdmin?.()&&/^https?:\/\//i.test(url)){A1Activity.openSite(url,label);return;}
 
   // Video modal
   if (isVideoUrl(url)){
@@ -2013,6 +2047,7 @@ function createBtn(label, url, isCustom=true){
       refreshPrivateTicketAccountButtons();
       wireHoverStatus();
       window.A1ButtonMoves?.refresh();
+      window.A1Activity?.applyButtons();
     }
 
     function receivedLayout(local,remote){

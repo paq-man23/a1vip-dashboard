@@ -24,6 +24,7 @@ function harness({ member = true, admin = true, failSave = false, recoverySessio
     },
     rpc: async (name, args) => {
       savedArgs = args; calls.push({ name, args });
+      if(name==='a1_activity_session')return {data:new Date().toISOString()};
       if(name==='a1_save_button_layout'&&!failSave)return {data:{state:args.p_state,version:args.p_expected_version+1}};
       if(name==='a1_save_contact'&&!failSave){const original=contactRows.find(row=>row.document.kind===args.p_kind&&row.document.id===args.p_id)?.document||{};return {data:{document:{...original,...args.p_patch,kind:args.p_kind,id:args.p_id},version:4}};}
       if(name==='a1_save_dashboard_invoice'&&!failSave)return {data:{id:args.p_document.id,document:{...args.p_document,number:'4101',autoNumber:false,numberAssignedByDB:true,origin:'a1'},version:1}};
@@ -255,4 +256,14 @@ test('shared link saves use an admin session and an explicit cloud version',asyn
 });
 test('regular staff cannot save shared links even when using the JV alias',async()=>{
  const {data,calls}=harness({admin:false});await data.login('JV','test');await assert.rejects(data.saveButtonLayout({cloudVersion:1}),/Administrator/);assert.equal(calls.filter(x=>x.name==='a1_save_button_layout').length,0);
+});
+
+for (const name of ['user1','user2']) test(name+' username resolves without granting admin privileges', async () => {
+ const {data,window,loginArgs}=harness({admin:false});
+ window.A1_SUPABASE_CONFIG.userAliases={user1:'user1@a1vip.invalid',user2:'user2@a1vip.invalid'};
+ await data.login(name,'test-only');
+ assert.equal(loginArgs().email,name+'@a1vip.invalid');
+ assert.equal(data.authenticated(),true);assert.equal(data.isAdmin(),false);
+ await assert.rejects(data.fetchActivity(),/Administrator access required/);
+ await assert.rejects(data.preferenceUsers(),/Administrator access required/);
 });

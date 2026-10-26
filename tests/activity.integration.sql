@@ -1,0 +1,60 @@
+begin;
+select set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
+select set_config('request.jwt.claims',jsonb_build_object('session_id',gen_random_uuid())::text,true);
+insert into auth.users(id,email) values(auth.uid(),'punch-fixture@example.invalid');
+insert into public.a1_staff(user_id) values(auth.uid());
+select set_config('a1.test.other_user',gen_random_uuid()::text,true);
+insert into auth.users(id,email) values(current_setting('a1.test.other_user')::uuid,'other-punch-fixture@example.invalid');
+insert into public.a1_staff(user_id) values(current_setting('a1.test.other_user')::uuid);
+set local role authenticated;
+select public.a1_activity_session('start');
+select public.a1_activity_session('start');
+do $$ begin
+ if exists(select 1 from public.a1_activity_sessions) then raise exception 'Staff can see punch cards';end if;
+ begin insert into public.a1_activity_sessions(user_id,auth_session_id,display_name) values(auth.uid(),gen_random_uuid(),'fake');raise exception 'Staff can forge punch cards';exception when insufficient_privilege then null;end;
+ insert into public.a1_user_preferences(user_id,hidden_buttons) values(auth.uid(),'["my-button"]');
+ begin insert into public.a1_user_preferences(user_id) values(gen_random_uuid());raise exception 'Can write other preferences';exception when insufficient_privilege then null;end;
+ perform public.a1_activity_session('activity');
+ perform public.a1_website_view(gen_random_uuid(),'example.com','Example',0,false);
+ if exists(select 1 from public.a1_website_views) then raise exception 'Regular staff can read website history';end if;
+ begin perform public.a1_preference_users();raise exception 'Regular staff can list all preference users';exception when raise_exception then if sqlerrm<>'Administrator access required' then raise;end if;end;
+end $$;
+reset role;
+do $$ begin
+ if (select count(*) from public.a1_activity_sessions where user_id=auth.uid())<>1 then raise exception 'Reload creates duplicate punches';end if;
+end $$;
+update public.a1_staff set is_admin=true where user_id=auth.uid();
+set local role authenticated;
+do $$ begin
+ if (select count(*) from public.a1_activity_sessions where user_id=auth.uid())<>1 then raise exception 'Admin cannot read punches';end if;
+ if not exists(select 1 from public.a1_website_views where user_id=auth.uid()) then raise exception 'Admin cannot read website history';end if;
+ insert into public.a1_user_preferences(user_id,added_links) values(current_setting('a1.test.other_user')::uuid,'[{"label":"Admin default","url":"https://example.com"}]');
+ if not exists(select 1 from public.a1_preference_users() where user_id=current_setting('a1.test.other_user')::uuid) then raise exception 'Admin cannot choose other staff';end if;
+ perform public.a1_activity_session('logout');
+ begin perform public.a1_activity_session('start');raise exception 'Ended session reopened';exception when raise_exception then if sqlerrm<>'Session ended after inactivity. Sign in again.' then raise;end if;end;
+end $$;
+reset role;
+select set_config('request.jwt.claims',jsonb_build_object('session_id',gen_random_uuid())::text,true);
+set local role authenticated;
+select public.a1_activity_session('start');
+reset role;
+update public.a1_activity_sessions set started_at=now()-interval '30 minutes',last_active_at=now()-interval '21 minutes' where ended_at is null and user_id=auth.uid();
+set local role authenticated;
+do $$ begin
+ begin perform public.a1_activity_session('activity');
+ perform public.a1_website_view(gen_random_uuid(),'example.com','Example',0,false);
+ if exists(select 1 from public.a1_website_views) then raise exception 'Regular staff can read website history';end if;
+ begin perform public.a1_preference_users();raise exception 'Regular staff can list all preference users';exception when raise_exception then if sqlerrm<>'Administrator access required' then raise;end if;end;raise exception 'Expired session renewed';exception when raise_exception then if sqlerrm<>'Session ended after inactivity. Sign in again.' then raise;end if;end;
+ perform public.a1_activity_session('idle');
+ if exists(select 1 from public.a1_activity_sessions where user_id=auth.uid() and ended_at is null) then raise exception 'Idle session not ended';end if;
+ if exists(select 1 from public.a1_activity_sessions where user_id=auth.uid() and end_reason='idle' and ended_at<>last_active_at+interval '20 minutes') then raise exception 'Idle end time wrong';end if;
+end $$;
+reset role;
+set local role anon;
+do $$ begin
+ begin perform public.a1_activity_session('start');raise exception 'Anon can punch in';exception when insufficient_privilege then null;end;
+ begin perform * from public.a1_activity_sessions;raise exception 'Anon can read punches';exception when insufficient_privilege then null;end;
+end $$;
+reset role;
+rollback;
+select 'PASS: admin-only punch cards, server timestamps, no direct writes, personal preference isolation, idempotent starts, ended/idle session rejection and anonymous denial' as result;
