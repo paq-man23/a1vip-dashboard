@@ -28,7 +28,8 @@
     const onAbort = () => controller.abort();
     if (externalSignal?.aborted) controller.abort();
     else externalSignal?.addEventListener('abort', onAbort, { once:true });
-    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 15000);
+    const assistantCall=String(typeof input==='string'?input:input?.url||input).includes('/functions/v1/a1-assistant');
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, assistantCall?45000:15000);
     try { return await fetch(input, { ...options, signal:controller.signal }); }
     catch(error) {
       if (timedOut) throw new Error('The login/data connection timed out. Check your internet connection and try again.');
@@ -392,6 +393,7 @@
   }
   window.A1Data = {
     cancelRestore:()=>{window.A1Activity?.stop();clear();},
+    assistantRequest:async body=>{const result=await requireReady().functions.invoke('a1-assistant',{body});if(result.error){let message='Al’s AI connection could not complete the request.';try{const data=await result.error.context?.json();message=data?.error||message;}catch{}throw new Error(message);}return result.data;},
     loadSection, canAccess, refreshAccess, linkBlocked, blockedLinks:()=>copy(accountAccess.blocked_links),
     listAccounts:async()=>check(await requireAdmin().rpc('a1_list_accounts')),
     accountAction,

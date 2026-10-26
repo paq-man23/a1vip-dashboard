@@ -7,7 +7,7 @@ test('Al starts compact and clamps the character and bubble to the screen',()=>{
 test('character movement and bubble size persist only for the current account',()=>{
  let email='user1@example.invalid',captured=false,suppressed=false,grip;const events={},storage=new Map(),handlers={};
  const launcher={style:{},getBoundingClientRect(){return {left:parseFloat(this.style.left)||600,top:parseFloat(this.style.top)||500,width:72,height:80};},addEventListener:(name,fn)=>handlers[name]=fn,setPointerCapture(){captured=true;},hasPointerCapture:()=>captured,releasePointerCapture(){captured=false;}};
- const panel={hidden:false,style:{setProperty(){}},classList:{toggle(){}},append(node){grip=node;}};
+ const panel={querySelector:()=>null,hidden:false,style:{setProperty(){}},classList:{toggle(){}},append(node){grip=node;}};
  const root={A1Data:{account:()=>({email}),authenticated:()=>true},addEventListener:(name,fn)=>events[name]=fn};
  vm.runInNewContext(fs.readFileSync('assistant-position.js','utf8'),{window:root,innerWidth:1200,innerHeight:800,localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},setTimeout(){},document:{body:{classList:{remove(){}}},createElement:()=>({setAttribute(){},addEventListener(name,fn){this[name]=fn;}})}});
  const controller=root.A1AssistantPosition.init(launcher,panel);
@@ -17,4 +17,15 @@ test('character movement and bubble size persist only for the current account',(
  grip.keydown({key:'ArrowRight',preventDefault(){}});assert.equal(panel.style.width,'320px');
  email='user2@example.invalid';controller.restore();assert.equal(panel.style.width,'300px');assert.notEqual(launcher.style.left,movedLeft);
  email='user1@example.invalid';controller.restore();assert.equal(panel.style.width,'320px');assert.equal(launcher.style.left,movedLeft);
+});
+test('replies grow the bubble, keep the beginning visible and show a scroll cue for overflow',()=>{
+ const elements=[];const log={scrollHeight:1100,scrollTop:0,offsetTop:40,get clientHeight(){return (parseFloat(panel.style.height)||220)-80;},addEventListener(name,fn){this[name]=fn;},scrollBy({top}){this.scrollTop+=top;this.scroll();}};
+ const panel={hidden:false,style:{setProperty(){}},get offsetHeight(){return parseFloat(this.style.height)||220;},querySelector:s=>s==='.copilot-log'?log:{offsetHeight:48},classList:{toggle(){}},append(n){elements.push(n);}};
+ const launcher={style:{},getBoundingClientRect:()=>({left:1000,top:700,width:72,height:80}),addEventListener(){}};
+ const root={A1Data:{account:()=>null},addEventListener(){}};
+ vm.runInNewContext(fs.readFileSync('assistant-position.js','utf8'),{window:root,innerWidth:1200,innerHeight:800,localStorage:{},document:{body:{classList:{remove(){}}},createElement:()=>({style:{},setAttribute(){},addEventListener(name,fn){this[name]=fn;}})}});
+ const controller=root.A1AssistantPosition.init(launcher,panel),reply={isConnected:true,textContent:'A long answer '.repeat(50),offsetHeight:300,offsetTop:400,previousElementSibling:null};
+ controller.fitReply(reply);assert.ok(parseFloat(panel.style.height)>220);assert.equal(log.scrollTop,354);assert.equal(elements[0].hidden,false);
+ log.scrollTop=1100;log.scroll();assert.equal(elements[0].hidden,true);
+ reply.offsetHeight=1600;controller.fitReply(reply);assert.ok(parseFloat(panel.style.height)<=600);assert.equal(elements[0].hidden,false);
 });

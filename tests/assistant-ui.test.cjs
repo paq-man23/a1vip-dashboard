@@ -1,10 +1,11 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-function harness({permissions=['main','customers','invoices'],pause,voice=false,links=[],contactRows,withTab=false,username=''}={}){
+function harness({permissions=['main','customers','invoices'],pause,voice=false,links=[],contactRows,withTab=false,username='',ai}={}){
  const listeners={},events={},loads=[],opened=[];let authenticated=true,aborted=0,recognizer;
  function node(tag='div'){
   return {tag,children:[],hidden:false,value:'',textContent:'',dataset:{},attributes:{},classList:{contains:()=>false,toggle(){},add(){},remove(){}},setAttribute(k,v){this.attributes[k]=v;},append(...nodes){for(const n of nodes){n.parent=this;this.children.push(n);}},replaceChildren(){this.children=[];},get firstElementChild(){return this.children[0];},remove(){this.parent.children=this.parent.children.filter(x=>x!==this);},focus(){},addEventListener(k,v){this[k]=v;}};
  }
  const tab=withTab?node('button'):null;const body=node(),data={linkBlocked:()=>false,authenticated:()=>authenticated,canAccess:id=>authenticated&&permissions.includes(id),isAdmin:()=>false,account:()=>({email:'user@example.invalid',username}),loadSection:async id=>{loads.push(id);if(pause)await pause;},contacts:()=>contactRows||[{kind:'customer',id:'j',displayName:'Jane Smith',email:'jane@example.invalid'}],invoices:()=>[],documents:()=>[]};
+ if(ai)data.assistantRequest=ai;
  const root={A1AssistantActions:require('../assistant-actions.js'),A1AssistantCore:require('../assistant-core.js'),addEventListener:(k,v)=>events[k]=v};
  if(voice)root.SpeechRecognition=class{constructor(){recognizer=this;}start(){}abort(){aborted++;}};
  const buttons=links.map(row=>{const classes=new Set(row.hidden?['a1-personally-hidden']:[]);return {...row,isConnected:true,dataset:{label:row.label,url:'https://example.com'},classList:{contains:k=>classes.has(k),add:k=>classes.add(k),remove:k=>classes.delete(k)},closest:()=>({dataset:{section:row.section}}),scrollIntoView(){},focus(){},getBoundingClientRect:()=>({left:100}),parentElement:null};});
@@ -52,4 +53,22 @@ test('greeting uses the current username and does not substitute another account
 });
 test('add-button command shows a proposal without saving until the action is selected',async()=>{
  const h=harness();await h.submit('add button for example.com in main');assert.match(h.text(),/Add this button/);assert.match(h.text(),/personal layout/);assert.equal(h.opened.length,0);
+});
+
+test('Al answers how-to questions directly without loading or changing dashboard records',async()=>{
+ const h=harness();await h.submit('how do I move buttons?');assert.match(h.text(),/press and hold/);assert.match(h.text(),/Confirm the move/);assert.equal(h.loads.length,0);assert.equal(h.opened.length,0);
+});
+test('voice contact search lists both Sonia and Sonya separately for explicit selection',async()=>{
+ const h=harness({voice:true,contactRows:[{kind:'customer',id:'1',displayName:'Sonia Green'},{kind:'customer',id:'2',displayName:'Sonya Green'}]});
+ h.mic.onclick();h.recognizer.onresult({results:[[{transcript:'find customer Sonia Green'}]]});await h.submit(h.input.value);
+ assert.match(h.text(),/Sonia Green/);assert.match(h.text(),/Sonya Green/);assert.match(h.text(),/similar-sounding/);assert.equal(h.opened.length,0);
+});
+
+test('configured AI can request an allowed search without receiving rendered contact records',async()=>{
+ const sent=[];const h=harness({ai:async body=>{sent.push(JSON.parse(JSON.stringify(body)));return {configured:true,reply:'Let’s look for Jane.',action:{action:'search',scope:'contact',query:'Jane',contactKind:'customer'}};}});
+ await h.submit('Can you look up Jane for me?');assert.match(h.text(),/Jane Smith/);
+ await h.submit('Could you show me that again?');assert.equal(sent[1].history[0].content,'Can you look up Jane for me?');assert.doesNotMatch(JSON.stringify(sent[1]),/jane@example/);
+});
+test('missing AI configuration falls back to the specific built-in guide',async()=>{
+ let calls=0;const h=harness({ai:async()=>{calls++;return {configured:false};}});await h.submit('how do I move buttons?');await h.submit('how do I add buttons?');assert.equal(calls,1);assert.match(h.text(),/Confirm the move/);assert.match(h.text(),/To add a website button/);
 });

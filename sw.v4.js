@@ -2,7 +2,7 @@
 // Update style: show "New update available" banner in the page; activate on user click.
 // If you need to force all installs to fetch this worker, bump CACHE_NAME.
 
-const CACHE_NAME = 'a1vip-static-v39'; // bump this once
+const CACHE_NAME = 'a1vip-static-v40'; // bump this once
 
 
 // Resolve relative to worker scope (safe for GitHub Pages subpaths)

@@ -296,3 +296,9 @@ body .copilot-panel .copilot-form textarea::placeholder{font-size:12px}
 .al-bubble-resize:focus-visible{outline:2px solid #facc15}
 @media(pointer:coarse){body .copilot-panel .copilot-header button,body .copilot-panel .copilot-settings>summary,body .copilot-panel .copilot-form button{min-width:40px;min-height:40px}.al-bubble-resize{width:26px;height:26px}}
 body .copilot-panel .copilot-form textarea{line-height:20px;padding:6px 8px}
+
+/* Show the start of each answer, with an explicit cue when a reply is longer. */
+.al-scroll-cue[hidden]{display:none!important}
+body .copilot-panel .al-scroll-cue{position:absolute;right:12px;z-index:4;min-height:28px;padding:4px 9px;border:1px solid #d0b76b;border-radius:16px;background:#21334d;color:#ffe8a1;font:600 11px/1.3 Arial,sans-serif;box-shadow:0 2px 8px #0006;cursor:pointer}
+.copilot-log{scrollbar-width:auto;scrollbar-gutter:stable}
+.copilot-log::-webkit-scrollbar{width:8px}.copilot-log::-webkit-scrollbar-thumb{background:#6b7f9d;border-radius:8px}
