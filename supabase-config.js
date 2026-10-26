@@ -6,9 +6,5 @@ window.A1_SUPABASE_CONFIG = {
     JAW: 'jaw@a1eei.com',
     JV: 'vollario@mac.com'
   },
-  userAliases: {
-    user1: 'user1@a1vip.invalid',
-    user2: 'user2@a1vip.invalid'
-  },
   publishableKey: 'sb_publishable_kSMf8s8gAAVTnB5L1ESgdg_uX6TJ_9S'
 };

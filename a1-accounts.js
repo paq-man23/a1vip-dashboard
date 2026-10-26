@@ -16,7 +16,7 @@
     const detail=document.createElement('p');detail.textContent=(row.name?row.name+' · ':'')+row.email+' · '+(row.is_admin?'Admin':'User')+' · '+(row.enabled?'Active':'Disabled / not approved');
     const last=document.createElement('p');last.textContent='Last signed in: '+(row.last_sign_in_at?new Date(row.last_sign_in_at).toLocaleString():'Never');
     const actions=document.createElement('div');actions.className='invoice-toolbar';
-    actions.append(button('Profile & Categories',()=>edit(row)),button('Assigned Links / Layout',()=>A1Activity.customize(true,row.id)),button('Set Password',()=>password(row)));
+    actions.append(button('Profile & Categories',()=>edit(row)),...(!row.is_admin?[button('Edit Email',()=>showEditor('email',row))]:[]),button('Assigned Links / Layout',()=>A1Activity.customize(true,row.id)),button('Set Password',()=>password(row)));
     const access=button(row.enabled?'Disable Access':'Restore Access',()=>setEnabled(row));access.disabled=row.self;actions.append(access);
     card.append(heading,detail,last,actions);list.append(card);
    }
@@ -26,12 +26,12 @@
  function showEditor(kind,row=null){
   if(!A1Data.isAdmin())return;selected=row;mode=kind;
   node('accountEditorForm').reset();node('managedMessage').textContent='';
-  node('accountEditorTitle').textContent=kind==='create'?'Add User':kind==='password'?'Set Password — '+(row.username||row.email):'Account & Category Access';
+  node('accountEditorTitle').textContent=kind==='create'?'Add User':kind==='password'?'Set Password — '+(row.username||row.email):kind==='email'?'Edit Email — '+(row.username||row.email):'Account & Category Access';
   node('managedUsername').value=row?.username||'';node('managedName').value=row?.name||'';node('managedEmail').value=row?.email||'';
-  node('managedUsername').readOnly=!!row?.is_admin;node('managedEmail').readOnly=kind!=='create';
-  node('managedUsername').required=kind!=='password';node('managedPassword').required=kind==='create'||kind==='password';
-  for(const id of ['managedUsername','managedName','managedEmail'])node(id).closest('label').hidden=kind==='password';
-  node('managedPasswordLabel').hidden=kind==='edit';node('managedCategories').hidden=kind==='password'||!!row?.is_admin;
+  node('managedUsername').readOnly=!!row?.is_admin;node('managedEmail').readOnly=kind!=='create'&&kind!=='email';node('managedEmail').required=kind==='email';
+  node('managedUsername').required=kind==='create'||kind==='edit';node('managedPassword').required=kind==='create'||kind==='password';
+  for(const id of ['managedUsername','managedName','managedEmail'])node(id).closest('label').hidden=kind==='password'||(kind==='email'&&id!=='managedEmail');
+  node('managedPasswordLabel').hidden=kind==='edit'||kind==='email';node('managedCategories').hidden=kind==='password'||kind==='email'||!!row?.is_admin;
   node('managedRole').textContent=row?.is_admin?'Administrator — full access. Only JAW and JV have this role.':'Regular user — choose allowed categories below.';
   const list=node('managedCategoryList');list.replaceChildren();
   for(const [id,label] of sections){const l=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=id;input.checked=!row||row.allowed_sections===null||row.allowed_sections===undefined||row.allowed_sections.includes(id);l.append(input,document.createTextNode(' '+label));list.append(l);}
@@ -42,7 +42,9 @@
   event.preventDefault();if(busy||!A1Data.isAdmin())return;busy=true;node('managedSave').disabled=true;node('managedMessage').textContent='Saving…';
   try{
    const allowed=[...node('managedCategoryList').querySelectorAll('input:checked')].map(i=>i.value);
-   if(mode==='password'){
+   if(mode==='email'){
+    await A1Data.accountAction({action:'email',id:selected.id,email:node('managedEmail').value});
+   }else if(mode==='password'){
     await A1Data.accountAction({action:'password',id:selected.id,password:node('managedPassword').value});
    }else if(mode==='create'){
     await A1Data.accountAction({action:'create',username:node('managedUsername').value,name:node('managedName').value,email:node('managedEmail').value,password:node('managedPassword').value,sections:allowed});

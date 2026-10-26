@@ -155,7 +155,7 @@
     const config = window.A1_SUPABASE_CONFIG || {};
     let email = String(identifier || '').trim();
     if (!email.includes('@')) {
-      const aliases = { ...(config.adminAliases || { [config.adminUsername || 'JAW']: config.adminEmail }), ...(config.userAliases || {}) };
+      const aliases = config.adminAliases || { [config.adminUsername || 'JAW']: config.adminEmail };
       const entry = Object.entries(aliases).find(([username]) => username.toLowerCase() === email.toLowerCase());
       if (!entry) throw new Error('Invalid username or password.');
       if (!entry[1]) throw new Error('This Supabase account still needs to be configured.');

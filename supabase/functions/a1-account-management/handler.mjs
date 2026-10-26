@@ -65,6 +65,16 @@ export function createHandler({env,fetchImpl=fetch}){
     const profiles=await api('/rest/v1/a1_account_profiles?select=user_id&user_id=eq.'+input.id);
     await manage(profiles?.length?'edit':'register',input.id,name,display);return reply({ok:true});
    }
+   if(action==='email'){
+    const email=String(input.email||'').trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)return reply({error:'Enter a valid email address.'},400);
+    const profiles=await api('/rest/v1/a1_account_profiles?select=user_id,admin_role&user_id=eq.'+input.id);
+    if(profiles?.[0]?.admin_role)return reply({error:'Administrator email addresses are protected.'},400);
+    if(!profiles?.length)return reply({error:'Register this account before editing its email.'},400);
+    // Only update Auth identity. Never register the account again or rewrite its layout/access.
+    await api('/auth/v1/admin/users/'+input.id,{method:'PUT',body:{email,email_confirm:true}});
+    return reply({ok:true});
+   }
    if(action==='password'){
     if(typeof input.password!=='string'||input.password.length<8||input.password.length>200)return reply({error:'Choose a password with at least 8 characters.'},400);
     await api('/auth/v1/admin/users/'+input.id,{method:'PUT',body:{password:input.password}});

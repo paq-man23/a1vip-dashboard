@@ -2,14 +2,15 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-function harness({ invoiceRows, member = true, admin = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [], beforeRead = async()=>{}, allowedSections = null } = {}) {
+function harness({ usernameEmail, invoiceRows, member = true, admin = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [], beforeRead = async()=>{}, allowedSections = null } = {}) {
   let callback, savedArgs, loginArgs, resetArgs, updateArgs;
   const calls = [], filters = [], reads = [], pages=[];
   const rows = invoiceRows || [{ id: 'inv-one', version: 3, document: { id: 'inv-one', number: '4100', clientCompany: 'A1' } }];
   const client = {
-    functions: {invoke:async()=>({error:{message:'Invalid username or password.'}})},
+    functions: {invoke:async(name,args)=>{calls.push({name,args});return usernameEmail?{data:{session:{access_token:'test-access',refresh_token:'test-refresh'}}}:{error:{message:'Invalid username or password.'}};}},
     auth: {
       onAuthStateChange: fn => { callback = fn; },
+      setSession:async()=>({data:{user:{id:'staff',email:usernameEmail}}}),
       resetPasswordForEmail: async (email, options) => { resetArgs = { email, options }; return {}; },
       updateUser: async args => { updateArgs = args; return {}; },
       getSession: async () => { if (recoverySession) callback('PASSWORD_RECOVERY', { user: { id: 'staff' } }); return { data: { session: {} } }; },
@@ -262,10 +263,10 @@ test('regular staff cannot save shared links even when using the JV alias',async
 });
 
 for (const name of ['user1','user2']) test(name+' username resolves without granting admin privileges', async () => {
- const {data,window,loginArgs}=harness({admin:false});
+ const {data,window,loginArgs,calls}=harness({admin:false,usernameEmail:name+'@changed.example'});
  window.A1_SUPABASE_CONFIG.userAliases={user1:'user1@a1vip.invalid',user2:'user2@a1vip.invalid'};
  await data.login(name,'test-only');
- assert.equal(loginArgs().email,name+'@a1vip.invalid');
+ assert.equal(loginArgs(),undefined);assert.equal(data.account().email,name+'@changed.example');assert.equal(calls[0].args.body.username,name);
  assert.equal(data.authenticated(),true);assert.equal(data.isAdmin(),false);
  await assert.rejects(data.fetchActivity(),/Administrator access required/);
  await assert.rejects(data.preferenceUsers(),/Administrator access required/);

@@ -26,3 +26,20 @@ test('username-only login rejects disabled accounts before checking a password',
 test('untrusted origins are rejected before any account call',async()=>{const h=await harness();assert.equal((await h.request({action:'create'},'user-token','https://unrelated.example')).status,403);assert.equal(h.calls.length,0);});
 test('disable revokes database membership before attempting the Auth sign-in ban',async()=>{const h=await harness();assert.equal((await h.request({action:'disable',id:other})).status,200);const manage=h.calls.findIndex(c=>c.url.endsWith('/rpc/a1_manage_account'));const ban=h.calls.findIndex(c=>c.method==='PUT');assert.ok(manage<ban);assert.equal(h.calls[ban].body.ban_duration,'876000h');});
 test('a rejected self-disable never reaches the Auth ban',async()=>{const h=await harness({custom:c=>c.url.endsWith('/rpc/a1_manage_account')?new Response(JSON.stringify({message:'You cannot disable your own account'}),{status:400}):null});assert.equal((await h.request({action:'disable',id})).status,400);assert.equal(h.calls.some(c=>c.method==='PUT'),false);});
+test('admin email edit updates only Auth without overwriting category or layout settings',async()=>{
+ const h=await harness({custom:c=>c.url.includes('a1_account_profiles?')?new Response(JSON.stringify([{user_id:other,admin_role:false}])):null});
+ assert.equal((await h.request({action:'email',id:other,email:' New@Example.com ',sections:['main'],blocked_links:[]})).status,200);
+ const writes=h.calls.filter(c=>c.method==='PUT'||c.method==='POST');assert.equal(writes.length,1);assert.equal(writes[0].url,base+'/auth/v1/admin/users/'+other);assert.deepEqual(writes[0].body,{email:'new@example.com',email_confirm:true});
+});
+test('email changes reject regular users, invalid addresses, missing accounts and admin identities',async()=>{
+ const denied=await harness({admin:false});assert.equal((await denied.request({action:'email',id:other,email:'new@example.com'})).status,403);
+ for(const target of [[],[{user_id:other,admin_role:true}]]){const h=await harness({custom:c=>c.url.includes('a1_account_profiles?')?new Response(JSON.stringify(target)):null});assert.equal((await h.request({action:'email',id:other,email:'new@example.com'})).status,400);assert.equal(h.calls.some(c=>c.method==='PUT'),false);}
+ const h=await harness();assert.equal((await h.request({action:'email',id:other,email:'bad'})).status,400);assert.equal(h.calls.some(c=>c.method==='PUT'),false);
+});
+test('username sign-in uses the changed Auth email and the original account identity',async()=>{
+ const h=await harness({custom:c=>{
+  if(c.url.includes('a1_account_profiles?'))return new Response(JSON.stringify([{user_id:other,disabled:false}]));
+  if(c.url.endsWith('/auth/v1/admin/users/'+other))return new Response(JSON.stringify({id:other,email:'updated@example.com'}));
+  if(c.url.includes('/auth/v1/token?'))return new Response(JSON.stringify({access_token:'test-access',refresh_token:'test-refresh'}));
+ }});assert.equal((await h.request({action:'login',username:'user1',password:'test-only'},null)).status,200);assert.equal(h.calls.find(c=>c.url.includes('/auth/v1/token?')).body.email,'updated@example.com');
+});
