@@ -2,10 +2,10 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-function harness({ member = true, admin = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [], beforeRead = async()=>{}, allowedSections = null } = {}) {
+function harness({ invoiceRows, member = true, admin = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [], beforeRead = async()=>{}, allowedSections = null } = {}) {
   let callback, savedArgs, loginArgs, resetArgs, updateArgs;
-  const calls = [], filters = [], reads = [];
-  const rows = [{ id: 'inv-one', version: 3, document: { id: 'inv-one', number: '4100', clientCompany: 'A1' } }];
+  const calls = [], filters = [], reads = [], pages=[];
+  const rows = invoiceRows || [{ id: 'inv-one', version: 3, document: { id: 'inv-one', number: '4100', clientCompany: 'A1' } }];
   const client = {
     functions: {invoke:async()=>({error:{message:'Invalid username or password.'}})},
     auth: {
@@ -18,10 +18,10 @@ function harness({ member = true, admin = true, failSave = false, recoverySessio
       signOut: async () => { callback('SIGNED_OUT'); return {}; }
     },
     from: table => {
-      reads.push(table); const where={};
-      const query = { select() { if (this.deleting) return Promise.resolve({ data: [{id:'deleted'}] }); return this; }, delete() { this.deleting = true; return this; }, eq(key, value) { filters.push([key,value]); where[key]=value; return this; }, order() { return this; },
+      reads.push(table); const where={};let after=null;
+      const query = { select() { if (this.deleting) return Promise.resolve({ data: [{id:'deleted'}] }); return this; }, delete() { this.deleting = true; return this; }, eq(key, value) { filters.push([key,value]); where[key]=value; return this; }, order() { return this; }, gt(key,value){after={key,value};return this;},
         maybeSingle: async () => ({ data: table==='a1_account_profiles' ? {allowed_sections:allowedSections} : member ? { user_id: 'staff',is_admin:admin } : null }),
-        range: async () => { await beforeRead(table); return ({ data: ['a1_invoices','a1_invoice_history'].includes(table) ? rows : table === 'a1_contacts' ? contactRows.filter(row=>!where.kind||row.document.kind===where.kind) : table === 'a1_documents' ? documentRows.filter(row=>!where.kind||row.kind===where.kind) : table === 'a1_import_conflicts' ? conflictRows : [] }); } };
+        range: async (start,end) => { pages.push({table,start,end,after});await beforeRead(table);let data=['a1_invoices','a1_invoice_history'].includes(table) ? rows : table === 'a1_contacts' ? contactRows.filter(row=>!where.kind||row.document.kind===where.kind) : table === 'a1_documents' ? documentRows.filter(row=>!where.kind||row.kind===where.kind) : table === 'a1_import_conflicts' ? conflictRows : [];if(after)data=data.filter(row=>(row[after.key]||row.document?.[after.key])>after.value);return {data:data.slice(start,end+1)}; } };
       return query;
     },
     rpc: async (name, args) => {
@@ -42,7 +42,7 @@ function harness({ member = true, admin = true, failSave = false, recoverySessio
   const window = { A1_SUPABASE_CONFIG: { url: 'https://test.supabase.co', publishableKey: 'public', adminAliases: { JAW: 'jaw@a1eei.com', JV: 'vollario@mac.com' }, passwordResetRedirect: 'https://a1dash.a1eei.com/reset-password.html' },
     supabase: { createClient: () => client }, dispatchEvent() {} };
   vm.runInNewContext(fs.readFileSync('a1-data.js','utf8'), { window, Event: class { constructor(type) { this.type = type; } }, sessionStorage: { getItem: key => session.get(key), setItem: (key, value) => session.set(key, value), removeItem: key => session.delete(key) }, localStorage: { getItem: key => storage.get(key) } });
-  return { data: window.A1Data, storage, args: () => savedArgs, loginArgs: () => loginArgs, resetArgs: () => resetArgs, updateArgs: () => updateArgs, authEvent: (event, value) => callback(event, value), calls, filters, reads, session, window };
+  return { data: window.A1Data, storage, args: () => savedArgs, loginArgs: () => loginArgs, resetArgs: () => resetArgs, updateArgs: () => updateArgs, authEvent: (event, value) => callback(event, value), calls, filters, reads, pages, session, window };
 }
 test('approved staff restore invoice history; callers cannot mutate the cache', async () => {
   const { data } = harness(); await data.restore(); if(data.authenticated())await data.refresh();
@@ -318,4 +318,15 @@ test('disabled categories are not fetched for an editor or direct section reques
   await data.restore();reads.length=0;await data.loadSection('invoices');
   assert.equal(reads.includes('a1_contacts'),false);
   await assert.rejects(data.loadSection('customers'),/not enabled/);
+});
+
+test('invoice pages seek by ID without reprocessing earlier rows or skipping after a deletion',async()=>{
+ const invoiceRows=Array.from({length:1001},(_,i)=>{const id='inv-'+String(i).padStart(5,'0');return {id,version:1,document:{id,number:String(i)}};});let count=0;
+ const h=harness({invoiceRows,beforeRead:async table=>{if(table==='a1_invoice_history'&&++count===2)invoiceRows.shift();}});await h.data.restore();await h.data.loadSection('invoices');
+ assert.equal(h.data.invoices().length,1001);assert.equal(new Set(h.data.invoices().map(r=>r.id)).size,1001);
+ const pages=h.pages.filter(p=>p.table==='a1_invoice_history');assert.deepEqual(pages.map(p=>p.start),[0,0,0]);assert.deepEqual(pages.map(p=>p.after?.value),[undefined,'inv-00499','inv-00999']);
+});
+test('a later invoice-page failure preserves an empty cache and a retry starts from the beginning',async()=>{
+ const invoiceRows=Array.from({length:501},(_,i)=>{const id='inv-'+String(i).padStart(5,'0');return {id,version:1,document:{id}};});let count=0;
+ const h=harness({invoiceRows,beforeRead:async table=>{if(table==='a1_invoice_history'&&++count===2)throw new Error('temporary failure');}});await h.data.restore();await assert.rejects(h.data.loadSection('invoices'),/temporary failure/);assert.equal(h.data.invoices().length,0);await h.data.loadSection('invoices');assert.equal(h.data.invoices().length,501);
 });

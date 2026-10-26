@@ -65,13 +65,15 @@
   }
   const resourceSection={invoices:'invoices',letter:'formLetter',itinerary:'tripItinerary',customer:'customers',vendor:'vendors',conflicts:'admin'};
   async function readPages(table,columns,filter,orders) {
-    const rows=[];
+    const rows=[],seek=orders.length===1&&orders[0]==='id'&&columns.split(',').includes('id');let cursor=null;
     for(let offset=0;;offset+=500){
       let query=client.from(table).select(columns);
       if(filter)query=query.eq(...filter);
+      if(seek&&cursor!==null)query=query.gt('id',cursor);
       for(const field of orders)query=query.order(field);
-      const page=check(await query.range(offset,offset+499));rows.push(...page);
+      const page=check(await query.range(seek?0:offset,seek?499:offset+499));rows.push(...page);
       if(page.length<500)return rows;
+      if(seek){const next=page[page.length-1].id;if(typeof next!=='string'||next===cursor)throw new Error('Record pagination did not advance. Please retry.');cursor=next;}
     }
   }
   async function loadResource(resource,force=false) {
@@ -88,7 +90,7 @@
           readPages('a1_invoice_presets','category,value',null,['category','value'])
         ]);
       }else if(resource==='conflicts')rows=await readPages('a1_import_conflicts','kind,source_hash,document,reason',null,['kind','source_hash']);
-      else if(['customer','vendor'].includes(resource))rows=await readPages('a1_contacts','document,version',['kind',resource],['id']);
+      else if(['customer','vendor'].includes(resource))rows=await readPages('a1_contacts','id,document,version',['kind',resource],['id']);
       else rows=await readPages('a1_documents','kind,id,document,version',['kind',resource],['id']);
       if(user?.id!==identity||epoch!==dataEpoch||recoveryUserId)throw new Error('Session changed. Open the section again.');
       requireReady();
