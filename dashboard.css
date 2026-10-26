@@ -158,3 +158,9 @@ body.a1-duo main .grid>.btn{min-width:0;min-height:48px;font-size:12px;padding:8
 body.a1-duo .section>h3{font-size:20px}
 body.a1-duo .invoice-layout{grid-template-columns:minmax(0,1fr)}
 @media(max-width:600px){body.a1-duo .top-tabs .tabs-scroller{grid-template-columns:minmax(0,1fr)}}
+
+/* Account role badge stays beside the signed-in name on every layout. */
+.account-identity{display:inline-flex;align-items:center;gap:5px;max-width:100%;min-width:0}
+#accountRoleIcon{display:inline-flex;align-items:center;flex:none;font-size:16px;line-height:1}
+#accountRoleIcon:empty{display:none}
+@media screen and (max-width:760px) and (min-height:601px){.header-account>.account-identity{flex-basis:100%;justify-content:flex-end}.account-identity>#signedInUser{flex-basis:auto}}

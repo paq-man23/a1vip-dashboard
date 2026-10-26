@@ -418,7 +418,7 @@
     <div class="title"><span>A1 VIP</span><small>Ticket Dashboard</small></div>
     <div id="headerAccount" class="header-account" hidden>
       <select id="dashboardLayout" class="layout-picker" aria-label="Dashboard layout"><option value="auto">Layout: Auto</option><option value="duo">Tablet · Right</option></select>
-      <span id="signedInUser" aria-live="polite"></span>
+      <span class="account-identity"><span id="signedInUser" aria-live="polite"></span><span id="accountRoleIcon" role="img"></span></span>
       <button class="header-password-btn" type="button" onclick="openAccountSettings()">Change Password</button>
       <button class="header-password-btn" type="button" onclick="A1Activity.customize()">My Buttons</button>
       <button class="logout-btn" onclick="logout()">Logout</button>
@@ -1154,6 +1154,14 @@
       if(!controls||!label)return;
       const account=clear?null:A1Data.account?.();
       controls.hidden=!account;label.textContent=account?.name||'';label.title=account?.email||'';
+      const roleIcon=document.getElementById('accountRoleIcon');
+      if(roleIcon){
+        const isAdmin=!!account&&A1Data.isAdmin?.()===true;
+        roleIcon.innerHTML=!account?'':isAdmin?'★':'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>';
+        roleIcon.ariaLabel=isAdmin?'Admin account':'User account';
+        roleIcon.title=isAdmin?'Admin account':'User account';
+        roleIcon.style.color=isAdmin?'#facc15':'currentColor';
+      }
     }
     function openAccountSettings(){
       if(!A1Data.authenticated())return;
