@@ -649,6 +649,17 @@
             <label>Created In <select id="invoiceHistoryOrigin" onchange="invoiceHistoryPage=0;renderInvoiceHistory()"><option value="">All Sources</option><option value="skybox">Skybox</option><option value="a1">A1 Dashboard</option></select></label>
             <label>Sort <select id="invoiceHistoryOrder" onchange="invoiceHistoryPage=0;renderInvoiceHistory()"><option value="newest">Newest First</option><option value="oldest">Oldest First</option></select></label>
           </div>
+          <section aria-labelledby="auditReportHeading" style="margin-bottom:20px;">
+            <h3 id="auditReportHeading">Invoice &amp; Purchase Order Audit Report</h3>
+            <p>Uses the document year, source, type, and search filters above. Amounts are USD, grouped by invoice / purchase date. Invoice totals and purchase totals are reported separately.</p>
+            <div class="invoice-form-grid">
+              <label>Report month <select id="auditReportMonth" onchange="renderInvoiceHistory()"><option value="">All months</option><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select></label>
+              <label><span>Void documents</span><span><input id="auditReportVoid" type="checkbox" onchange="renderInvoiceHistory()"> Include void documents in report</span></label>
+            </div>
+            <div id="auditReportSummary" aria-live="polite"></div>
+            <button class="btn" type="button" onclick="exportInvoiceAudit()">Export Audit Details (CSV)</button>
+            <p>Credits / amount paid reflect saved adjustments, not payment transaction dates. This report summarizes saved documents; it is not a change log. Undated records appear under Unknown when All Years is selected.</p>
+          </section>
           <div id="invoiceHistoryPager" class="invoice-toolbar"></div>
           <div id="invoiceHistoryList" class="invoice-history-list"></div>
         </div>
@@ -1096,6 +1107,7 @@
 <script src="./vendor/fflate-0.8.3.js"></script>
 <script src="./skybox-import.js"></script>
 <script src="./a1-history.js"></script>
+<script src="./a1-reports.js"></script>
 <script src="./private-links.js"></script>
 <script src="./button-moves.js"></script>
 <script src="./a1-invoice-fields.js"></script>
@@ -3275,10 +3287,6 @@ function createBtn(label, url, isCustom=true){
       const wrap = document.getElementById('invoiceHistoryList');
       if (!wrap) return;
       const items = loadInvoices();
-      if (!items.length){
-        wrap.innerHTML = '<div class="invoice-empty">No invoices or purchase orders saved yet.</div>';
-        return;
-      }
       const query = (document.getElementById('invoiceHistorySearch')?.value || '').trim().toLowerCase();
       const yearSelect=document.getElementById('invoiceHistoryYear');
       const selectedYear=yearSelect?.value || '';
@@ -3287,6 +3295,7 @@ function createBtn(label, url, isCustom=true){
         yearSelect.value=selectedYear;
       }
       const filtered = A1History.filter(items,query,selectedYear,document.getElementById('invoiceHistoryOrder')?.value || 'newest',document.getElementById('invoiceHistoryOrigin')?.value || '',document.getElementById('invoiceHistoryKind')?.value || '');
+      renderInvoiceAudit(filtered,selectedYear);
       const lastPage=Math.max(0,Math.ceil(filtered.length/50)-1);
       invoiceHistoryPage=Math.min(invoiceHistoryPage,lastPage);
       const pager=document.getElementById('invoiceHistoryPager');
@@ -3315,6 +3324,31 @@ function createBtn(label, url, isCustom=true){
           </div>
         </div>
       `).join('');
+    }
+
+    let currentInvoiceAudit=null;
+    function renderInvoiceAudit(items,year){
+      const wrap=document.getElementById('auditReportSummary');
+      try {
+        currentInvoiceAudit=A1Reports.report(items,{year,month:document.getElementById('auditReportMonth').value,includeVoid:document.getElementById('auditReportVoid').checked,total:invoiceTotal,credit:invoiceCredit});
+        const r=currentInvoiceAudit;
+        const cells=group=>`<td>${group.count}</td><td>${money(group.total/100)}</td><td>${money(group.credit/100)}</td><td>${money(group.balance/100)}</td>`;
+        wrap.innerHTML=`<p>${r.rows.length} documents in report · ${r.excludedVoid} void documents excluded · Includes every matching record across all history pages. Month and void controls apply to this report and its export.</p>
+          <div style="overflow-x:auto;"><table style="width:100%;text-align:left;border-spacing:12px 8px;white-space:nowrap;">
+          <caption>${escHtml(year||'All years')} · Monthly totals and period total (USD)</caption>
+          <thead><tr><th scope="col" rowspan="2">Period</th><th scope="colgroup" colspan="4">Invoices</th><th scope="colgroup" colspan="4">Purchase orders</th></tr>
+          <tr>${['Invoices','Purchase orders'].map(()=>'<th scope="col">Count</th><th scope="col">Total</th><th scope="col">Credits / paid</th><th scope="col">Balance</th>').join('')}</tr></thead>
+          <tbody>${r.months.map(m=>`<tr><th scope="row">${escHtml(m.period)}</th>${cells(m.invoice)}${cells(m.purchase)}</tr>`).join('')}</tbody>
+          <tfoot><tr><th scope="row">Period total</th>${cells(r.totals.invoice)}${cells(r.totals.purchase)}</tr></tfoot></table></div>`;
+      } catch(error) {currentInvoiceAudit=null;wrap.textContent=error.message;}
+    }
+    function exportInvoiceAudit(){
+      renderInvoiceHistory();
+      if(!currentInvoiceAudit)return;
+      const blob=new Blob([A1Reports.csv(currentInvoiceAudit)],{type:'text/csv;charset=utf-8;'});
+      const url=URL.createObjectURL(blob),link=document.createElement('a');
+      link.href=url;link.download='A1VIP-Audit-'+(document.getElementById('invoiceHistoryYear').value||'All-Years')+'-'+(document.getElementById('auditReportMonth').value||'All-Months')+'.csv';
+      document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
     }
 
     function renderInvoicePresets(){
