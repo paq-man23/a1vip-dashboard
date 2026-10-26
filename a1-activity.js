@@ -49,18 +49,38 @@
   const buttons=()=>[...document.querySelectorAll('.grid[data-section] > .btn')].filter(b=>!b.closest('#admin,#system,#buttonManager,#domains,#upload')&&!b.hasAttribute('data-admin-only'));
   function applyButtons(){
     document.querySelectorAll('[data-personal-link]').forEach(b=>b.remove());
-    const grid=document.querySelector('.grid[data-section="main"]');
     for(const link of added){
+      const section=['main','luxury','accounts','travel','social','privatejet','luxhomes','yachts'].includes(link.section)?link.section:'main';
+      const grid=document.querySelector('.grid[data-section="'+section+'"]');
       if(!validUrl(link.url)||typeof link.label!=='string'||!grid)continue;
       const b=document.createElement('button');b.type='button';b.className='btn';b.dataset.personalLink='1';b.dataset.label=link.label;b.dataset.url=link.url;b.textContent=link.label;
       b.addEventListener('click',()=>window.openPopup(link.url,link.label));grid.append(b);
     }
     const omitted=new Set(hidden);
     for(const b of buttons()){
-      const hide=omitted.has(buttonKey(b));
+      const hide=!b.dataset.personalLink&&omitted.has(buttonKey(b));
       b.classList.toggle('a1-personally-hidden',hide);
       // Own CSS property avoids clobbering the dashboard search's display filter.
     }
+    window.A1ButtonMoves?.refresh();
+    window.A1PrivateLinks?.refresh();
+  }
+  async function moveButton(item,to){
+    if(!A1Data.authenticated())throw new Error('Please sign in first.');
+    if(!['main','luxury','accounts','travel','social','privatejet','luxhomes','yachts'].includes(to)||!validUrl(item.url))throw new Error('Unsupported personal link move.');
+    const account=A1Data.account()?.email,choices=await A1Data.fetchPreferences();
+    const nextHidden=new Set(choices.hidden_buttons);
+    if(!item.personal){
+      if(!item.key)throw new Error('Refresh links before moving this button.');
+      nextHidden.add(item.key);
+    }
+    const links=choices.added_links.filter(link=>!((link.section||'main')===item.from&&link.label===item.label&&link.url===item.url));
+    links.push({label:item.label,url:item.url,section:to});
+    const next={hidden_buttons:[...nextHidden],added_links:links};
+    if(!A1Data.authenticated()||A1Data.account()?.email!==account)throw new Error('Session changed. Sign in again.');
+    await A1Data.savePreferences(next);
+    if(!A1Data.authenticated()||A1Data.account()?.email!==account)return;
+    hidden=next.hidden_buttons;added=next.added_links;applyButtons();
   }
   async function loadButtons(){
     if(!A1Data.authenticated())return;
@@ -222,5 +242,5 @@
     closeSite();stop();applyButtons();document.getElementById('personalButtons')?.close();
     document.getElementById('personalButtonList')?.replaceChildren();document.getElementById('activityHistory')?.replaceChildren();document.getElementById('websiteHistory')?.replaceChildren();
   });
-  window.A1Activity={start,stop,expired,applyButtons,loadButtons,customize,saveButtons,history,finishSite:()=>flushSite(true),openSite,closeSite,addPersonalLink,changePreferenceUser};
+  window.A1Activity={start,stop,expired,applyButtons,buttonKey,moveButton,loadButtons,customize,saveButtons,history,finishSite:()=>flushSite(true),openSite,closeSite,addPersonalLink,changePreferenceUser};
 })();

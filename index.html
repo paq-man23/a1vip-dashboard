@@ -453,7 +453,7 @@
   <main>
     <div id="main" class="section">
       <h3>Main Links</h3>
-      <p class="button-move-hint" data-admin-only hidden>Drag a link onto another category to move it. On mobile, press and hold the link first. You’ll confirm before it moves.</p>
+      <p class="button-move-hint">Drag a link onto another category to move it. Regular users customize their own layout. On mobile, press and hold the link first. You’ll confirm before it moves.</p>
       <div class="grid" data-section="main"></div>
     </div>
 
@@ -4791,44 +4791,58 @@ function createBtn(label, url, isCustom=true){
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', async () => {
         try {
-          const reg = await navigator.serviceWorker.register('./sw.v4.js');
-
-          function showUpdatePrompt(waitingSW) {
-            const bar = document.createElement('div');
-            bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;padding:12px 16px;background:#111827;color:#fff;display:flex;gap:12px;align-items:center;justify-content:center;z-index:9999;border-top:1px solid rgba(148,163,184,.22)';
-            bar.innerHTML = `
-              <span>New update available.</span>
-              <button id="a1vip-update" style="background:#22d3ee;border:none;color:#0b1220;font-weight:800;border-radius:10px;padding:8px 12px;cursor:pointer;">Update</button>
-              <button id="a1vip-dismiss" style="background:transparent;border:1px solid rgba(148,163,184,.22);color:#e5e7eb;border-radius:10px;padding:8px 12px;cursor:pointer;">Later</button>
-            `;
-            document.body.appendChild(bar);
-
-            document.getElementById('a1vip-dismiss').onclick = () => bar.remove();
-            document.getElementById('a1vip-update').onclick = () => {
-              waitingSW.postMessage({ type: 'SKIP_WAITING' });
-            };
-
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-              setTimeout(() => window.location.reload(), 100);
-            });
+          const reg = await navigator.serviceWorker.register('./sw.v4.js', {updateViaCache:'none'});
+          let banner=null, waitingWorker=null, updating=false, reloading=false, fallbackTimer=null;
+          let message, updateButton, laterButton;
+          function reloadOnce(){
+            if(reloading)return;
+            reloading=true;clearTimeout(fallbackTimer);window.location.reload();
           }
-
-          if (reg.waiting) showUpdatePrompt(reg.waiting);
-
-          reg.addEventListener('updatefound', () => {
-            const newSW = reg.installing;
-            if (!newSW) return;
-            newSW.addEventListener('statechange', () => {
-              if (newSW.state === 'installed' && reg.waiting) {
-                showUpdatePrompt(reg.waiting);
-              }
-            });
+          function offerReload(text){
+            if(reloading||!banner)return;
+            updating=false;message.textContent=text;updateButton.disabled=false;
+            updateButton.textContent='Reload now';updateButton.onclick=reloadOnce;
+            laterButton.disabled=false;
+          }
+          // Listen before posting SKIP_WAITING, including when another tab activates it.
+          navigator.serviceWorker.addEventListener('controllerchange',()=>{
+            if(updating)reloadOnce();
           });
-
-          setInterval(() => reg.update().catch(()=>{}), 30 * 60 * 1000);
-        } catch (e) {
-          console.error('SW registration failed', e);
-        }
+          function showUpdatePrompt(worker){
+            waitingWorker=worker;
+            if(banner)return; // Repeated lifecycle events must not create duplicate IDs/buttons.
+            banner=document.createElement('div');banner.id='a1vip-update-banner';
+            banner.style.cssText='position:fixed;left:0;right:0;bottom:0;padding:12px 16px;background:#111827;color:#fff;display:flex;gap:12px;align-items:center;justify-content:center;z-index:9999;border-top:1px solid rgba(148,163,184,.22)';
+            banner.innerHTML=`<span role="status" aria-live="polite">New update available.</span><button id="a1vip-update" type="button" style="background:#22d3ee;border:none;color:#0b1220;font-weight:800;border-radius:10px;padding:8px 12px;cursor:pointer;">Update</button><button id="a1vip-dismiss" type="button" style="background:transparent;border:1px solid rgba(148,163,184,.22);color:#e5e7eb;border-radius:10px;padding:8px 12px;cursor:pointer;">Later</button>`;
+            message=banner.querySelector('[role="status"]');
+            updateButton=banner.querySelector('#a1vip-update');laterButton=banner.querySelector('#a1vip-dismiss');
+            laterButton.onclick=()=>{if(!updating){banner.remove();banner=null;}};
+            updateButton.onclick=()=>{
+              if(updating||reloading)return;
+              const target=reg.waiting||waitingWorker;
+              // A different tab may have already activated or superseded the displayed update.
+              if(!target||target.state==='activated'||target.state==='redundant'){reloadOnce();return;}
+              updating=true;updateButton.disabled=true;laterButton.disabled=true;
+              updateButton.textContent='Updating…';message.textContent='Installing the dashboard update…';
+              target.addEventListener('statechange',()=>{
+                if(!updating)return;
+                if(target.state==='activated')reloadOnce();
+                else if(target.state==='redundant')offerReload('The update could not finish. Reload and try again.');
+              });
+              fallbackTimer=setTimeout(()=>offerReload('The update is taking longer than expected. Reload to finish.'),10000);
+              try{target.postMessage({type:'SKIP_WAITING'});}
+              catch(error){clearTimeout(fallbackTimer);offerReload('The update could not start. Reload and try again.');}
+            };
+            document.body.appendChild(banner);
+          }
+          if(reg.waiting)showUpdatePrompt(reg.waiting);
+          reg.addEventListener('updatefound',()=>{
+            const worker=reg.installing;if(!worker)return;
+            const installed=()=>{if(worker.state==='installed'&&reg.waiting)showUpdatePrompt(reg.waiting);};
+            worker.addEventListener('statechange',installed);installed();
+          });
+          setInterval(()=>reg.update().catch(()=>{}),30*60*1000);
+        } catch(error){console.error('SW registration failed',error);}
       });
     }
   </script>

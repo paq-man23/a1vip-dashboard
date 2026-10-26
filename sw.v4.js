@@ -2,7 +2,7 @@
 // Update style: show "New update available" banner in the page; activate on user click.
 // If you need to force all installs to fetch this worker, bump CACHE_NAME.
 
-const CACHE_NAME = 'a1vip-static-v28'; // bump this once
+const CACHE_NAME = 'a1vip-static-v29'; // bump this once
 
 
 // Resolve relative to worker scope (safe for GitHub Pages subpaths)
@@ -100,13 +100,12 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Page ↔ SW messaging
-self.addEventListener('message', async (event) => {
+self.addEventListener('message', (event) => {
   const msg = event.data || {};
   if (msg.type === 'SKIP_WAITING') {
     // User accepted the in-page "Update" prompt
-    self.skipWaiting();
+    event.waitUntil(self.skipWaiting());
   } else if (msg.type === 'BUST_CACHE') {
-    const keys = await caches.keys();
-    await Promise.all(keys.map((k) => caches.delete(k)));
+    event.waitUntil(caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))));
   }
 });

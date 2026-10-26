@@ -25,10 +25,10 @@
  }
  if(typeof module!=='undefined'&&module.exports){module.exports={moveState,reconcile};return;}
  let dragging=null,timer=null,touchStart=null,ghost=null,suppressUntil=0,busy=false,wasOpen=false;
- const permitted=()=>root.A1Data?.isAdmin?.()===true;
- const allowed=id=>manageableSections.some(s=>s.id===id)&&!!sectionGrid(id);
+ const permitted=()=>root.A1Data?.authenticated?.()===true||root.A1Data?.isAdmin?.()===true;
+ const allowed=id=>manageableSections.some(s=>s.id===id)&&!!sectionGrid(id)&&(root.A1Data?.isAdmin?.()===true||!['domains','admin','system','upload','buttonManager'].includes(id));
  const name=id=>manageableSections.find(s=>s.id===id)?.label||id;
- function source(button){const from=button.closest('.grid[data-section]')?.dataset.section;const url=getBtnURL(button);return allowed(from)&&url?{from,label:button.getAttribute('data-label')||button.textContent.trim(),url}:null;}
+ function source(button){const from=button.closest('.grid[data-section]')?.dataset.section;const url=getBtnURL(button);return allowed(from)&&url&&(root.A1Data?.isAdmin?.()===true||/^https?:\/\//i.test(url))?{from,label:button.getAttribute('data-label')||button.textContent.trim(),url,personal:button.dataset.personalLink==='1',key:root.A1Activity?.buttonKey?.(button)}:null;}
  function refresh(){for(const button of document.querySelectorAll('.grid[data-section]>.btn')){const canMove=permitted()&&!!source(button);button.draggable=canMove&&root.matchMedia?.('(pointer:coarse)').matches!==true;button.classList.toggle('can-drag-link',canMove);}}
  function cleanup(){const active=!!dragging;clearTimeout(timer);timer=null;touchStart=null;dragging=null;ghost?.remove();ghost=null;document.body.classList.remove('moving-link');for(const n of document.querySelectorAll('.is-dragging,.is-drop-target'))n.classList.remove('is-dragging','is-drop-target');if(active&&!wasOpen){setSectionMenuExpanded(false);}refresh();}
  function begin(button,touch=false){const item=source(button);if(busy||!permitted()||!item)return false;dragging=item;wasOpen=document.querySelector('.top-tabs').classList.contains('is-open');button.classList.add('is-dragging');document.body.classList.add('moving-link');if(touch){ghost=document.createElement('div');ghost.className='link-drag-ghost';ghost.textContent=item.label;document.body.append(ghost);setSectionMenuExpanded(true);}return true;}
@@ -39,8 +39,9 @@
   if(!confirm('Move “'+item.label+'” from '+name(item.from)+' to '+name(to)+'?'))return;
   busy=true;
   try{
-   const existing=[...sectionGrid(to).querySelectorAll(':scope > .btn')].some(b=>normalize(b.getAttribute('data-label')||b.textContent)===normalize(item.label));
+   const existing=[...sectionGrid(to).querySelectorAll(':scope > .btn')].some(b=>!b.classList.contains('a1-personally-hidden')&&normalize(b.getAttribute('data-label')||b.textContent)===normalize(item.label));
    if(existing)throw Error('That category already has a button with this name. No buttons were changed.');
+   if(root.A1Data?.isAdmin?.()!==true||item.personal){await root.A1Activity.moveButton(item,to);showSection(to);return;}
    const remote=await fetchRemoteConfig();if(!permitted())throw Error('Administrator access required');
    const baseline=mergeStates(loadState(),remote);
    if((baseline.removed?.[item.from]||[]).some(x=>normalize(x)===normalize(item.label)))throw Error('This button was removed. Refresh links and try again.');
