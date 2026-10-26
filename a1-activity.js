@@ -1,7 +1,7 @@
 /* Dashboard session timer, admin-only punch card, and account-specific visibility. */
 (() => {
   const IDLE=20*60*1000, PREFIX='a1vip-last-activity:';
-  let userId=null, last=0, sent=0, timer=null, busy=false, hidden=[], added=[], draftAdded=[], targetUser=null, view=null;
+  let userId=null, last=0, sent=0, timer=null, busy=false, hidden=[], added=[], draftAdded=[], targetUser=null, view=null, lastAccessCheck=0;
   const stored=id=>{try{return Number(localStorage.getItem(PREFIX+id))||0;}catch{return 0;}};
   const remember=()=>{try{localStorage.setItem(PREFIX+userId,String(last));}catch{}};
   function stop(){clearInterval(timer);timer=null;userId=null;busy=false;hidden=[];added=[];}
@@ -19,12 +19,14 @@
     if(!userId||busy)return;
     last=Math.max(last,stored(userId));
     if(expired())return expire();
+    if(Date.now()-lastAccessCheck>=30000){lastAccessCheck=Date.now();try{await A1Data.refreshAccess?.();}catch{}}
+    if(!userId)return;
     // A visible page and token refreshes are not user activity.
     void flushSite();
     if(last>sent){
       busy=true;
       try{await A1Data.activitySession('activity');sent=last;}
-      catch{ /* Retain unsent activity for retry; local idle timer keeps running. */ }
+      catch(error){if(/staff access required|Session ended/i.test(error.message)){await A1Data.logout('idle').catch(()=>{});return;}}
       finally{busy=false;}
     }
   }
@@ -64,9 +66,12 @@
     }
     window.A1ButtonMoves?.refresh();
     window.A1PrivateLinks?.refresh();
+    window.A1Accounts?.applyAccess();
   }
   async function moveButton(item,to){
     if(!A1Data.authenticated())throw new Error('Please sign in first.');
+    if(A1Data.canAccess&&(!A1Data.canAccess(item.from)||!A1Data.canAccess(to)))throw new Error('This category is not enabled for your account.');
+    if(A1Data.linkBlocked?.(item.url)||A1Data.blockedLinks?.().includes(item.key))throw new Error('This link is restricted by your administrator.');
     if(!['main','luxury','accounts','travel','social','privatejet','luxhomes','yachts'].includes(to)||!validUrl(item.url))throw new Error('Unsupported personal link move.');
     const account=A1Data.account()?.email,choices=await A1Data.fetchPreferences();
     const nextHidden=new Set(choices.hidden_buttons);
@@ -95,13 +100,16 @@
   function paintChoices(choices){
     const list=document.getElementById('personalButtonList');list.replaceChildren();
     let previous='';
-    for(const b of buttons().filter(b=>!b.dataset.personalLink)){
+    const ownBlocked=new Set(!targetUser&&!A1Data.isAdmin()?A1Data.blockedLinks?.()||[]:[]);
+    for(const b of buttons().filter(b=>!b.dataset.personalLink&&(!A1Data.canAccess||targetUser||A1Data.canAccess(b.closest('.grid').dataset.section))&&!ownBlocked.has(buttonKey(b))&&(targetUser||!A1Data.linkBlocked?.(b.dataset.url)))){
       const section=b.closest('.grid').dataset.section;
       if(section!==previous){const h=document.createElement('h4');h.textContent=section;list.append(h);previous=section;}
       const label=document.createElement('label');label.style.display='block';label.style.padding='6px';
-      const input=document.createElement('input');input.type='checkbox';input.value=buttonKey(b);input.checked=!choices.hidden_buttons.includes(input.value);
+      const input=document.createElement('input');input.type='checkbox';input.value=buttonKey(b);input.checked=!choices.hidden_buttons.includes(input.value)&&!(choices.blocked_links||[]).includes(input.value);
       label.append(input,document.createTextNode(' '+(b.dataset.label||b.textContent).trim()));list.append(label);
     }
+    const picker=document.getElementById('personalLinkSection');picker.replaceChildren();
+    for(const [id,name] of window.A1Accounts?.sections||[]){if(!['main','luxury','accounts','travel','social'].includes(id))continue;const allowed=targetUser?(!choices.allowed_sections||choices.allowed_sections.includes(id)):(!A1Data.canAccess||A1Data.canAccess(id));if(allowed)picker.add(new Option(name,id));}
     draftAdded=choices.added_links.map(x=>({...x}));paintAdded();
   }
   function paintAdded(){
@@ -111,7 +119,7 @@
       const button=document.createElement('button');button.type='button';button.textContent='Remove';button.addEventListener('click',()=>{draftAdded.splice(index,1);paintAdded();});row.append(button);list.append(row);
     });
   }
-  async function customize(adminMode=false){
+  async function customize(adminMode=false,preferredUser=null){
     if(!A1Data.authenticated())return;
     targetUser=null;
     const label=document.getElementById('preferenceUserLabel');label.hidden=!adminMode;
@@ -122,6 +130,7 @@
         const people=await A1Data.preferenceUsers(),select=document.getElementById('preferenceUser');select.replaceChildren();
         if(!A1Data.isAdmin())return;
         for(const person of people)select.add(new Option(person.email,person.user_id));
+        if(preferredUser)select.value=preferredUser;
         targetUser=select.value;if(!targetUser)throw new Error('No approved users found.');
       }
       paintChoices(await A1Data.fetchPreferences(targetUser));
@@ -135,13 +144,16 @@
   function addPersonalLink(){
     const label=document.getElementById('personalLinkLabel'),url=document.getElementById('personalLinkUrl'),message=document.getElementById('personalButtonMessage');
     let address=url.value.trim();if(!/^https?:\/\//i.test(address))address='https://'+address;
+    if(!targetUser&&A1Data.linkBlocked?.(address)){message.textContent='This link is restricted by your administrator.';return;}
     if(!label.value.trim()||!validUrl(address)){message.textContent='Enter a button name and a valid http or https website address.';return;}
-    draftAdded.push({label:label.value.trim(),url:address});label.value='';url.value='';message.textContent='Save Choices to keep this link.';paintAdded();
+    const section=document.getElementById('personalLinkSection').value;if(!section){message.textContent='No link categories are enabled for this account.';return;}
+    draftAdded.push({label:label.value.trim(),url:address,section});label.value='';url.value='';message.textContent='Save Choices to keep this link.';paintAdded();
   }
   async function saveButtons(){
     const choices=[...document.querySelectorAll('#personalButtonList input')].filter(i=>!i.checked).map(i=>i.value);
     const account=A1Data.account()?.email;
     try{
+      if(targetUser){const permissions=await A1Data.accountPermissions(targetUser);if(!permissions.admin_role)await A1Data.setAccountAccess(targetUser,permissions.allowed_sections,choices);}
       await A1Data.savePreferences({hidden_buttons:choices,added_links:draftAdded},targetUser);
       if(A1Data.account()?.email!==account)return;
       if(!targetUser){hidden=choices;added=draftAdded.map(x=>({...x}));applyButtons();}

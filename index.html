@@ -366,7 +366,7 @@
       <p>Enter your credentials to access the dashboard.</p>
       <label>
         Username
-        <input id="loginUser" type="text" autocomplete="username" placeholder="JAW, JV, or email">
+        <input id="loginUser" type="text" autocomplete="username" placeholder="Username or email">
       </label>
       <label>
         Password
@@ -396,12 +396,25 @@
     </div>
   </div>
 
+  <dialog id="accountEditor" class="account-editor">
+    <form id="accountEditorForm" onsubmit="A1Accounts.save(event)">
+      <h3 id="accountEditorTitle">Account</h3>
+      <label>Username <input id="managedUsername" required minlength="2" maxlength="40" autocomplete="off"></label>
+      <label>Display name <input id="managedName" maxlength="120"></label>
+      <label>Email <input id="managedEmail" type="email" autocomplete="off"><small>Leave blank for a temporary username-only account.</small></label>
+      <label id="managedPasswordLabel">Password <input id="managedPassword" type="password" minlength="8" maxlength="200" autocomplete="new-password"></label>
+      <p id="managedRole"></p><fieldset id="managedCategories"><legend>Categories this user can access</legend><div id="managedCategoryList"></div></fieldset>
+      <p id="managedMessage" role="status" aria-live="polite"></p>
+      <button class="btn" id="managedSave" type="submit">Save Account</button><button class="btn" type="button" onclick="document.getElementById('accountEditor').close()">Cancel</button>
+    </form>
+  </dialog>
   <dialog id="personalButtons" style="max-width:620px;width:90%;max-height:80vh;overflow:auto;background:#111827;color:#e5e7eb;border:1px solid #64748b;border-radius:12px;">
     <h3>My Visible Buttons</h3><p>Choose the links shown on your dashboard. These choices apply only to your account and do not change access permissions.</p>
     <label id="preferenceUserLabel" hidden>User <select id="preferenceUser" onchange="A1Activity.changePreferenceUser()"></select></label>
     <div id="personalButtonList"></div>
     <h4>Add a Personal Web Link</h4>
     <label>Button name <input id="personalLinkLabel" maxlength="100"></label>
+    <label>Category <select id="personalLinkSection"></select></label>
     <label>Website address <input id="personalLinkUrl" type="url" placeholder="https://example.com"></label>
     <button class="btn" type="button" onclick="A1Activity.addPersonalLink()">Add Web Link</button>
     <div id="personalAddedList"></div><p id="personalButtonMessage" role="status"></p>
@@ -421,6 +434,7 @@
       <span class="account-identity"><span id="signedInUser" aria-live="polite"></span><span id="accountRoleIcon" role="img"></span></span>
       <button class="header-password-btn" type="button" onclick="openAccountSettings()">Change Password</button>
       <button class="header-password-btn" type="button" onclick="A1Activity.customize()">My Buttons</button>
+      <button class="header-password-btn" type="button" onclick="refreshDashboardApp(this)">Refresh App</button>
       <button class="logout-btn" onclick="logout()">Logout</button>
     </div>
   </header>
@@ -451,6 +465,7 @@
   </nav>
 
   <main>
+    <p id="noCategoriesAssigned" hidden>No dashboard categories are assigned to your account. Contact an administrator to set up access.</p>
     <div id="main" class="section">
       <h3>Main Links</h3>
       <p class="button-move-hint">Drag a link onto another category to move it. Regular users customize their own layout. On mobile, press and hold the link first. You’ll confirm before it moves.</p>
@@ -874,6 +889,12 @@
     </div>
     <div id="admin" class="section" style="display:none;">
       <div class="upload-card" data-admin-only hidden>
+        <h3>Manage Accounts &amp; User Layouts</h3>
+        <p>All user and admin accounts. Select an account to edit its profile, category access, and assigned links. JAW and JV retain full administrator access.</p>
+        <div class="invoice-toolbar"><button class="btn" type="button" onclick="A1Accounts.create()">Add User</button><button class="btn" type="button" onclick="A1Accounts.load()">Refresh Accounts</button></div>
+        <p id="accountManagerMessage" role="status" aria-live="polite"></p><div id="accountManagerList"></div>
+      </div>
+      <div class="upload-card" data-admin-only hidden>
         <h3>User Login History / Punch Card</h3>
         <button class="btn" type="button" onclick="A1Activity.customize(true)">Set User Link Defaults</button>
         <p>Dashboard sessions and elapsed time. An unattended or closed session is estimated to end 20 minutes after its last recorded activity. This is not verified working time or time on outside websites. Shows the most recent 500 sessions.</p>
@@ -1123,6 +1144,7 @@
 <script src="./supabase-config.js"></script>
 <script src="./a1-data.js"></script>
 <script src="./a1-activity.js"></script>
+<script src="./a1-accounts.js"></script>
 <script src="./vendor/fflate-0.8.3.js"></script>
 <script src="./skybox-import.js"></script>
 <script src="./a1-history.js"></script>
@@ -1192,6 +1214,7 @@
       document.getElementById('normalLoginPanel').style.display = 'none';
       document.getElementById('passwordRecoveryPanel').style.display = 'block';
     }
+    window.addEventListener('a1-access-changed',()=>{refreshCloudViews();if(!A1Data.canAccess('invoices'))startNewInvoice();if(!A1Data.canAccess('formLetter'))startNewLetter();if(!A1Data.canAccess('tripItinerary'))startNewItinerary();});
     window.addEventListener('a1-password-recovery', showPasswordRecovery);
     window.addEventListener('a1-restoring-session',()=>{
       if(A1Data.recovering())return;
@@ -1223,6 +1246,7 @@
       if (window.A1SkyboxUI) window.A1SkyboxUI.render();
       if(linksInitialized&&A1Data.authenticated?.())refreshFromRemoteIfChanged();
       window.A1Activity?.loadButtons();
+      window.A1Accounts?.applyAccess();
     }
     function requireLoginClient(){
       if (typeof A1Data === 'undefined') throw new Error('Login code could not load. Reload the page and check that the local server is running from the updated dashboard folder.');
@@ -1676,6 +1700,7 @@
       setSectionMenuExpanded(!document.querySelector('.top-tabs').classList.contains('is-open'));
     }
     function showSection(id){
+      if(A1Data.canAccess&& !A1Data.canAccess(id)){alert('Your administrator has not enabled this category for your account.');return;}
       if(['admin','system','buttonManager','upload','domains'].includes(id)&&A1Data.isAdmin?.()!==true){alert('Administrator access required.');return;}
       if(id==='purchases'){id='invoices';setInvoiceHistoryKind('purchase');openInvoiceMode('history');}
       document.querySelectorAll('.section').forEach(s=>s.style.display='none');
@@ -1686,7 +1711,7 @@
       document.getElementById('mobileSectionTitle').textContent=activeCategory?.textContent||({account:'Account Settings',system:'System',upload:'Uploads',buttonManager:'Button Manager',domains:'Domains'})[id]||'Main Links';
       if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
       if (window.matchMedia('(max-width:760px), (orientation:landscape) and (max-height:600px) and (max-width:1100px)').matches) setSectionMenuExpanded(false);
-      if(id==='admin')window.A1Activity?.history();
+      if(id==='admin'){window.A1Activity?.history();window.A1Accounts?.load();}
     }
 
 
@@ -1917,6 +1942,15 @@ function createBtn(label, url, isCustom=true){
       return (s || "").normalize("NFKC").replace(/\s+/g," ").trim().toLowerCase();
     }
 
+    async function refreshDashboardApp(button){
+      if(button.disabled)return;button.disabled=true;button.textContent='Refreshing…';
+      try{
+        const reg=await navigator.serviceWorker?.getRegistration();
+        if(reg?.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
+        if('caches' in window){const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('a1vip-static-')).map(k=>caches.delete(k)));}
+      }catch{}
+      const url=new URL(window.location.href);url.searchParams.set('_a1_refresh',Date.now().toString());window.location.replace(url.href);
+    }
     async function checkForUpdatesNow(){
       try {
         const reg = await navigator.serviceWorker.getRegistration();

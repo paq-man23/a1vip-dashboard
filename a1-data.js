@@ -1,6 +1,7 @@
 /* Supabase-backed A1 staff invoices. No invoice/password data is cached locally. */
 (() => {
   let client, user, ready = false, admin = false;
+  let accountAccess={allowed_sections:null,blocked_links:[],display_name:''};
   let recoveryUserId = null;
   const RECOVERY_KEY = 'a1vip-password-recovery';
   try { recoveryUserId = sessionStorage.getItem(RECOVERY_KEY) || null; } catch {}
@@ -61,6 +62,8 @@
     const identity = user.id;
     const member = check(await client.from('a1_staff').select('user_id,is_admin').eq('user_id', identity).maybeSingle());
     if (!member) { clear(); throw new Error('This account has not been approved for the A1 Dashboard.'); }
+    const profile=check(await client.from('a1_account_profiles').select('allowed_sections,blocked_links,display_name').eq('user_id',identity).maybeSingle());
+    accountAccess={allowed_sections:profile?.allowed_sections||null,blocked_links:profile?.blocked_links||[],display_name:profile?.display_name||''};
     const rows = [];
     for (let offset = 0; ; offset += 500) {
       const page = check(await client.from('a1_invoice_history').select('id,document,version,origin').order('id').range(offset, offset + 499));
@@ -137,7 +140,16 @@
   async function login(identifier, password) {
     if (recoveryUserId) throw new Error('Finish resetting your password or cancel the reset first.');
     clear();
-    const email = loginEmail(identifier);
+    let email;
+    try{email=loginEmail(identifier);}catch(error){
+      if(error.message!=='Invalid username or password.')throw error;
+      const result=await connect().functions.invoke('a1-account-management',{body:{action:'login',username:String(identifier).trim(),password}});
+      if(result.error||!result.data?.session)throw new Error('Invalid username or password.');
+      const data=check(await client.auth.setSession({access_token:result.data.session.access_token,refresh_token:result.data.session.refresh_token}));
+      user=data.user;
+      try{await window.A1Activity?.start(user.id);await refresh();}catch(error){await client.auth.signOut({scope:'local'});clear();throw error;}
+      return;
+    }
     const data = check(await connect().auth.signInWithPassword({ email, password }));
     user = data.user;
     try { await window.A1Activity?.start(user.id); await refresh(); } catch (error) { await client.auth.signOut(); clear(); throw error; }
@@ -319,14 +331,54 @@
     const row=check(await c.rpc('a1_save_button_layout',{p_state:{added:state.added||{},removed:state.removed||{}},p_expected_version:state.cloudVersion}));
     return {...copy(row.state),cloudVersion:row.version};
   }
+  function canAccess(section){
+    if(!user||!ready||recoveryUserId)return false;
+    if(admin||section==='account')return true;
+    const aliases={privatejet:'travel',luxhomes:'travel',yachts:'travel',purchases:'invoices'};
+    const id=aliases[section]||section;
+    if(['admin','system','upload','buttonManager','domains'].includes(id))return false;
+    return accountAccess.allowed_sections===null||accountAccess.allowed_sections.includes(id);
+  }
+  function linkBlocked(url){
+    if(admin)return false;
+    const normalize=value=>{try{return new URL(String(value)).href;}catch{return String(value);}};
+    return accountAccess.blocked_links.some(key=>{try{return normalize(JSON.parse(key)[2])===normalize(url);}catch{return false;}});
+  }
+  async function refreshAccess(){
+    if(!user||!ready)return;
+    const identity=user.id;
+    const member=check(await client.from('a1_staff').select('user_id,is_admin').eq('user_id',identity).maybeSingle());
+    if(!member){await window.A1Data.logout('idle');return;}
+    const profile=check(await client.from('a1_account_profiles').select('allowed_sections,blocked_links,display_name').eq('user_id',identity).maybeSingle());
+    if(user?.id!==identity)return;
+    const next={allowed_sections:profile?.allowed_sections||null,blocked_links:profile?.blocked_links||[],display_name:profile?.display_name||''};
+    if(JSON.stringify(next)!==JSON.stringify(accountAccess)||admin!==(member.is_admin===true)){
+      await refresh();window.dispatchEvent(new Event('a1-access-changed'));
+    }
+  }
+  async function accountAction(body){
+    const c=requireAdmin(),result=await c.functions.invoke('a1-account-management',{body});
+    if(result.error){
+      let message=result.error.message;
+      try{const data=await result.error.context?.json();message=data?.error||message;}catch{}
+      throw new Error(message||'Account operation failed.');
+    }
+    if(result.data?.error)throw new Error(result.data.error);
+    return result.data;
+  }
   window.A1Data = {
+    canAccess, refreshAccess, linkBlocked, blockedLinks:()=>copy(accountAccess.blocked_links),
+    listAccounts:async()=>check(await requireAdmin().rpc('a1_list_accounts')),
+    accountAction,
+    accountPermissions:async id=>check(await requireAdmin().from('a1_account_profiles').select('allowed_sections,blocked_links,admin_role').eq('user_id',id).single()),
+    setAccountAccess:async(id,sections,blocked)=>check(await requireAdmin().rpc('a1_set_account_access',{p_user_id:id,p_sections:sections,p_blocked:blocked})),
     fetchButtonLayout,saveButtonLayout,
     activitySession: async action => check(await connect().rpc('a1_activity_session', {p_action:action})),
     fetchActivity: async () => check(await requireAdmin().from('a1_activity_sessions').select('id,user_id,display_name,started_at,last_active_at,ended_at,end_reason').order('started_at',{ascending:false}).limit(500)),
     recordWebsite: async args => check(await connect().rpc('a1_website_view',args)),
     fetchWebsiteViews: async () => check(await requireAdmin().from('a1_website_views').select('id,display_name,site_host,label,started_at,ended_at,visible_seconds').order('started_at',{ascending:false}).limit(500)),
     preferenceUsers: async () => check(await requireAdmin().rpc('a1_preference_users')),
-    fetchPreferences: async target => { const c=target?requireAdmin():requireReady(); const row=check(await c.from('a1_user_preferences').select('hidden_buttons,added_links').eq('user_id',target||user.id).maybeSingle()); return {hidden_buttons:row?.hidden_buttons||[],added_links:row?.added_links||[]}; },
+    fetchPreferences: async target => { const c=target?requireAdmin():requireReady(); const row=check(await c.from('a1_user_preferences').select('hidden_buttons,added_links').eq('user_id',target||user.id).maybeSingle()); const profile=target?check(await c.from('a1_account_profiles').select('blocked_links,allowed_sections').eq('user_id',target).single()):accountAccess;return {hidden_buttons:row?.hidden_buttons||[],added_links:row?.added_links||[],blocked_links:profile?.blocked_links||[],allowed_sections:profile?.allowed_sections||null}; },
     savePreferences: async (state,target) => { const c=target?requireAdmin():requireReady(); check(await c.from('a1_user_preferences').upsert({user_id:target||user.id,hidden_buttons:state.hidden_buttons,added_links:state.added_links})); },
     fetchSyncRuns: async () => { const c=requireAdmin(); return check(await c.from('a1_skybox_sync_runs').select('machine_label,started_at,finished_at,status,summary').order('started_at',{ascending:false}).limit(5)); },
     isAdmin: () => !!user && ready && admin && !recoveryUserId,
@@ -353,7 +405,7 @@
       if(!user||!ready||recoveryUserId)return null;
       const email=user.email||'';
       const alias=Object.entries(window.A1_SUPABASE_CONFIG?.adminAliases||{}).find(([,address])=>String(address).toLowerCase()===email.toLowerCase());
-      return {name:alias?.[0]||user.user_metadata?.display_name||user.user_metadata?.full_name||email,email};
+      return {name:alias?.[0]||accountAccess.display_name||user.user_metadata?.display_name||user.user_metadata?.full_name||email,email};
     },
     authenticated: () => !!user && ready && !recoveryUserId
   };
