@@ -166,3 +166,15 @@ body.a1-duo .invoice-layout{grid-template-columns:minmax(0,1fr)}
 @media screen and (max-width:760px) and (min-height:601px){.header-account>.account-identity{flex-basis:100%;justify-content:flex-end}.account-identity>#signedInUser{flex-basis:auto}}
 
 .account-editor{width:min(640px,94vw);max-height:88dvh;overflow:auto;background:#111827;color:#e5e7eb;border:1px solid #64748b;border-radius:12px;padding:20px}.account-editor label{display:block;margin:12px 0}.account-editor input:not([type=checkbox]){display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:10px;font:inherit;background:#17253b;color:#fff;border:1px solid #64748b;border-radius:6px}.account-editor small{display:block;margin-top:5px}.account-editor [hidden]{display:none!important}#managedCategoryList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}#managedCategoryList label{margin:4px 0}.managed-account{padding:14px 0;border-bottom:1px solid #334155}.managed-account p{overflow-wrap:anywhere}.managed-account .invoice-toolbar{flex-wrap:wrap;gap:8px}.a1-category-denied,.a1-admin-link-denied{display:none!important}
+
+/* Long link names stay inside their buttons, including tablet right navigation. */
+main .grid>.btn{
+ min-width:0;
+ max-width:100%;
+ height:auto;
+ white-space:normal;
+ overflow-wrap:anywhere;
+ word-break:break-word;
+ line-height:1.35;
+}
+main .grid>.btn>*{min-width:0;max-width:100%;overflow-wrap:anywhere}
