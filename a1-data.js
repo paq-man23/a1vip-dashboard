@@ -1,7 +1,7 @@
 /* Supabase-backed A1 staff invoices. No invoice/password data is cached locally. */
 (() => {
   let client, user, ready = false, admin = false;
-  let accountAccess={allowed_sections:null,blocked_links:[],display_name:''};
+  let accountAccess={allowed_sections:null,blocked_links:[],display_name:'',username:''};
   let recoveryUserId = null;
   const RECOVERY_KEY = 'a1vip-password-recovery';
   try { recoveryUserId = sessionStorage.getItem(RECOVERY_KEY) || null; } catch {}
@@ -123,9 +123,9 @@
     const member=check(await client.from('a1_staff').select('user_id,is_admin').eq('user_id',identity).maybeSingle());
     if(user?.id!==identity||epoch!==dataEpoch)throw new Error('Session changed. Sign in again.');
     if(!member){clear();throw new Error('This account has not been approved for the A1 Dashboard.');}
-    const profile=check(await client.from('a1_account_profiles').select('allowed_sections,blocked_links,display_name').eq('user_id',identity).maybeSingle());
+    const profile=check(await client.from('a1_account_profiles').select('allowed_sections,blocked_links,display_name,username').eq('user_id',identity).maybeSingle());
     if(user?.id!==identity||epoch!==dataEpoch||recoveryUserId)throw new Error('Session changed. Sign in again.');
-    const next={allowed_sections:profile?.allowed_sections||null,blocked_links:profile?.blocked_links||[],display_name:profile?.display_name||''};
+    const next={allowed_sections:profile?.allowed_sections||null,blocked_links:profile?.blocked_links||[],display_name:profile?.display_name||'',username:profile?.username||''};
     if(JSON.stringify(next)!==JSON.stringify(accountAccess)||admin!==(member.is_admin===true))resetSharedData();
     accountAccess=next;admin=member.is_admin===true;ready=true;
     if(mode!=='auth')await Promise.all(Object.keys(resourceSection).map(resource=>loadResource(resource,true)));
@@ -373,9 +373,9 @@
     const identity=user.id;
     const member=check(await client.from('a1_staff').select('user_id,is_admin').eq('user_id',identity).maybeSingle());
     if(!member){await window.A1Data.logout('idle');return;}
-    const profile=check(await client.from('a1_account_profiles').select('allowed_sections,blocked_links,display_name').eq('user_id',identity).maybeSingle());
+    const profile=check(await client.from('a1_account_profiles').select('allowed_sections,blocked_links,display_name,username').eq('user_id',identity).maybeSingle());
     if(user?.id!==identity)return;
-    const next={allowed_sections:profile?.allowed_sections||null,blocked_links:profile?.blocked_links||[],display_name:profile?.display_name||''};
+    const next={allowed_sections:profile?.allowed_sections||null,blocked_links:profile?.blocked_links||[],display_name:profile?.display_name||'',username:profile?.username||''};
     if(JSON.stringify(next)!==JSON.stringify(accountAccess)||admin!==(member.is_admin===true)){
       await refresh('auth');window.dispatchEvent(new Event('a1-access-changed'));
     }
@@ -430,7 +430,7 @@
       if(!user||!ready||recoveryUserId)return null;
       const email=user.email||'';
       const alias=Object.entries(window.A1_SUPABASE_CONFIG?.adminAliases||{}).find(([,address])=>String(address).toLowerCase()===email.toLowerCase());
-      return {name:alias?.[0]||accountAccess.display_name||user.user_metadata?.display_name||user.user_metadata?.full_name||email,email};
+      return {username:alias?.[0]||accountAccess.username||'',name:alias?.[0]||accountAccess.display_name||user.user_metadata?.display_name||user.user_metadata?.full_name||email,email};
     },
     authenticated: () => !!user && ready && !recoveryUserId
   };

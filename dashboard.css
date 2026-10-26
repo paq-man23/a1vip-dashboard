@@ -224,3 +224,37 @@ body.a1-duo .copilot-launcher,body.a1-duo .copilot-panel{right:auto;left:16px}bo
 /* Al points to the real button without opening its outside website. */
 main .grid>.btn.al-found-link{outline:4px solid #facc15!important;outline-offset:4px;box-shadow:0 0 0 8px #facc152b,0 0 28px #facc1566!important}
 @media(min-width:1000px){body .copilot-panel.is-left{left:22px;right:auto}body .copilot-panel.is-right{left:auto;right:22px}}
+
+/* Al can be parked anywhere; the category icon remains available when minimized. */
+.tab-ai{--tab-accent:#facc15}.copilot-launcher[hidden]{display:none!important}
+.copilot-launcher{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}.copilot-launcher img{pointer-events:none;-webkit-user-drag:none}.copilot-launcher.is-repositioning{cursor:grabbing;opacity:.85}
+.copilot-position{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 16px;font-size:12px;color:#cbd5e1;border-top:1px solid #35475f;flex-shrink:0}.copilot-position select{max-width:65%;min-height:44px;padding:8px;background:#203149;color:#fff;border:1px solid #61708a;border-radius:10px;font:inherit}
+
+/* Reserve space for Al instead of floating his chat over app controls. */
+.al-tab-mascot{width:30px;height:30px;object-fit:contain;pointer-events:none}.tab-ai{touch-action:none}.tab-ai.is-repositioning{outline:3px dashed #facc15;cursor:grabbing}
+.copilot-header-mascot{float:left;width:42px!important;height:48px!important;object-fit:contain;margin-right:10px;flex:none}
+body.al-chat-open{--al-dock-width:clamp(340px,34vw,460px);--al-dock-height:clamp(310px,48dvh,460px)}
+@media screen and (min-width:1000px){
+ body.al-chat-open[data-al-dock=right]{padding-right:calc(var(--al-dock-width) + 24px)!important}
+ body.al-chat-open[data-al-dock=left]{padding-left:calc(var(--al-dock-width) + 24px)!important}
+ body.al-chat-open[data-al-dock=right] .copilot-panel,body.al-chat-open[data-al-dock=left] .copilot-panel{width:var(--al-dock-width);height:calc(100dvh - 24px);top:12px;bottom:auto}
+ body.al-chat-open[data-al-dock=right] .copilot-panel{right:12px!important;left:auto!important}
+ body.al-chat-open[data-al-dock=left] .copilot-panel{left:12px!important;right:auto!important}
+}
+body.al-chat-open[data-al-dock=bottom]{padding-bottom:calc(var(--al-dock-height) + 16px)!important}
+body.al-chat-open[data-al-dock=bottom] .copilot-panel{left:12px!important;right:12px!important;bottom:8px;top:auto;width:auto;height:var(--al-dock-height);max-width:none}
+body.al-chat-open[data-al-dock=bottom] .copilot-mode,body.al-chat-open[data-al-dock=bottom] .copilot-note{display:none}
+body.al-chat-open[data-al-dock=bottom] .copilot-header{padding:8px 16px}
+body.al-chat-open[data-al-dock=bottom] .copilot-form{display:flex;gap:12px;padding:8px 16px}
+body.al-chat-open[data-al-dock=bottom] .copilot-form textarea{flex:1;min-width:0;min-height:52px;height:52px}
+body.al-chat-open[data-al-dock=bottom] .copilot-form>div{margin:0;align-items:center}
+body.al-chat-open[data-al-dock=bottom] .copilot-position{padding:4px 16px}
+body.al-chat-open[data-al-dock=bottom] .copilot-header-mascot{height:36px!important;width:32px!important}
+@media screen and (max-height:500px){
+ body.al-chat-open{padding:0!important}
+ body.al-chat-open>:not(.copilot-panel):not(script){visibility:hidden}
+ body.al-chat-open .copilot-panel{visibility:visible;top:8px!important;bottom:8px!important;left:8px!important;right:8px!important;width:auto!important;height:calc(100dvh - 16px)!important}
+}
+@media print{body.al-chat-open{padding:0!important}}
+body.al-chat-open[data-al-dock=bottom] .copilot-note{display:block;font-size:10px;line-height:1.2;padding-bottom:6px}
+body.al-chat-open[data-al-dock=bottom] .copilot-header>div>p{display:none}

@@ -1,18 +1,18 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-function harness({permissions=['main','customers','invoices'],pause,voice=false,links=[],contactRows}={}){
+function harness({permissions=['main','customers','invoices'],pause,voice=false,links=[],contactRows,withTab=false,username=''}={}){
  const listeners={},events={},loads=[],opened=[];let authenticated=true,aborted=0,recognizer;
  function node(tag='div'){
-  return {tag,children:[],hidden:false,value:'',textContent:'',attributes:{},classList:{contains:()=>false,toggle(){}},setAttribute(k,v){this.attributes[k]=v;},append(...nodes){for(const n of nodes){n.parent=this;this.children.push(n);}},replaceChildren(){this.children=[];},get firstElementChild(){return this.children[0];},remove(){this.parent.children=this.parent.children.filter(x=>x!==this);},focus(){},addEventListener(k,v){this[k]=v;}};
+  return {tag,children:[],hidden:false,value:'',textContent:'',dataset:{},attributes:{},classList:{contains:()=>false,toggle(){},add(){},remove(){}},setAttribute(k,v){this.attributes[k]=v;},append(...nodes){for(const n of nodes){n.parent=this;this.children.push(n);}},replaceChildren(){this.children=[];},get firstElementChild(){return this.children[0];},remove(){this.parent.children=this.parent.children.filter(x=>x!==this);},focus(){},addEventListener(k,v){this[k]=v;}};
  }
- const body=node(),data={linkBlocked:()=>false,authenticated:()=>authenticated,canAccess:id=>authenticated&&permissions.includes(id),account:()=>({email:'user@example.invalid'}),loadSection:async id=>{loads.push(id);if(pause)await pause;},contacts:()=>contactRows||[{kind:'customer',id:'j',displayName:'Jane Smith',email:'jane@example.invalid'}],invoices:()=>[],documents:()=>[]};
- const root={A1AssistantCore:require('../assistant-core.js'),addEventListener:(k,v)=>events[k]=v};
+ const tab=withTab?node('button'):null;const body=node(),data={linkBlocked:()=>false,authenticated:()=>authenticated,canAccess:id=>authenticated&&permissions.includes(id),isAdmin:()=>false,account:()=>({email:'user@example.invalid',username}),loadSection:async id=>{loads.push(id);if(pause)await pause;},contacts:()=>contactRows||[{kind:'customer',id:'j',displayName:'Jane Smith',email:'jane@example.invalid'}],invoices:()=>[],documents:()=>[]};
+ const root={A1AssistantActions:require('../assistant-actions.js'),A1AssistantCore:require('../assistant-core.js'),addEventListener:(k,v)=>events[k]=v};
  if(voice)root.SpeechRecognition=class{constructor(){recognizer=this;}start(){}abort(){aborted++;}};
  const buttons=links.map(row=>{const classes=new Set(row.hidden?['a1-personally-hidden']:[]);return {...row,isConnected:true,dataset:{label:row.label,url:'https://example.com'},classList:{contains:k=>classes.has(k),add:k=>classes.add(k),remove:k=>classes.delete(k)},closest:()=>({dataset:{section:row.section}}),scrollIntoView(){},focus(){},getBoundingClientRect:()=>({left:100}),parentElement:null};});
- const document={body,createElement:node,addEventListener:(k,v)=>listeners[k]=v,getElementById:()=>null,querySelectorAll:selector=>selector.includes('grid[data-section]')?buttons:[]};
+ const document={body,createElement:node,addEventListener:(k,v)=>listeners[k]=v,getElementById:id=>id==='a1AssistantTab'?tab:null,querySelectorAll:selector=>selector.includes('grid[data-section]')?buttons:[]};
  vm.runInNewContext(fs.readFileSync('a1-assistant.js','utf8'),{window:root,A1Data:data,document,console,showSection:id=>opened.push(id)});listeners.DOMContentLoaded();
  const launcher=body.children[0],panel=body.children[1],log=panel.children[2],status=panel.children[3],form=panel.children[4],input=form.children[0],mic=form.children[1].children[0];
  launcher.onclick();
- return {panel,launcher,log,status,input,mic,loads,opened,buttons,get recognizer(){return recognizer;},aborted:()=>aborted,submit:async text=>{input.value=text;await form.onsubmit({preventDefault(){}});},signout:()=>{authenticated=false;events['a1-signed-out']();},text:()=>log.children.map(x=>x.textContent).join(' ')};
+ return {panel,launcher,tab,log,status,input,mic,loads,opened,buttons,get recognizer(){return recognizer;},aborted:()=>aborted,submit:async text=>{input.value=text;await form.onsubmit({preventDefault(){}});},signout:()=>{authenticated=false;events['a1-signed-out']();},text:()=>log.children.map(x=>x.textContent).join(' ')};
 }
 test('Al searches permitted contacts without writing data',async()=>{
  const h=harness();await h.submit('find customer Jane');assert.deepEqual(h.loads,['customers']);assert.match(h.text(),/Jane Smith/);assert.match(h.text(),/matching contact/);
@@ -34,4 +34,22 @@ test('Yankees search navigates to the ticket button, reports suites and finds co
 test('global link search excludes denied categories while searching all allowed categories',async()=>{
  const h=harness({permissions:['luxury'],links:[{label:'Yankees',section:'accounts'},{label:'Yankees Suites',section:'luxury'}]});
  await h.submit('find Yankees');assert.deepEqual(h.opened,['luxury']);assert.deepEqual(h.loads,[]);assert.match(h.text(),/under Suites/);assert.doesNotMatch(h.text(),/Ticket Accounts/);
+});
+
+test('minimizing hides the bubble and AI category icon reopens the same conversation',async()=>{
+ const h=harness({withTab:true});await h.submit('find customer Jane');const before=h.text();
+ h.panel.children[0].children[2].onclick();assert.equal(h.panel.hidden,true);assert.equal(h.launcher.hidden,true);assert.equal(h.tab.attributes['aria-expanded'],'false');
+ h.tab.onclick();assert.equal(h.panel.hidden,false);assert.equal(h.launcher.hidden,true);assert.equal(h.text(),before);assert.equal(h.tab.attributes['aria-expanded'],'true');
+});
+
+test('Al welcomes the user conversationally and shows examples on Help',async()=>{
+ const h=harness();assert.match(h.text(),/Hi, I’m Al/);assert.match(h.text(),/Type Help/);assert.doesNotMatch(h.text(),/Your dashboard flight/);
+ await h.submit('help');assert.match(h.text(),/create an invoice/);await h.submit('hello Al');assert.match(h.log.children.at(-1).textContent,/Hi, I’m Al/);
+});
+
+test('greeting uses the current username and does not substitute another account',async()=>{
+ const h=harness({username:'JV'});assert.match(h.text(),/Hi JV, I’m Al!/);await h.submit('hi');assert.match(h.log.children.at(-1).textContent,/Hi JV/);assert.doesNotMatch(h.text(),/Hi JAW/);
+});
+test('add-button command shows a proposal without saving until the action is selected',async()=>{
+ const h=harness();await h.submit('add button for example.com in main');assert.match(h.text(),/Add this button/);assert.match(h.text(),/personal layout/);assert.equal(h.opened.length,0);
 });

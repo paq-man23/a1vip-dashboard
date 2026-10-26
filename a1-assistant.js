@@ -1,14 +1,14 @@
 /* Session-only dashboard guide, explicit action buttons, optional browser dictation. */
 (() => {
  const core=window.A1AssistantCore;
- let panel,log,input,send,mic,launcher,status,recognition,waiting=null,busy=false,epoch=0,owner=null;
+ let panel,log,input,send,mic,launcher,status,recognition,waiting=null,busy=false,epoch=0,owner=null,placement,aiTab;
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const allowed=id=>A1Data.authenticated()&&A1Data.canAccess(id);
  function requireAccess(id){if(!allowed(id))throw new Error('That section is not enabled for your account.');}
  function valid(token){return epoch===token&&A1Data.authenticated()&&owner===A1Data.account()?.email;}
  function stopVoice(){const old=recognition;recognition=null;if(old){old.onresult=null;old.onend=null;old.onerror=null;old.abort();}if(mic){mic.textContent='Use Microphone';mic.setAttribute('aria-pressed','false');}}
- function close(){stopVoice();panel.hidden=true;launcher.setAttribute('aria-expanded','false');launcher.focus();}
- function clear(){document.querySelectorAll('.al-found-link').forEach(n=>n.classList.remove('al-found-link'));epoch++;waiting=null;busy=false;owner=null;stopVoice();if(log)log.replaceChildren();if(input)input.value='';if(status)status.textContent='';if(panel)panel.hidden=true;if(launcher)launcher.setAttribute('aria-expanded','false');if(send)send.disabled=false;}
+ function close(){document.body.classList.remove('al-chat-open');stopVoice();panel.hidden=true;launcher.hidden=!!aiTab;launcher.setAttribute('aria-expanded','false');aiTab?.setAttribute('aria-expanded','false');aiTab?.classList.remove('is-active');(aiTab||launcher).focus();}
+ function clear(){document.body.classList.remove('al-chat-open');document.querySelectorAll('.al-found-link').forEach(n=>n.classList.remove('al-found-link'));epoch++;waiting=null;busy=false;owner=null;stopVoice();if(log)log.replaceChildren();if(input)input.value='';if(status)status.textContent='';if(panel)panel.hidden=true;if(launcher){launcher.hidden=!!aiTab;launcher.setAttribute('aria-expanded','false');}aiTab?.setAttribute('aria-expanded','false');aiTab?.classList.remove('is-active');if(send)send.disabled=false;}
  function message(text,user=false){const n=el('div',text,user?'copilot-message is-user':'copilot-message');log.append(n);while(log.children.length>60)log.firstElementChild.remove();log.scrollTop=log.scrollHeight;return n;}
  function action(parent,label,fn){const token=epoch;const b=el('button',label,'copilot-action');b.type='button';b.onclick=async()=>{
   if(!valid(token)){message('Your account access changed. Start a new request.');return;}
@@ -17,8 +17,9 @@
  };parent.append(b);log.scrollTop=log.scrollHeight;return b;}
  async function load(section,token){requireAccess(section);status.textContent='Loading '+(core.sections.find(s=>s[0]===section)?.[1]||section)+'…';await A1Data.loadSection(section);if(!valid(token))throw new Error('Session changed.');requireAccess(section);status.textContent='';}
  function go(id){requireAccess(id);showSection(id);}
+ function greet(){waiting=null;const account=A1Data.account(),name=account?.username||account?.name;const hello=name&&name!==account.email?'Hi '+name+', I’m Al!':'Hi, I’m Al!';const card=message(hello+' What would you like help with today? Type Help and I can show you some examples of what I can help you with.');action(card,'Help · Show Examples',()=>help());}
  function help(){
-  waiting=null;const card=message('I can find saved records, open a dashboard section, or walk you through a new invoice or purchase order. Search “Yankees” to find buttons across categories and related contacts. Try “find customer Jane Smith”, “create an invoice for Acme”, or “find invoice 4100”.');
+  waiting=null;const card=message('I can find saved records, open a dashboard section, or walk you through a new invoice or purchase order. Search “Yankees” to find buttons across categories and related contacts. Try “add button for example.com in main”, “find customer Jane Smith”, “create an invoice for Acme”, or “find invoice 4100”.');
   for(const [label,request,section] of [['Find a Customer','find customer','customers'],['Find a Vendor','find vendor','vendors'],['Start an Invoice','create invoice','invoices'],['Find an Invoice','find invoice','invoices'],['Find a Trip','find trip','tripItinerary'],['Find a Letter','find letter','formLetter'],['Find a Link','find link','main']])if(allowed(section))action(card,label,()=>ask(request));
   const nav=message('Or choose a section and I’ll take you there:');for(const [id,label] of core.sections)if(allowed(id))action(nav,label,()=>go(id));
  }
@@ -67,7 +68,7 @@
   for(let parent=b.parentElement;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;
   document.querySelectorAll('.al-found-link').forEach(n=>n.classList.remove('al-found-link'));
   b.classList.add('al-found-link');b.scrollIntoView({block:'center',inline:'nearest'});b.focus({preventScroll:true});
-  const rect=b.getBoundingClientRect();panel.classList.toggle('is-left',rect.left>window.innerWidth/2);panel.classList.toggle('is-right',rect.left<=window.innerWidth/2);
+  // The dock reserves its own space, so highlighting never needs a floating overlay.
   return (core.sections.find(s=>s[0]===section)||window.manageableSections?.find(s=>s.id===section)&&[section,window.manageableSections.find(s=>s.id===section).label]||[section,section])[1];
  }
  async function globalSearch(query,token){
@@ -95,9 +96,25 @@
    if(allowed('invoices'))action(card,'Start '+(contact.kind==='vendor'?'Purchase Order':'Invoice'),t=>draft(contact,contact.kind==='vendor',t));
   }
  }
+ function proposeButton(request){
+  const item=window.A1AssistantActions.proposal(request);requireAccess(item.section);
+  if(A1Data.linkBlocked(item.url))throw new Error('This link is restricted by your administrator.');
+  const category=core.sections.find(s=>s[0]===item.section)?.[1]||item.section;
+  const card=message('Add this button?\nLabel: '+item.label+'\nWebsite: '+item.url+'\nCategory: '+category+'\n'+(A1Data.isAdmin()?'This adds a shared dashboard button.':'This adds a button to your personal layout.'));
+  action(card,'Add Button',async token=>{
+   if(card.dataset.saved)return;
+   const saved=await window.A1AssistantActions.add({...request,label:item.label},{data:A1Data,
+    exists:entry=>[...document.querySelectorAll('.grid[data-section]>.btn')].some(b=>b.closest('.grid').dataset.section===entry.section&&!b.classList.contains('a1-personally-hidden')&&(core.normalize(b.dataset.label||b.textContent)===core.normalize(entry.label)||b.dataset.url===entry.url)),
+    local:()=>loadState(),apply:state=>{saveState(state);applyState(state);broadcastRefresh();},refreshPersonal:()=>A1Activity.loadButtons()});
+   if(!valid(token))return;card.dataset.saved='true';go(saved.section);const found=[...document.querySelectorAll('.grid[data-section]>.btn')].find(b=>b.closest('.grid').dataset.section===saved.section&&core.normalize(b.dataset.label||b.textContent)===core.normalize(saved.label));if(found)locate(found);
+   message('Added '+saved.label+' to '+category+'.');
+  });
+ }
  async function ask(text){
   text=String(text||'').trim().slice(0,600);if(!text||!A1Data.authenticated())return;
   const token=epoch;message(text,true);let request=core.intent(text);
+  if(request.type==='greeting'){greet();return;}
+  if(request.type==='addButton'){waiting=null;proposeButton(request);return;}
   if(request.type==='cancel'){waiting=null;message('Cancelled. No changes were saved.');return;}
   if(request.type==='unknown'&&waiting)request={...waiting,query:text};
   if(request.type==='help'){help();return;}
@@ -124,18 +141,20 @@
   launcher=el('button',undefined,'copilot-launcher');launcher.type='button';launcher.setAttribute('aria-label','Open Al dashboard assistant');launcher.setAttribute('aria-controls','a1Copilot');launcher.setAttribute('aria-expanded','false');
   const image=el('img');image.src='./assets/al-ticket.png';image.alt='';image.setAttribute('aria-hidden','true');launcher.append(image,el('span','Ask Al'));document.body.append(launcher);
   panel=el('section',undefined,'copilot-panel');panel.id='a1Copilot';panel.hidden=true;panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','copilotTitle');
-  const header=el('header',undefined,'copilot-header');const title=el('div');const h=el('h2','Al');h.id='copilotTitle';title.append(h,el('p','Your dashboard assistant'));header.append(title);
-  const clearButton=el('button','Clear','copilot-small');clearButton.type='button';clearButton.onclick=()=>{clear();owner=A1Data.account()?.email;panel.hidden=false;launcher.setAttribute('aria-expanded','true');help();input.focus();};header.append(clearButton);
-  const closeButton=el('button','Close','copilot-small');closeButton.type='button';closeButton.onclick=close;header.append(closeButton);panel.append(header);
-  panel.append(el('p','Guided mode · Search dashboard links and saved records, or get step-by-step help with a draft.','copilot-mode'));
+  const header=el('header',undefined,'copilot-header');const title=el('div');const h=el('h2','Al');h.id='copilotTitle';const mascot=el('img');mascot.src='./assets/al-ticket.png';mascot.alt='';mascot.className='copilot-header-mascot';title.append(mascot,h,el('p','Your dashboard assistant'));header.append(title);
+  const clearButton=el('button','Clear','copilot-small');clearButton.type='button';clearButton.onclick=()=>{clear();owner=A1Data.account()?.email;document.body.classList.add('al-chat-open');panel.hidden=false;launcher.setAttribute('aria-expanded','true');aiTab?.setAttribute('aria-expanded','true');aiTab?.classList.add('is-active');placement?.layoutPanel();greet();input.focus();};header.append(clearButton);
+  const closeButton=el('button','Minimize','copilot-small');closeButton.type='button';closeButton.onclick=close;header.append(closeButton);panel.append(header);
+  panel.append(el('p','Guided mode · Search dashboard links and saved records, add a website button, or get step-by-step help with a draft.','copilot-mode'));
   log=el('div',undefined,'copilot-log');log.setAttribute('role','log');log.setAttribute('aria-label','Assistant conversation');log.setAttribute('aria-live','polite');panel.append(log);
   status=el('p','','copilot-status');status.setAttribute('role','status');panel.append(status);
   const form=el('form',undefined,'copilot-form');input=el('textarea');input.rows=2;input.maxLength=600;input.placeholder='Find a customer or help me create an invoice…';input.setAttribute('aria-label','Message to dashboard assistant');form.append(input);
-  const controls=el('div');mic=el('button','Use Microphone','copilot-small');mic.type='button';mic.setAttribute('aria-pressed','false');mic.onclick=voice;send=el('button','Send','copilot-send');send.type='submit';controls.append(mic,send);form.append(controls);form.onsubmit=submit;panel.append(form);
+  const controls=el('div');mic=el('button','Use Microphone','copilot-small');mic.type='button';mic.title='Voice input uses your browser’s speech service. Review the transcript before sending.';mic.setAttribute('aria-pressed','false');mic.onclick=voice;send=el('button','Send','copilot-send');send.type='submit';controls.append(mic,send);form.append(controls);form.onsubmit=submit;panel.append(form);
   const supported=!!(window.SpeechRecognition||window.webkitSpeechRecognition);mic.hidden=!supported;
   panel.append(el('p',supported?'Microphone input uses your browser’s speech service. Review the transcript before sending. Chat is cleared on sign-out.':'Type your request or use your keyboard’s dictation microphone. Chat is cleared on sign-out.','copilot-note'));
   document.body.append(panel);
-  launcher.onclick=()=>{if(!A1Data.authenticated())return;if(!panel.hidden){close();return;}if(owner!==A1Data.account()?.email){clear();owner=A1Data.account()?.email;}panel.hidden=false;launcher.setAttribute('aria-expanded','true');if(!log.children.length)help();input.focus();};
+  function open(){if(!A1Data.authenticated())return;if(!panel.hidden){close();return;}if(owner!==A1Data.account()?.email){clear();owner=A1Data.account()?.email;}launcher.hidden=!!aiTab;document.body.classList.add('al-chat-open');panel.hidden=false;launcher.setAttribute('aria-expanded','true');aiTab?.setAttribute('aria-expanded','true');aiTab?.classList.add('is-active');placement?.layoutPanel();if(!log.children.length)greet();input.focus();}
+  launcher.onclick=open;aiTab=document.getElementById('a1AssistantTab');if(aiTab){launcher.hidden=true;}if(aiTab)aiTab.onclick=()=>{if(!panel.hidden){close();return;}open();};
+  placement=window.A1AssistantPosition?.init(launcher,panel);
   panel.addEventListener('keydown',event=>{if(event.key==='Escape')close();});
   window.addEventListener('a1-signed-out',clear);window.addEventListener('a1-password-recovery',clear);window.addEventListener('a1-access-changed',clear);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)stopVoice();});

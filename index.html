@@ -461,6 +461,7 @@
       <button class="tab tab-letter" data-category="formLetter" onclick="showSection('formLetter')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 5 10 8L22 5"/></svg><span class="tab-label">Letters</span></button>
       <button class="tab tab-itinerary" data-category="tripItinerary" onclick="showSection('tripItinerary')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m22 2-6 20-4-9-10-4Z"/><path d="m12 13 10-11"/></svg><span class="tab-label">Trips</span></button>
       <button class="tab tab-admin" data-category="admin" data-admin-only hidden onclick="showSection('admin')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6Z"/><path d="m8 12 3 3 5-6"/></svg><span class="tab-label">Admin</span></button>
+      <button id="a1AssistantTab" class="tab tab-ai" type="button" aria-controls="a1Copilot" aria-expanded="false" aria-label="Open Al AI assistant"><img class="al-tab-mascot" src="./assets/al-ticket.png" alt="" aria-hidden="true"><span class="tab-label">AI · Al</span></button>
     </div>
   </nav>
 
@@ -1213,6 +1214,8 @@
 <script src="./button-moves.js"></script>
 <script src="./vision-layout.js"></script>
 <script src="./assistant-core.js"></script>
+<script src="./assistant-position.js"></script>
+<script src="./assistant-actions.js"></script>
 <script src="./a1-assistant.js"></script>
 <script src="./a1-invoice-fields.js"></script>
 <script src="./a1-contacts.js"></script>
@@ -1272,6 +1275,7 @@
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('loginPass').value = '';
       document.getElementById('sessionLoadingPanel').style.display='none';
+      window.dispatchEvent(new Event('a1-dashboard-ready'));
       const active=[...document.querySelectorAll('.section')].find(el=>el.style.display==='block');if(active)loadSectionData(active.id);
     }
     function showPasswordRecovery(){
