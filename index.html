@@ -910,7 +910,7 @@
         <label>Through <input id="activityThrough" type="date"></label>
         <button class="btn" type="button" onclick="A1Activity.history()">Refresh History</button>
         <div id="activityHistory" role="status" aria-live="polite"></div>
-        <h4>Website Panel Viewing Time</h4><p>Reported time that an embedded panel was visible, not verified active work. Navigation within an outside website cannot be inspected. Shows the most recent 500 views.</p><div id="websiteHistory" role="status" aria-live="polite"></div>
+        <h4>Website Panel Viewing Time</h4><p>Historical time that an embedded panel was visible, not verified active work. Website links open in app-style windows or browser tabs; time in those windows is not recorded. Shows the most recent 500 views.</p><div id="websiteHistory" role="status" aria-live="polite"></div>
       </div>
       <div class="upload-card" style="margin-bottom:20px;">
         <h3>Import from Skybox</h3>
@@ -1815,8 +1815,7 @@ const FULL_BROWSER_MATCH = [
 
 function isFullBrowserUrl(url){
   if (!url) return false;
-  const u = String(url).toLowerCase();
-  return FULL_BROWSER_MATCH.some(k => u.includes(k));
+  try{return FULL_BROWSER_MATCH.includes(new URL(url).hostname.toLowerCase());}catch{return false;}
 }
 
 // Video links (local/hosted MP4) - use "video:" prefix so it can live in the normal button system
@@ -1919,7 +1918,7 @@ function openPrivateShortcut(url, label){
 
   // Force specific links to open in a full browser tab (not popup features)
   if (isFullBrowserUrl(url)) {
-    openSeparateWindow(url);
+    window.open(url, '_blank', 'noopener,noreferrer');
     return;
   }
 

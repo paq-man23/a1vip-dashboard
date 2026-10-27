@@ -38,10 +38,17 @@ for(const admin of [true,false])test(`${admin?'admin':'regular user'} website li
 });
 
 test('admin inactivity never triggers logout, including input after sleep',async()=>{const h=harness(true);await h.activity.start('admin');h.advance(24*60*60*1000);await h.tick();h.listeners.keydown({isTrusted:true});await h.tick();assert.equal(h.loggedOut(),0);assert.equal(h.activity.expired(),false);});
-test('Trade Desk alone opens outside for regular users, without starting an embedded view',()=>{
- const opened=[],records=[],events={},frame={src:''},dialog={close(){},showModal(){this.shown=true;}};
+test('user links restore app-style windows and only Trade Desk uses a full browser tab',()=>{
+ const opened=[],records=[],events={},frame={src:''},dialog={close(){},showModal(){this.shown=true;}};let signedIn=true;
  const window={addEventListener(){},open:(...args)=>opened.push(args)},document={hasFocus:()=>true,getElementById:id=>id==='websiteFrame'?frame:id==='websiteViewer'?dialog:{textContent:''},addEventListener:(k,fn)=>events[k]=fn};
- vm.runInNewContext(fs.readFileSync('a1-activity.js','utf8'),{window,document,A1Data:{authenticated:()=>true,recordWebsite:a=>records.push(a)},URL,console,crypto:{randomUUID:()=> 'fixture'},setInterval:()=>1,clearInterval(){}});
- window.A1Activity.openSite('https://tradedesk.ticketmaster.com/orders','Trade Desk');assert.equal(opened.length,1);assert.equal(opened[0][0],'https://tradedesk.ticketmaster.com/orders');assert.equal(dialog.shown,undefined);assert.equal(records.length,0);
- window.A1Activity.openSite('https://tradedesk.ticketmaster.com.other.example/','Other');assert.equal(opened.length,1);assert.equal(dialog.shown,true);assert.equal(frame.src,'https://tradedesk.ticketmaster.com.other.example/');
+ vm.runInNewContext(fs.readFileSync('a1-activity.js','utf8'),{window,document,A1Data:{authenticated:()=>signedIn,linkBlocked:url=>url.includes('blocked.example'),recordWebsite:a=>records.push(a)},URL,console,clearInterval(){}});
+ for(const url of ['https://tradedesk.ticketmaster.com/orders','https://accounts.ticketmaster.com/','https://example.com/'])window.A1Activity.openSite(url,'Website');
+ assert.equal(opened.length,3);assert.equal(opened[0][0],'https://tradedesk.ticketmaster.com/orders');assert.equal(opened[1][1],'_blank');assert.equal(opened[0][2],'noopener,noreferrer');assert.match(opened[1][2],/popup=yes/);assert.match(opened[1][2],/resizable=yes/);assert.equal(dialog.shown,undefined);assert.equal(frame.src,'about:blank');assert.equal(records.length,0);
+ window.A1Activity.openSite('https://blocked.example/','Blocked');window.A1Activity.openSite('javascript:alert(1)','Invalid');signedIn=false;window.A1Activity.openSite('https://example.com/','Signed out');assert.equal(opened.length,3);
+});
+test('full-browser exception matches Trade Desk host exactly, not arbitrary URL text',()=>{
+ const html=fs.readFileSync('index.html','utf8'),source=html.slice(html.indexOf('const FULL_BROWSER_MATCH ='),html.indexOf('// Video links (local/hosted MP4)'));const c={URL};vm.runInNewContext(source+';result=[isFullBrowserUrl("https://tradedesk.ticketmaster.com/orders"),isFullBrowserUrl("https://example.com/tradedesk.ticketmaster.com"),isFullBrowserUrl("https://tradedesk.ticketmaster.com.other.example/")]',c);assert.deepEqual(Array.from(c.result),[true,false,false]);
+});
+test('admin Trade Desk links use a full browser tab rather than popup features',()=>{
+ const html=fs.readFileSync('index.html','utf8'),source=html.slice(html.indexOf('    function openPopup(url, label){'),html.indexOf('\n\nfunction copyDescription'));const opened=[];const c={A1Data:{authenticated:()=>true,isAdmin:()=>true},window:{open:(...args)=>opened.push(args)},isVideoUrl:()=>false,isFullBrowserUrl:()=>true};vm.runInNewContext(source+';openPopup("https://tradedesk.ticketmaster.com","Trade Desk")',c);assert.deepEqual(opened,[['https://tradedesk.ticketmaster.com','_blank','noopener,noreferrer']]);
 });

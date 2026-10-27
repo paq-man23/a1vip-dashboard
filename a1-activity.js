@@ -184,18 +184,15 @@
     document.getElementById('websiteViewer')?.close();
   }
   function openSite(url,label){
-    if(!A1Data.authenticated()||!validUrl(url))return;
+    if(!A1Data.authenticated()||!validUrl(url)||A1Data.linkBlocked?.(url))return;
     closeSite();
-    const u=new URL(url);
-    // Trade Desk blocks embedded viewing. Keep this exception limited to its exact host.
-    if(u.hostname.toLowerCase()==='tradedesk.ticketmaster.com'){window.open(u.href,'_blank','noopener,noreferrer');return;}
-    const dialog=document.getElementById('websiteViewer');
-    document.getElementById('websiteViewerTitle').textContent=label||u.hostname;
-    // Only the host and label are logged; query strings may contain private tokens.
-    view={id:crypto.randomUUID(),host:u.host,label:label||u.hostname,ms:0,visibleAt:Date.now(),pending:Promise.resolve()};
-    document.getElementById('websiteFrame').src=u.href;dialog.showModal();
-    view.timer=setInterval(()=>void flushSite(),10000);void flushSite();
+    const target=new URL(url);
+    // Restore the original top-level app-style window, without embedding the provider.
+    const features=target.hostname.toLowerCase()==='tradedesk.ticketmaster.com'?'noopener,noreferrer':
+      (window.separateWindowFeatures?.()||'popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=1200,height=800')+',noopener,noreferrer';
+    window.open(target.href,'_blank',features);
   }
+
   async function websiteHistory(){
     const output=document.getElementById('websiteHistory');if(!output||!A1Data.isAdmin())return;
     output.textContent='Loading website views…';
