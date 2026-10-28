@@ -43,3 +43,22 @@ test('hotel totals multiply rooms by nights and nightly cost, including custom m
  assert.equal(F.invoiceFromPurchaseOrder({type:'po-travel',lines:[hotel]},{},0).lines[0].unitCost,200);
  for(const invalid of ['',-1,'bad',Infinity])assert.throws(()=>F.invoiceFromPurchaseOrder({type:'po-ticket'}, {},invalid),/valid markup/);
 });
+test('optional invoice markup updates only line prices, preserving invoice identity and payments',()=>{
+ const source={id:'inv-sale',number:'4145',type:'invoice-travel',autoNumber:false,credit:100,tax:15,shipping:20,clientCompany:'Customer',lines:[{lineType:'Hotel',rooms:3,qty:2,unitCost:100},{lineType:'Tickets',qty:2,unitCost:19.99}]};
+ const before=JSON.stringify(source),marked=F.markupInvoice(source,10);
+ assert.equal(marked.lines[0].unitCost,110);assert.equal(marked.lines[1].unitCost,21.99);assert.equal(marked.lines[0].rooms,3);assert.equal(marked.lines[0].qty,2);
+ for(const key of ['id','number','autoNumber','credit','tax','shipping','clientCompany'])assert.equal(marked[key],source[key]);
+ assert.equal(marked.markupAdjustments[0].percent,10);assert.equal(JSON.stringify(source),before);
+ assert.equal(F.markupInvoice(source,45).lines[0].unitCost,145);
+ for(const rate of [0,'',-1,'bad',Infinity])assert.throws(()=>F.markupInvoice(source,rate));
+ assert.throws(()=>F.markupInvoice({...source,type:'po-ticket'},10),/purchase orders/);
+});
+test('invoice markup opens switched off and cannot apply to another editor document',()=>{
+ const html=fs.readFileSync('index.html','utf8'),a=html.indexOf('    let invoiceMarkupTarget=null;'),b=html.indexOf('    function createInvoiceFromPurchaseOrder(){',a);
+ const nodes={invoiceMarkupChoice:{value:'50'},invoiceMarkupCustom:{value:'40'},invoiceMarkupCustomLabel:{hidden:false},invoiceMarkupPreview:{},invoiceMarkupApply:{},invType:{value:'invoice-ticket'},invoiceMarkupDialog:{showModal(){this.open=true;}}};
+ let changed=false;const context={document:{getElementById:id=>nodes[id]},currentInvoiceId:'inv-one',invoiceSaveInFlight:false,A1Data:{authenticated:()=>true,canAccess:()=>true},isPurchaseOrderType:t=>t.startsWith('po-'),A1InvoiceFields:F,collectInvoiceFromForm:()=>({type:'invoice-ticket',lines:[{qty:1,unitCost:100}]}),money:n=>'$'+n,invoiceSubtotal:i=>i.lines.reduce((s,l)=>s+l.qty*l.unitCost,0),setInvoiceToForm:()=>changed=true};
+ vm.runInNewContext(html.slice(a,b),context);context.openInvoiceMarkup();assert.equal(nodes.invoiceMarkupChoice.value,'0');assert.equal(nodes.invoiceMarkupApply.disabled,true);assert.equal(changed,false);
+ nodes.invoiceMarkupChoice.value='20';context.previewInvoiceMarkup();assert.equal(nodes.invoiceMarkupApply.disabled,false);assert.match(nodes.invoiceMarkupPreview.textContent,/120/);assert.equal(changed,false);
+ context.currentInvoiceId='inv-two';context.applyInvoiceMarkup();assert.equal(changed,false);
+ context.currentInvoiceId='inv-one';context.applyInvoiceMarkup();assert.equal(changed,true);
+});

@@ -265,7 +265,12 @@
 
     .invoice-shell{display:grid;gap:16px}
     .invoice-panel{background:#0f172a;border:1px solid var(--border);border-radius:16px;padding:16px}
-    #poToInvoiceButton[hidden],#poMarkupControl[hidden],#poConversionNotice[hidden],#invNumberHint[hidden]{display:none!important}
+    #poToInvoiceButton[hidden],#poMarkupControl[hidden],#poConversionNotice[hidden],#invNumberHint[hidden],#invoiceMarkupCustomLabel[hidden]{display:none!important}
+    #invoiceMarkupButton[hidden]{display:none!important}
+    #invoiceMarkupDialog{width:min(420px,calc(100vw - 36px));box-sizing:border-box;border:1px solid var(--border);border-radius:16px;background:#0f172a;color:#fff;padding:20px}
+    #invoiceMarkupDialog::backdrop{background:rgba(0,0,0,.6)}
+    #invoiceMarkupDialog label{display:block;margin:12px 0}
+    #invoiceMarkupDialog select,#invoiceMarkupDialog input{width:100%;box-sizing:border-box;padding:10px}
     .invoice-toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
     .invoice-toolbar .btn{padding:12px 14px;min-height:auto}
     .invoice-layout{display:grid;grid-template-columns:minmax(320px,1.1fr) minmax(320px,.9fr);gap:16px}
@@ -534,10 +539,19 @@
             <button class="btn" onclick="document.getElementById('invoiceImportInput').click()">Import File</button>
             <button class="btn" onclick="duplicateCurrentInvoice()">Duplicate</button>
             <label id="poMarkupControl" hidden>Markup % <input id="poMarkupPercent" type="number" min="0" step="0.1" value="30" style="width:90px" aria-label="Invoice markup percentage"></label>
+            <button id="invoiceMarkupButton" class="btn" onclick="openInvoiceMarkup()">Markup</button>
             <button id="poToInvoiceButton" class="btn" hidden onclick="createInvoiceFromPurchaseOrder()">Create Invoice</button>
             <button class="btn" onclick="downloadInvoicePdf()">Save PDF</button>
             <button id="documentEmailButton" class="btn" onclick="emailInvoice()">Email Invoice</button>
           </div>
+          <dialog id="invoiceMarkupDialog" aria-labelledby="invoiceMarkupTitle">
+            <h3 id="invoiceMarkupTitle">Invoice markup</h3>
+            <p>Add a percentage to the current line prices. Tax, shipping, and payments stay the same. Prices change only when you click Apply.</p>
+            <label>Markup <select id="invoiceMarkupChoice" onchange="previewInvoiceMarkup()"><option value="0">Off (default)</option><option value="10">10%</option><option value="20">20%</option><option value="30">30%</option><option value="40">40%</option><option value="50">50%</option><option value="60">60%</option><option value="70">70%</option><option value="80">80%</option><option value="90">90%</option><option value="100">100%</option><option value="custom">Custom percentage</option></select></label>
+            <label id="invoiceMarkupCustomLabel" hidden>Custom % <input id="invoiceMarkupCustom" type="number" min="0" step="0.1" oninput="previewInvoiceMarkup()"></label>
+            <p id="invoiceMarkupPreview" role="status" aria-live="polite"></p>
+            <div class="invoice-toolbar"><button id="invoiceMarkupApply" class="btn" disabled onclick="applyInvoiceMarkup()">Apply markup</button><button class="btn" onclick="document.getElementById('invoiceMarkupDialog').close()">Cancel</button></div>
+          </dialog>
           <p id="poConversionNotice" role="status" hidden></p>
           <input id="invoiceImportInput" type="file" accept=".json,.a1vip.json,application/json" style="display:none;" onchange="handleInvoiceImport(event)">
 
@@ -3010,6 +3024,36 @@ function createBtn(label, url, isCustom=true){
       setInvoiceToForm(invoice);
     }
 
+    let invoiceMarkupTarget=null;
+    function invoiceMarkupRate(){
+      const value=document.getElementById('invoiceMarkupChoice').value;
+      return value==='custom'?document.getElementById('invoiceMarkupCustom').value:value;
+    }
+    function openInvoiceMarkup(){
+      if(invoiceSaveInFlight||!A1Data.authenticated()||!A1Data.canAccess('invoices')||isPurchaseOrderType(document.getElementById('invType').value))return;
+      invoiceMarkupTarget=currentInvoiceId;
+      document.getElementById('invoiceMarkupChoice').value='0';document.getElementById('invoiceMarkupCustom').value='';
+      previewInvoiceMarkup();document.getElementById('invoiceMarkupDialog').showModal();
+    }
+    function previewInvoiceMarkup(){
+      document.getElementById('invoiceMarkupCustomLabel').hidden=document.getElementById('invoiceMarkupChoice').value!=='custom';
+      const preview=document.getElementById('invoiceMarkupPreview'),apply=document.getElementById('invoiceMarkupApply');apply.disabled=true;
+      const percent=invoiceMarkupRate();
+      if(percent==='0'){preview.textContent='Markup is off. Your prices are unchanged.';return;}
+      try{
+        const original=collectInvoiceFromForm(),marked=A1InvoiceFields.markupInvoice(original,percent);
+        preview.textContent='Line subtotal: '+money(invoiceSubtotal(original))+' → '+money(invoiceSubtotal(marked))+'. Adds '+percent+'% to current prices. Save the invoice afterward to keep this change.';
+        apply.disabled=false;
+      }catch(error){preview.textContent=error.message;}
+    }
+    function applyInvoiceMarkup(){
+      if(invoiceSaveInFlight||!A1Data.authenticated()||!A1Data.canAccess('invoices')||currentInvoiceId!==invoiceMarkupTarget)return;
+      try{
+        const marked=A1InvoiceFields.markupInvoice(collectInvoiceFromForm(),invoiceMarkupRate());
+        setInvoiceToForm(marked);
+      }catch(error){document.getElementById('invoiceMarkupPreview').textContent=error.message;}
+    }
+
     function createInvoiceFromPurchaseOrder(){
       if(invoiceSaveInFlight)return;
       if(!A1Data.authenticated()||!A1Data.canAccess('invoices'))return;
@@ -3044,6 +3088,7 @@ function createBtn(label, url, isCustom=true){
       if (numberLabel){
         numberLabel.childNodes[0].textContent = documentNumberLabel(type);
       }
+      const invoiceMarkup=document.getElementById('invoiceMarkupButton');if(invoiceMarkup)invoiceMarkup.hidden=isPurchaseOrderType(type);
       const convert=document.getElementById('poToInvoiceButton');if(convert)convert.hidden=!isPurchaseOrderType(type);
       const markupControl=document.getElementById('poMarkupControl');if(markupControl)markupControl.hidden=!isPurchaseOrderType(type);
       const save=document.getElementById('documentSaveButton'),email=document.getElementById('documentEmailButton');
@@ -3077,6 +3122,8 @@ function createBtn(label, url, isCustom=true){
       }
     }
     function setInvoiceToForm(invoice){
+      const markupDialog=document.getElementById('invoiceMarkupDialog');if(markupDialog?.open)markupDialog.close();
+      invoiceMarkupTarget=null;
       const contactPicker=document.getElementById('sharedContactPicker');
       if(contactPicker)contactPicker.value='';
       setFieldValue('invoiceContactId',invoice.contactId||'');setFieldValue('invoiceContactKind',invoice.contactKind||'');

@@ -29,5 +29,18 @@
       sourcePurchaseOrder:{id:source.id,number:source.number||'',markupPercent:markup,originalLines:original.lines||[]}
     };
   }
-  const api={fields,enrich,invoiceFromPurchaseOrder};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.A1InvoiceFields=api;
+  function markupInvoice(source,percent){
+    const rate=Number(percent);
+    if(String(source?.type||'').startsWith('po-'))throw new Error('Use Create Invoice on purchase orders.');
+    if(percent===''||!Number.isFinite(rate)||rate<=0)throw new Error('Choose a markup greater than zero.');
+    const invoice=JSON.parse(JSON.stringify(source));
+    invoice.lines=(invoice.lines||[]).map(line=>{
+      const cost=Number(line.unitCost||0),price=cost*(1+rate/100);
+      if(!Number.isFinite(price))throw new Error('Enter valid line prices before applying markup.');
+      return {...line,unitCost:Math.round((price+Number.EPSILON)*100)/100};
+    });
+    invoice.markupAdjustments=[...(invoice.markupAdjustments||[]),{percent:rate,originalLines:JSON.parse(JSON.stringify(source.lines||[]))}];
+    return invoice;
+  }
+  const api={fields,enrich,invoiceFromPurchaseOrder,markupInvoice};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.A1InvoiceFields=api;
 })(typeof window==='undefined'?globalThis:window);
