@@ -20,6 +20,15 @@ begin
  delete from public.a1_invoices where id='inv-number-fixture-two';
  second_result:=public.a1_save_dashboard_invoice('{"id":"inv-number-fixture-three","autoNumber":true}');
  if (second_result->'document'->>'number')::bigint<>first_number+2 then raise exception 'Deleted number reused';end if;
+ -- Purchase orders advance their own counter, without advancing invoices.
+ counter_after:=currval('public.a1_invoice_number_seq');
+ second_result:=public.a1_save_dashboard_invoice('{"id":"inv-po-number-one","type":"po-ticket","autoNumber":true}');
+ if second_result->'document'->>'number'<>'3100' then raise exception 'First PO did not start at 3100';end if;
+ second_result:=public.a1_save_dashboard_invoice('{"id":"inv-po-number-two","type":"po-ticket","autoNumber":true}');
+ if second_result->'document'->>'number'<>'3101' then raise exception 'PO did not increment independently';end if;
+ second_result:=public.a1_save_dashboard_invoice('{"id":"inv-po-number-two","type":"po-ticket","autoNumber":true}');
+ if currval('public.a1_purchase_order_number_seq')<>3101 then raise exception 'PO retry advanced counter';end if;
+ if currval('public.a1_invoice_number_seq')<>counter_after then raise exception 'PO advanced invoice counter';end if;
  -- A Skybox collision is skipped rather than overwritten.
  counter_after:=currval('public.a1_invoice_number_seq')+1;
  perform public.a1_import_skybox('invoice','12345','{"Invoice ID":"12345","Vendor":"Example Vendor","Payment Reference":"PAYREF","COGS":"100"}',jsonb_build_object('id','inv-skybox-invoice-12345','number',counter_after::text));
