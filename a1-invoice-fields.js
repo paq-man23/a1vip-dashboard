@@ -12,5 +12,21 @@
     for(const [key,label] of fields)if(result[key]==null)result[key]=String(raw[label]??(key==='nonInventoryCosts'?raw['Non-Inventory Cost']:undefined)??'');
     return result;
   }
-  const api={fields,enrich};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.A1InvoiceFields=api;
+  function invoiceFromPurchaseOrder(source,base){
+    if(!String(source?.type||'').startsWith('po-'))throw new Error('Choose a purchase order first.');
+    const num=value=>{const n=Number(value||0);if(!Number.isFinite(n))throw new Error('Purchase order contains an invalid amount.');return n;};
+    const round=value=>Math.round((value+Number.EPSILON)*100)/100;
+    const original=JSON.parse(JSON.stringify(source));
+    const lines=(original.lines||[]).map(line=>({...line,unitCost:round(num(line.unitCost)*1.30)}));
+    const cost=(original.lines||[]).reduce((sum,line)=>sum+num(line.qty)*num(line.unitCost),0);
+    return {...base,type:source.type.replace(/^po-/,'invoice-'),lines,
+      origin:'a1',autoNumber:true,number:'',numberAssignedByDB:false,savedName:'',
+      credit:0,status:'Unpaid',tax:num(source.tax),shipping:num(source.shipping),
+      vendorId:source.vendorId||(source.contactKind==='vendor'?source.contactId:'')||'',
+      vendor:source.vendor||source.clientCompany||source.clientContact||'',cogs:String(round(cost)),
+      internalNotes:'Created from purchase order #'+(source.number||'Draft')+' with 30% markup on line prices.',
+      sourcePurchaseOrder:{id:source.id,number:source.number||'',markupPercent:30,originalLines:original.lines||[]}
+    };
+  }
+  const api={fields,enrich,invoiceFromPurchaseOrder};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.A1InvoiceFields=api;
 })(typeof window==='undefined'?globalThis:window);

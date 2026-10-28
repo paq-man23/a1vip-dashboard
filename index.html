@@ -532,9 +532,11 @@
             <button class="btn" onclick="exportInvoiceFile()">Export File</button>
             <button class="btn" onclick="document.getElementById('invoiceImportInput').click()">Import File</button>
             <button class="btn" onclick="duplicateCurrentInvoice()">Duplicate</button>
+            <button id="poToInvoiceButton" class="btn" hidden onclick="createInvoiceFromPurchaseOrder()">Create Invoice (+30%)</button>
             <button class="btn" onclick="downloadInvoicePdf()">Save PDF</button>
             <button id="documentEmailButton" class="btn" onclick="emailInvoice()">Email Invoice</button>
           </div>
+          <p id="poConversionNotice" role="status" hidden></p>
           <input id="invoiceImportInput" type="file" accept=".json,.a1vip.json,application/json" style="display:none;" onchange="handleInvoiceImport(event)">
 
           <div class="invoice-layout">
@@ -3006,6 +3008,21 @@ function createBtn(label, url, isCustom=true){
       setInvoiceToForm(invoice);
     }
 
+    function createInvoiceFromPurchaseOrder(){
+      if(invoiceSaveInFlight)return;
+      if(!A1Data.authenticated()||!A1Data.canAccess('invoices'))return;
+      const source=collectInvoiceFromForm();
+      if(!isPurchaseOrderType(source.type))return;
+      if(A1Data.version('invoice',source.id)===null){alert('Save the purchase order first, then choose Create Invoice (+30%).');return;}
+      if(!confirm('Create a new invoice draft from this purchase order with 30% added to each unit price? The saved PO stays unchanged. Select the customer and review tax and shipping before saving the invoice.'))return;
+      try{
+        const type=source.type.replace(/^po-/,'invoice-');
+        const invoice=A1InvoiceFields.invoiceFromPurchaseOrder(source,invoiceBase(type));
+        currentImportConflictHash=null;
+        setInvoiceToForm(invoice);openInvoiceMode('editor');setInvoiceHistoryKind('invoice');showSection('invoices');
+      }catch(error){alert('Invoice draft could not be created: '+error.message);}
+    }
+
     function copyBillingToShipping(){
       const billing = document.getElementById('invBillingAddress');
       const shipping = document.getElementById('invShippingAddress');
@@ -3023,6 +3040,7 @@ function createBtn(label, url, isCustom=true){
       if (numberLabel){
         numberLabel.childNodes[0].textContent = documentNumberLabel(type);
       }
+      const convert=document.getElementById('poToInvoiceButton');if(convert)convert.hidden=!isPurchaseOrderType(type);
       const save=document.getElementById('documentSaveButton'),email=document.getElementById('documentEmailButton');
       if(save)save.textContent='Save '+documentLabel(type);if(email)email.textContent='Email '+documentLabel(type);
     }
@@ -3071,6 +3089,8 @@ function createBtn(label, url, isCustom=true){
       document.getElementById('invNumber').placeholder=currentInvoiceAutoNumber?'Loading next number…':'Invoice number';
       refreshInvoiceNumberPreview();
       renderInvoiceInternalFields(invoice);
+      const conversionNotice=document.getElementById('poConversionNotice');
+      if(conversionNotice){conversionNotice.hidden=!invoice.sourcePurchaseOrder;conversionNotice.textContent=invoice.sourcePurchaseOrder?'Created from PO #'+invoice.sourcePurchaseOrder.number+' with 30% markup on line prices. Select the customer and review tax and shipping before saving.':'';}
       setFieldValue('invVendorId',invoice.vendorId||'');
       const vendorPicker=document.getElementById('invoiceVendorPicker');if(vendorPicker)vendorPicker.value='';
       setFieldValue('invCreated', invoice.createdDate || '');
