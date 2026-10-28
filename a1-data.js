@@ -394,6 +394,7 @@
     return result.data;
   }
   window.A1Data = {
+    previewDocumentNumber:async type=>check(await requireReady().rpc('a1_preview_document_number',{p_type:type})),
     cancelRestore:()=>{window.A1Activity?.stop();clear();},
     loadSection, canAccess, refreshAccess, linkBlocked, blockedLinks:()=>copy(accountAccess.blocked_links),
     listAccounts:async()=>check(await requireAdmin().rpc('a1_list_accounts')),

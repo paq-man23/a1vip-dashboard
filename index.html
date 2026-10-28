@@ -549,7 +549,8 @@
                   </select>
                 </label>
                 <label id="invNumberLabel">Invoice Number
-                  <input id="invNumber" type="text" placeholder="Assigned by Supabase when saved" readonly>
+                  <input id="invNumber" type="text" placeholder="Next number loads when opened" readonly aria-describedby="invNumberHint">
+                  <small id="invNumberHint" hidden>Next available number. Confirmed when saved; may change if someone saves first.</small>
                 </label>
                 <label>Date Created
                   <input id="invCreated" type="date">
@@ -1789,6 +1790,7 @@
       if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
       if (window.matchMedia('(max-width:760px), (orientation:landscape) and (max-height:600px) and (max-width:1100px)').matches) setSectionMenuExpanded(false);
       loadSectionData(id);
+      if(id==='invoices')refreshInvoiceNumberPreview();
       if(id==='admin')window.A1Activity?.history();
       if(id==='manageAccounts')window.A1Accounts?.load();
     }
@@ -2971,6 +2973,7 @@ function createBtn(label, url, isCustom=true){
       if (editor) editor.style.display = mode === 'editor' ? 'block' : 'none';
       if (history) history.style.display = mode === 'history' ? 'block' : 'none';
       if (presets) presets.style.display = mode === 'presets' ? 'block' : 'none';
+      if (mode === 'editor') refreshInvoiceNumberPreview();
       if (mode === 'history') renderInvoiceHistory();
       if (mode === 'presets') renderInvoicePresets();
     }
@@ -3032,6 +3035,24 @@ function createBtn(label, url, isCustom=true){
       const original=document.getElementById('invoiceOriginalFields');
       if(original)original.innerHTML=invoice.skybox&&Object.keys(invoice.skybox).length?Object.entries(invoice.skybox).map(([key,value])=>`<label>${escHtml(key)}<textarea readonly>${escHtml(String(value??''))}</textarea></label>`).join(''):'<p>No original Skybox report is attached to this A1-created invoice.</p>';
     }
+    window.addEventListener('focus',()=>{if(document.getElementById('invoiceEditor')?.offsetParent)refreshInvoiceNumberPreview();});
+    let invoiceNumberPreviewRequest=0;
+    async function refreshInvoiceNumberPreview(){
+      const request=++invoiceNumberPreviewRequest;
+      const hint=document.getElementById('invNumberHint');
+      if(hint)hint.hidden=!currentInvoiceAutoNumber;
+      if(!currentInvoiceAutoNumber)return;
+      const id=currentInvoiceId,type=document.getElementById('invType').value;
+      const input=document.getElementById('invNumber');
+      input.placeholder='Loading next number…';
+      try{
+        const number=await A1Data.previewDocumentNumber(type);
+        if(request!==invoiceNumberPreviewRequest||!currentInvoiceAutoNumber||currentInvoiceId!==id||document.getElementById('invType').value!==type)return;
+        input.value=number;
+      }catch{
+        if(request===invoiceNumberPreviewRequest&&currentInvoiceAutoNumber)input.placeholder='Assigned when saved';
+      }
+    }
     function setInvoiceToForm(invoice){
       const contactPicker=document.getElementById('sharedContactPicker');
       if(contactPicker)contactPicker.value='';
@@ -3047,7 +3068,8 @@ function createBtn(label, url, isCustom=true){
       refreshDocumentLabels(invoice.type || 'invoice-ticket');
       setFieldValue('invNumber',currentInvoiceAutoNumber?'':invoice.number||'');
       document.getElementById('invNumber').readOnly=currentInvoiceAutoNumber||invoice.numberAssignedByDB===true;
-      document.getElementById('invNumber').placeholder=currentInvoiceAutoNumber?'Assigned by Supabase when saved':'Invoice number';
+      document.getElementById('invNumber').placeholder=currentInvoiceAutoNumber?'Loading next number…':'Invoice number';
+      refreshInvoiceNumberPreview();
       renderInvoiceInternalFields(invoice);
       setFieldValue('invVendorId',invoice.vendorId||'');
       const vendorPicker=document.getElementById('invoiceVendorPicker');if(vendorPicker)vendorPicker.value='';
@@ -3214,7 +3236,7 @@ function createBtn(label, url, isCustom=true){
 
     function refreshInvoicePreview(){
       const invoice = collectInvoiceFromForm();
-      setFieldValue('invNumber', invoice.number);
+      if(!currentInvoiceAutoNumber)setFieldValue('invNumber', invoice.number);
       const preview = document.getElementById('invoicePreview');
       if (!preview) return;
       const subtotal = invoiceSubtotal(invoice);
@@ -3397,7 +3419,7 @@ function createBtn(label, url, isCustom=true){
         const saved=await A1Data.save(invoice,presets,currentInvoiceVersion);
         savedToCloud=true;
         if(currentInvoiceId!==invoice.id){refreshCloudViews();alert('Invoice #'+saved.number+' saved to Supabase.');return;}
-        currentInvoiceAutoNumber=false;currentInvoiceSnapshot=JSON.parse(JSON.stringify(saved));
+        currentInvoiceAutoNumber=false;refreshInvoiceNumberPreview();currentInvoiceSnapshot=JSON.parse(JSON.stringify(saved));
         setFieldValue('invNumber',saved.number);
         document.getElementById('invNumber').readOnly=saved.numberAssignedByDB===true;
         currentInvoiceVersion = A1Data.version('invoice', invoice.id);
@@ -3411,7 +3433,7 @@ function createBtn(label, url, isCustom=true){
 
     function exportInvoiceFile(){
       const invoice = collectInvoiceFromForm();
-      setFieldValue('invNumber', invoice.number);
+      if(!currentInvoiceAutoNumber)setFieldValue('invNumber', invoice.number);
       const data = makePortableDoc('invoice', invoice);
       const label = documentLabel(invoice.type);
       const filename = `A1VIP_${safeFilenamePart(label)}_${safeFilenamePart(invoice.number, 'Draft')}.a1vip.json`;

@@ -29,11 +29,16 @@ begin
  second_result:=public.a1_save_dashboard_invoice('{"id":"inv-po-number-two","type":"po-ticket","autoNumber":true}');
  if currval('public.a1_purchase_order_number_seq')<>3101 then raise exception 'PO retry advanced counter';end if;
  if currval('public.a1_invoice_number_seq')<>counter_after then raise exception 'PO advanced invoice counter';end if;
+ -- Preview is read-only and distinguishes the two series.
+ if public.a1_preview_document_number('po-ticket')<>'3102' or public.a1_preview_document_number('po-ticket')<>'3102' then raise exception 'PO preview incorrect or consumed a number';end if;
+ if public.a1_preview_document_number('invoice-ticket')::bigint<>counter_after+1 then raise exception 'Invoice preview incorrect';end if;
+ if currval('public.a1_purchase_order_number_seq')<>3101 or currval('public.a1_invoice_number_seq')<>counter_after then raise exception 'Preview advanced sequence';end if;
  -- A Skybox collision is skipped rather than overwritten.
  counter_after:=currval('public.a1_invoice_number_seq')+1;
  perform public.a1_import_skybox('invoice','12345','{"Invoice ID":"12345","Vendor":"Example Vendor","Payment Reference":"PAYREF","COGS":"100"}',jsonb_build_object('id','inv-skybox-invoice-12345','number',counter_after::text));
  second_result:=public.a1_save_dashboard_invoice('{"id":"inv-number-fixture-four","autoNumber":true}');
  if (second_result->'document'->>'number')::bigint<>counter_after+1 then raise exception 'Skybox collision not skipped';end if;
+ if public.a1_preview_document_number('invoice-ticket')::bigint<>counter_after+2 then raise exception 'Preview after collision incorrect';end if;
  if (select origin from public.a1_invoices where id='inv-skybox-invoice-12345')<>'skybox' then raise exception 'Skybox origin not classified';end if;
  if (select document->'skybox'->>'Payment Reference' from public.a1_invoice_history where id='inv-skybox-invoice-12345')<>'PAYREF' then raise exception 'Existing import fields did not populate';end if;
  if (select document from public.a1_invoices where id='inv-skybox-invoice-12345') ? 'skybox' then raise exception 'Read view mutated stored weekly snapshot';end if;
@@ -57,6 +62,7 @@ reset role;
 select set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
 set local role authenticated;
 do $$ begin
+ begin perform public.a1_preview_document_number('po-ticket');raise exception 'Nonstaff preview succeeded';exception when raise_exception then if sqlerrm not like 'Invoice access required%' then raise;end if;end;
  if exists(select 1 from public.a1_invoice_history) then raise exception 'Nonstaff could read invoice history';end if;
  begin perform public.a1_save_dashboard_invoice('{"id":"inv-number-nonstaff"}');raise exception 'Nonstaff allocated invoice';exception when raise_exception then if sqlerrm not like 'A1 staff access required%' then raise;end if;end;
 end $$;
