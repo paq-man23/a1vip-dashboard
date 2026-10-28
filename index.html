@@ -532,7 +532,8 @@
             <button class="btn" onclick="exportInvoiceFile()">Export File</button>
             <button class="btn" onclick="document.getElementById('invoiceImportInput').click()">Import File</button>
             <button class="btn" onclick="duplicateCurrentInvoice()">Duplicate</button>
-            <button id="poToInvoiceButton" class="btn" hidden onclick="createInvoiceFromPurchaseOrder()">Create Invoice (+30%)</button>
+            <label id="poMarkupControl" hidden>Markup % <input id="poMarkupPercent" type="number" min="0" step="0.1" value="30" style="width:90px" aria-label="Invoice markup percentage"></label>
+            <button id="poToInvoiceButton" class="btn" hidden onclick="createInvoiceFromPurchaseOrder()">Create Invoice</button>
             <button class="btn" onclick="downloadInvoicePdf()">Save PDF</button>
             <button id="documentEmailButton" class="btn" onclick="emailInvoice()">Email Invoice</button>
           </div>
@@ -2743,7 +2744,7 @@ function createBtn(label, url, isCustom=true){
           eventPlaceholder: 'Hotel name',
           venue: 'Hotel Location',
           venuePlaceholder: 'Hotel location',
-          unitCost: 'Daily Rate'
+          unitCost: 'Cost / Room / Night'
         };
       }
       return {
@@ -2804,7 +2805,7 @@ function createBtn(label, url, isCustom=true){
         seats: '',
         description: isTravelInvoiceType(type) ? 'Travel / experience item' : '',
         qty: 1,
-        unitCost: 0
+        unitCost: 0, rooms: 1
       };
     }
 
@@ -2936,7 +2937,7 @@ function createBtn(label, url, isCustom=true){
         .replaceAll('"','&quot;');
     }
     function nl2br(str){ return escHtml(str).replace(/\n/g, '<br>'); }
-    function invoiceLineAmount(line){ return parseNum(line.qty) * parseNum(line.unitCost); }
+    function invoiceLineAmount(line){ return parseNum(line.qty) * parseNum(line.unitCost) * (String(line.lineType||'').toLowerCase()==='hotel'?parseNum(line.rooms??1):1); }
     function invoiceSubtotal(invoice){ return (invoice.lines || []).reduce((sum, line) => sum + invoiceLineAmount(line), 0); }
     function invoiceCredit(invoice){ return parseNum(invoice.credit ?? invoice.other) + parseNum(invoice.amountPaid); }
     function invoiceTotal(invoice){ return invoiceSubtotal(invoice) + parseNum(invoice.tax) + parseNum(invoice.shipping); }
@@ -3013,11 +3014,13 @@ function createBtn(label, url, isCustom=true){
       if(!A1Data.authenticated()||!A1Data.canAccess('invoices'))return;
       const source=collectInvoiceFromForm();
       if(!isPurchaseOrderType(source.type))return;
-      if(A1Data.version('invoice',source.id)===null){alert('Save the purchase order first, then choose Create Invoice (+30%).');return;}
-      if(!confirm('Create a new invoice draft from this purchase order with 30% added to each unit price? The saved PO stays unchanged. Select the customer and review tax and shipping before saving the invoice.'))return;
+      if(A1Data.version('invoice',source.id)===null){alert('Save the purchase order first, then choose Create Invoice.');return;}
+      const rawMarkup=document.getElementById('poMarkupPercent').value,markup=Number(rawMarkup);
+      if(rawMarkup===''||!Number.isFinite(markup)||markup<0){alert('Enter a valid markup percentage of zero or more.');return;}
+      if(!confirm('Create a new invoice draft from this purchase order with '+markup+'% added to each unit price? The saved PO stays unchanged. Select the customer and review tax and shipping before saving the invoice.'))return;
       try{
         const type=source.type.replace(/^po-/,'invoice-');
-        const invoice=A1InvoiceFields.invoiceFromPurchaseOrder(source,invoiceBase(type));
+        const invoice=A1InvoiceFields.invoiceFromPurchaseOrder(source,invoiceBase(type),markup);
         currentImportConflictHash=null;
         setInvoiceToForm(invoice);openInvoiceMode('editor');setInvoiceHistoryKind('invoice');showSection('invoices');
       }catch(error){alert('Invoice draft could not be created: '+error.message);}
@@ -3041,6 +3044,7 @@ function createBtn(label, url, isCustom=true){
         numberLabel.childNodes[0].textContent = documentNumberLabel(type);
       }
       const convert=document.getElementById('poToInvoiceButton');if(convert)convert.hidden=!isPurchaseOrderType(type);
+      const markupControl=document.getElementById('poMarkupControl');if(markupControl)markupControl.hidden=!isPurchaseOrderType(type);
       const save=document.getElementById('documentSaveButton'),email=document.getElementById('documentEmailButton');
       if(save)save.textContent='Save '+documentLabel(type);if(email)email.textContent='Email '+documentLabel(type);
     }
@@ -3090,7 +3094,7 @@ function createBtn(label, url, isCustom=true){
       refreshInvoiceNumberPreview();
       renderInvoiceInternalFields(invoice);
       const conversionNotice=document.getElementById('poConversionNotice');
-      if(conversionNotice){conversionNotice.hidden=!invoice.sourcePurchaseOrder;conversionNotice.textContent=invoice.sourcePurchaseOrder?'Created from PO #'+invoice.sourcePurchaseOrder.number+' with 30% markup on line prices. Select the customer and review tax and shipping before saving.':'';}
+      if(conversionNotice){conversionNotice.hidden=!invoice.sourcePurchaseOrder;conversionNotice.textContent=invoice.sourcePurchaseOrder?'Created from PO #'+invoice.sourcePurchaseOrder.number+' with '+invoice.sourcePurchaseOrder.markupPercent+'% markup on line prices. Select the customer and review tax and shipping before saving.':'';}
       setFieldValue('invVendorId',invoice.vendorId||'');
       const vendorPicker=document.getElementById('invoiceVendorPicker');if(vendorPicker)vendorPicker.value='';
       setFieldValue('invCreated', invoice.createdDate || '');
@@ -3164,7 +3168,8 @@ function createBtn(label, url, isCustom=true){
             <label>${escHtml(labels.venue)}<input list="venueList" type="text" data-line="${idx}" data-field="venue" value="${escHtml(line.venue || '')}" placeholder="${escHtml(labels.venuePlaceholder)}"></label>
             <label>Location<input type="text" data-line="${idx}" data-field="location" value="${escHtml(line.location || '')}" placeholder="City, State"></label>
             ${seatingFieldsHtml}
-            <label>${isHotel ? 'Number of Days' : 'Qty'}<input type="number" min="0" step="1" data-line="${idx}" data-field="qty" value="${escHtml(qtyValue)}"${isHotel ? ' readonly' : ''}></label>
+            <label>${isHotel ? 'Nights' : 'Qty'}<input type="number" min="0" step="1" data-line="${idx}" data-field="qty" value="${escHtml(qtyValue)}"${isHotel ? ' readonly' : ''}></label>
+            ${isHotel ? `<label>Rooms<input type="number" min="1" step="1" data-line="${idx}" data-field="rooms" value="${escHtml(line.rooms ?? 1)}"></label>` : ''}
             <label>${escHtml(labels.unitCost)}<input type="number" min="0" step="0.01" data-line="${idx}" data-field="unitCost" value="${escHtml(line.unitCost ?? 0)}"></label>
             <label class="full">Description / Details<textarea style="${isTravelInvoiceType(type) ? 'min-height:160px;' : ''}" data-line="${idx}" data-field="description" placeholder="Description, inclusions, package notes, travel details, VIP add-ons, parking notes, etc.">${escHtml(line.description || '')}</textarea></label>
           </div>
@@ -3248,6 +3253,7 @@ function createBtn(label, url, isCustom=true){
         row.lineType = row.lineType || invoiceLineTypeDefault(invoice.type);
         row.qty = isHotelLineType(row.lineType) ? hotelStayDays(row.lineDate, row.checkOutDate, row.qty) : parseNum(row.qty || 0);
         row.unitCost = parseNum(row.unitCost || 0);
+        if(isHotelLineType(row.lineType))row.rooms=Math.max(1,Math.floor(parseNum(row.rooms??1)));
         return row;
       });
       if (!invoice.lines.length) invoice.lines = [invoiceLineBase(invoice.type)];
@@ -3259,6 +3265,7 @@ function createBtn(label, url, isCustom=true){
       if(!currentInvoiceAutoNumber)setFieldValue('invNumber', invoice.number);
       const preview = document.getElementById('invoicePreview');
       if (!preview) return;
+      invoice.lines.forEach((line,idx)=>{const total=document.querySelector('#invoiceLines .line-item:nth-child('+(idx+1)+') .line-item-total');if(total)total.textContent=money(invoiceLineAmount(line));});
       const subtotal = invoiceSubtotal(invoice);
       const total = invoiceTotal(invoice);
       const balance = invoiceBalance(invoice);
@@ -3275,8 +3282,8 @@ function createBtn(label, url, isCustom=true){
         if (line.lineTime) parts.push(escHtml(formatInvoiceTime(line.lineTime)));
         return parts.join('<br>') || '-';
       };
-      const qtyLabels = new Set(invoice.lines.map(line => isHotelLineType(line.lineType || invoiceLineTypeDefault(invoice.type)) ? 'Days' : 'QTY'));
-      const qtyHeader = qtyLabels.size === 1 ? [...qtyLabels][0] : 'QTY / Days';
+      const qtyLabels = new Set(invoice.lines.map(line => isHotelLineType(line.lineType || invoiceLineTypeDefault(invoice.type)) ? 'Rooms × Nights' : 'QTY'));
+      const qtyHeader = qtyLabels.size === 1 ? [...qtyLabels][0] : 'QTY / Rooms × Nights';
       const unitLabels = new Set(invoice.lines.map(line => invoiceLineLabels(line.lineType || invoiceLineTypeDefault(invoice.type)).unitCost));
       const unitCostHeader = unitLabels.size === 1 ? [...unitLabels][0] : 'Unit Cost / Rate';
       const rows = invoice.lines.map(line => {
@@ -3292,7 +3299,7 @@ function createBtn(label, url, isCustom=true){
               <span class="muted">${escHtml(labels.eventName)}:</span> ${escHtml(line.eventName || '') || '-'}${venueLine}${locationLine}
             </td>
             <td>${invoiceLineDetailsHtml(line)}</td>
-            <td>${parseNum(line.qty)}</td>
+            <td>${isHotelLineType(lineType)?parseNum(line.rooms??1)+' rooms × '+parseNum(line.qty)+' nights':parseNum(line.qty)}</td>
             <td>${money(line.unitCost)}</td>
             <td>${money(invoiceLineAmount(line))}</td>
           </tr>

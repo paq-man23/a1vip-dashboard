@@ -28,8 +28,18 @@ test('travel POs retain hotel and transportation details; invoices cannot be mar
 test('conversion action opens an unsaved invoice using the invoice series without writing the PO',()=>{
  const html=fs.readFileSync('index.html','utf8'),a=html.indexOf('    function createInvoiceFromPurchaseOrder(){'),b=html.indexOf('    function copyBillingToShipping(){',a);
  let draft,confirmed=0;const source={id:'inv-po-source',number:'3100',type:'po-ticket',lines:[{qty:2,unitCost:100}]};
- const context={invoiceSaveInFlight:false,A1Data:{authenticated:()=>true,canAccess:()=>true,version:()=>1},collectInvoiceFromForm:()=>source,isPurchaseOrderType:t=>t.startsWith('po-'),confirm:()=>{confirmed++;return true;},A1InvoiceFields:F,invoiceBase:type=>({id:'inv-new',type,clientCompany:''}),setInvoiceToForm:value=>draft=value,openInvoiceMode:()=>{},setInvoiceHistoryKind:kind=>assert.equal(kind,'invoice'),showSection:()=>{},alert:message=>assert.fail(message)};
+ const context={document:{getElementById:()=>({value:'30'})},invoiceSaveInFlight:false,A1Data:{authenticated:()=>true,canAccess:()=>true,version:()=>1},collectInvoiceFromForm:()=>source,isPurchaseOrderType:t=>t.startsWith('po-'),confirm:()=>{confirmed++;return true;},A1InvoiceFields:F,invoiceBase:type=>({id:'inv-new',type,clientCompany:''}),setInvoiceToForm:value=>draft=value,openInvoiceMode:()=>{},setInvoiceHistoryKind:kind=>assert.equal(kind,'invoice'),showSection:()=>{},alert:message=>assert.fail(message)};
  vm.runInNewContext(html.slice(a,b),context);context.createInvoiceFromPurchaseOrder();assert.equal(confirmed,1);assert.equal(draft.type,'invoice-ticket');assert.equal(draft.autoNumber,true);assert.equal(draft.lines[0].unitCost,130);assert.equal(source.lines[0].unitCost,100);
  draft=null;context.confirm=()=>false;context.createInvoiceFromPurchaseOrder();assert.equal(draft,null);
  let notice='';context.A1Data.version=()=>null;context.alert=m=>notice=m;context.createInvoiceFromPurchaseOrder();assert.match(notice,/Save the purchase order first/);assert.equal(draft,null);
+});
+test('hotel totals multiply rooms by nights and nightly cost, including custom markup',()=>{
+ const html=fs.readFileSync('index.html','utf8'),a=html.indexOf('    function invoiceLineAmount('),b=html.indexOf('    function invoiceLineDetailsHtml(',a),context={parseNum:v=>Number(v)||0};vm.runInNewContext(html.slice(a,b),context);
+ const hotel={lineType:'Hotel',rooms:3,qty:2,unitCost:200,checkOutDate:'2026-11-04'};
+ assert.equal(context.invoiceLineAmount(hotel),1200);assert.equal(context.invoiceLineAmount({...hotel,rooms:undefined}),400);
+ assert.equal(context.invoiceLineAmount({lineType:'Tickets',rooms:3,qty:2,unitCost:200}),400);
+ const result=F.invoiceFromPurchaseOrder({type:'po-travel',number:'3100',lines:[hotel]},{id:'new'},50);
+ assert.equal(result.lines[0].rooms,3);assert.equal(result.lines[0].qty,2);assert.equal(result.lines[0].unitCost,300);assert.equal(context.invoiceSubtotal(result),1800);assert.equal(result.cogs,'1200');assert.equal(result.sourcePurchaseOrder.markupPercent,50);assert.match(result.internalNotes,/50%/);
+ assert.equal(F.invoiceFromPurchaseOrder({type:'po-travel',lines:[hotel]},{},0).lines[0].unitCost,200);
+ for(const invalid of ['',-1,'bad',Infinity])assert.throws(()=>F.invoiceFromPurchaseOrder({type:'po-ticket'}, {},invalid),/valid markup/);
 });
