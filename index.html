@@ -546,7 +546,7 @@
           </div>
           <dialog id="invoiceMarkupDialog" aria-labelledby="invoiceMarkupTitle">
             <h3 id="invoiceMarkupTitle">Invoice markup</h3>
-            <p>Add a percentage to the current line prices. Tax, shipping, and payments stay the same. Prices change only when you click Apply.</p>
+            <p>Choose a markup on the original line costs. Changing an existing markup replaces it. Tax, shipping, and payments stay the same. Prices change only when you click Apply.</p>
             <label>Markup <select id="invoiceMarkupChoice" onchange="previewInvoiceMarkup()"><option value="0">Off (default)</option><option value="10">10%</option><option value="20">20%</option><option value="30">30%</option><option value="40">40%</option><option value="50">50%</option><option value="60">60%</option><option value="70">70%</option><option value="80">80%</option><option value="90">90%</option><option value="100">100%</option><option value="custom">Custom percentage</option></select></label>
             <label id="invoiceMarkupCustomLabel" hidden>Custom % <input id="invoiceMarkupCustom" type="number" min="0" step="0.1" oninput="previewInvoiceMarkup()"></label>
             <p id="invoiceMarkupPreview" role="status" aria-live="polite"></p>
@@ -3032,7 +3032,9 @@ function createBtn(label, url, isCustom=true){
     function openInvoiceMarkup(){
       if(invoiceSaveInFlight||!A1Data.authenticated()||!A1Data.canAccess('invoices')||isPurchaseOrderType(document.getElementById('invType').value))return;
       invoiceMarkupTarget=currentInvoiceId;
-      document.getElementById('invoiceMarkupChoice').value='0';document.getElementById('invoiceMarkupCustom').value='';
+      const invoice=collectInvoiceFromForm(),rate=Number(invoice.markupPercent??invoice.sourcePurchaseOrder?.markupPercent??0);
+      const preset=rate===0||(rate>=10&&rate<=100&&rate%10===0);
+      document.getElementById('invoiceMarkupChoice').value=preset?String(rate):'custom';document.getElementById('invoiceMarkupCustom').value=preset?'':String(rate);
       previewInvoiceMarkup();document.getElementById('invoiceMarkupDialog').showModal();
     }
     function previewInvoiceMarkup(){
@@ -3042,7 +3044,7 @@ function createBtn(label, url, isCustom=true){
       if(percent==='0'){preview.textContent='Markup is off. Your prices are unchanged.';return;}
       try{
         const original=collectInvoiceFromForm(),marked=A1InvoiceFields.markupInvoice(original,percent);
-        preview.textContent='Line subtotal: '+money(invoiceSubtotal(original))+' → '+money(invoiceSubtotal(marked))+'. Adds '+percent+'% to current prices. Save the invoice afterward to keep this change.';
+        preview.textContent='Line subtotal: '+money(invoiceSubtotal(original))+' → '+money(invoiceSubtotal(marked))+'. Uses '+percent+'% on original costs, replacing any earlier markup. Save the invoice afterward to keep this change.';
         apply.disabled=false;
       }catch(error){preview.textContent=error.message;}
     }
@@ -3211,6 +3213,7 @@ function createBtn(label, url, isCustom=true){
                 ${lineTypeOptionsHtml}
               </select>
             </label>
+            ${line.markupBaseUnitCost!=null?`<input type="hidden" data-line="${idx}" data-field="markupBaseUnitCost" value="${escHtml(line.markupBaseUnitCost)}">`:""}
             ${dateFieldsHtml}
             <label class="full">${escHtml(labels.eventName)}<input list="eventNameList" type="text" data-line="${idx}" data-field="eventName" value="${escHtml(line.eventName || '')}" placeholder="${escHtml(labels.eventPlaceholder)}"></label>
             <label>${escHtml(labels.venue)}<input list="venueList" type="text" data-line="${idx}" data-field="venue" value="${escHtml(line.venue || '')}" placeholder="${escHtml(labels.venuePlaceholder)}"></label>

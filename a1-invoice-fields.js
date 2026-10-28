@@ -18,7 +18,7 @@
     const round=value=>Math.round((value+Number.EPSILON)*100)/100;
     const markup=Number(markupPercent);if(markupPercent===''||!Number.isFinite(markup)||markup<0)throw new Error('Enter a valid markup percentage of zero or more.');
     const original=JSON.parse(JSON.stringify(source));
-    const lines=(original.lines||[]).map(line=>({...line,unitCost:round(num(line.unitCost)*(1+markup/100))}));
+    const lines=(original.lines||[]).map(line=>({...line,markupBaseUnitCost:num(line.unitCost),unitCost:round(num(line.unitCost)*(1+markup/100))}));
     const cost=(original.lines||[]).reduce((sum,line)=>sum+num(line.qty)*num(line.unitCost)*(String(line.lineType||'').toLowerCase()==='hotel'?num(line.rooms??1):1),0);
     return {...base,type:source.type.replace(/^po-/,'invoice-'),lines,
       origin:'a1',autoNumber:true,number:'',numberAssignedByDB:false,savedName:'',
@@ -35,10 +35,21 @@
     if(percent===''||!Number.isFinite(rate)||rate<=0)throw new Error('Choose a markup greater than zero.');
     const invoice=JSON.parse(JSON.stringify(source));
     invoice.lines=(invoice.lines||[]).map(line=>{
-      const cost=Number(line.unitCost||0),price=cost*(1+rate/100);
+      let base=line.markupBaseUnitCost;
+      // Older converted drafts did not retain a baseline on each line.
+      if(base==null&&source.sourcePurchaseOrder){
+        const keys=['lineType','eventName','lineDate','checkOutDate','venue','section','row','seats','description'];
+        const matches=(source.sourcePurchaseOrder.originalLines||[]).filter(original=>keys.every(key=>String(original[key]||'')===String(line[key]||'')));
+        const costs=[...new Set(matches.map(original=>Number(original.unitCost||0)))];
+        if(costs.length>1)throw new Error('Original PO costs are ambiguous for this line. Create a fresh invoice from the PO.');
+        if(costs.length===1)base=costs[0];
+      }
+      const cost=Number(base??line.unitCost??0),price=cost*(1+rate/100);
       if(!Number.isFinite(price))throw new Error('Enter valid line prices before applying markup.');
-      return {...line,unitCost:Math.round((price+Number.EPSILON)*100)/100};
+      return {...line,markupBaseUnitCost:cost,unitCost:Math.round((price+Number.EPSILON)*100)/100};
     });
+    invoice.markupPercent=rate;
+    if(invoice.sourcePurchaseOrder)invoice.sourcePurchaseOrder.markupPercent=rate;
     invoice.markupAdjustments=[...(invoice.markupAdjustments||[]),{percent:rate,originalLines:JSON.parse(JSON.stringify(source.lines||[]))}];
     return invoice;
   }

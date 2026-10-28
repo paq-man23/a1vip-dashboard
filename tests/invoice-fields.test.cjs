@@ -62,3 +62,15 @@ test('invoice markup opens switched off and cannot apply to another editor docum
  context.currentInvoiceId='inv-two';context.applyInvoiceMarkup();assert.equal(changed,false);
  context.currentInvoiceId='inv-one';context.applyInvoiceMarkup();assert.equal(changed,true);
 });
+test('PO markup carries forward and invoice markup replaces it without compounding',()=>{
+ const po={id:'po',number:'3100',type:'po-ticket',lines:[{lineType:'Tickets',eventName:'Example',qty:2,unitCost:100}]};
+ const converted=F.invoiceFromPurchaseOrder(po,{id:'invoice'},30);
+ assert.equal(converted.lines[0].unitCost,130);
+ const changed=F.markupInvoice(converted,50);assert.equal(changed.lines[0].unitCost,150);assert.equal(changed.sourcePurchaseOrder.markupPercent,50);
+ assert.equal(F.markupInvoice(changed,20).lines[0].unitCost,120);
+ const legacy=JSON.parse(JSON.stringify(converted));delete legacy.lines[0].markupBaseUnitCost;
+ assert.equal(F.markupInvoice(legacy,50).lines[0].unitCost,150);
+ const standalone=F.markupInvoice({type:'invoice-ticket',lines:[{qty:1,unitCost:100}]},10);
+ assert.equal(F.markupInvoice(standalone,20).lines[0].unitCost,120);
+ assert.equal(po.lines[0].unitCost,100);
+});
