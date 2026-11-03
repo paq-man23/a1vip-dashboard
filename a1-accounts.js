@@ -17,7 +17,7 @@
     const last=document.createElement('p');last.textContent='Last signed in: '+(row.last_sign_in_at?new Date(row.last_sign_in_at).toLocaleString():'Never');
     const actions=document.createElement('div');actions.className='invoice-toolbar';
     if(!row.is_admin)actions.append(button('Preview Dashboard',()=>window.A1AccountPreview.open(row)));
-    actions.append(button('Profile & Categories',()=>edit(row)),...(!row.is_admin?[button('Edit Email',()=>showEditor('email',row))]:[]),button('Assigned Links / Layout',()=>A1Activity.customize(true,row.id)),button('Set Password',()=>password(row)));
+    actions.append(button('Profile & Categories',()=>edit(row)),...(!row.is_admin?[button('Edit Email',()=>showEditor('email',row))]:[]),button('Assigned Links / Layout',()=>A1Activity.customize(true,row.id)),button('Set Password',()=>password(row)),button('Vault Access',()=>window.A1VaultEntry.open(row.id)));
     const access=button(row.enabled?'Disable Access':'Restore Access',()=>setEnabled(row));access.disabled=row.self;actions.append(access);
     card.append(heading,detail,last,actions);list.append(card);
    }
