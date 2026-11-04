@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-function harness({permissions=['main','customers','invoices'],pause,voice=false,links=[],contactRows,withTab=false,username='',ai,invoiceRows=[]}={}){
+function harness({permissions=['main','customers','invoices'],pause,voice=false,links=[],contactRows,withTab=false,username='',ai,invoiceRows=[],privateOpener}={}){
  const listeners={},events={},loads=[],opened=[];let authenticated=true,aborted=0,recognizer;
  function node(tag='div'){
   return {tag,children:[],hidden:false,value:'',textContent:'',dataset:{},attributes:{},classList:{contains:()=>false,toggle(){},add(){},remove(){}},setAttribute(k,v){this.attributes[k]=v;},append(...nodes){for(const n of nodes){n.parent=this;this.children.push(n);}},replaceChildren(){this.children=[];},get firstElementChild(){return this.children[0];},remove(){this.parent.children=this.parent.children.filter(x=>x!==this);},focus(){},addEventListener(k,v){this[k]=v;}};
@@ -7,6 +7,7 @@ function harness({permissions=['main','customers','invoices'],pause,voice=false,
  const tab=withTab?node('button'):null;const body=node(),data={linkBlocked:()=>false,authenticated:()=>authenticated,canAccess:id=>authenticated&&permissions.includes(id),isAdmin:()=>false,account:()=>({email:'user@example.invalid',username}),loadSection:async id=>{loads.push(id);if(pause)await pause;},contacts:()=>contactRows||[{kind:'customer',id:'j',displayName:'Jane Smith',email:'jane@example.invalid'}],invoices:()=>invoiceRows,documents:()=>[]};
  if(ai)data.assistantRequest=ai;
  const root={A1AssistantRecords:require('../assistant-records.js'),A1AssistantActions:require('../assistant-actions.js'),A1AssistantCore:require('../assistant-core.js'),addEventListener:(k,v)=>events[k]=v};
+ if(privateOpener)root.A1PrivateLinks={isTicketmasterUrl:url=>url.includes('ticketmaster.com'),openAssistantTicketmaster:privateOpener};
  if(voice)root.SpeechRecognition=class{constructor(){recognizer=this;}start(){}abort(){aborted++;}};
  const buttons=links.map(row=>{const classes=new Set(row.hidden?['a1-personally-hidden']:[]);return {...row,isConnected:true,dataset:{label:row.label,url:row.url||'https://example.com'},classList:{contains:k=>classes.has(k),add:k=>classes.add(k),remove:k=>classes.delete(k)},closest:()=>({dataset:{section:row.section}}),scrollIntoView(){},focus(){},getBoundingClientRect:()=>({left:100}),parentElement:null};});
  const document={body,createElement:node,addEventListener:(k,v)=>listeners[k]=v,getElementById:id=>id==='a1AssistantTab'?tab:null,querySelectorAll:selector=>selector.includes('grid[data-section]')?buttons:[]};
@@ -142,4 +143,15 @@ test('missing event query asks for a team or artist; missing key never claims th
 });
 test('clearing chat rejects a delayed Ticketmaster response',async()=>{
  let release;const pending=new Promise(r=>release=r),h=harness({ai:async()=>{await pending;return {events:{configured:true,checkedAt:'2026-11-04T19:00:00Z',events:[{name:'Old event'}]}};}});const request=h.submit('find events Knicks');h.panel.children[0].children.find(n=>n.textContent==='New Chat').onclick();release();await request;assert.doesNotMatch(h.text(),/Old event/);
+});
+
+test('Ticketmaster result uses a private action rather than a normal anchor',async()=>{
+ const calls=[],h=harness({privateOpener:url=>{calls.push(url);return {requested:true};},ai:async()=>({events:{configured:true,checkedAt:'2026-11-04T19:00:00Z',total:1,events:[{name:'Knicks event',date:'2026-12-01',url:'https://www.ticketmaster.com/event/123'}]}})});
+ await h.submit('find events Knicks');const card=h.log.children.find(n=>n.textContent.includes('Knicks event'));assert.equal(card.children.some(n=>n.tag==='a'),false);const button=card.children.find(n=>n.textContent==='Open Ticketmaster Privately');assert.ok(button);await button.onclick();assert.deepEqual(calls,['https://www.ticketmaster.com/event/123']);assert.match(h.text(),/Private opener requested/);
+});
+test('missing private helper never restores a signed-in Ticketmaster tab',async()=>{
+ const h=harness({ai:async()=>({events:{configured:true,checkedAt:'2026-11-04T19:00:00Z',total:1,events:[{name:'Knicks event',url:'https://www.ticketmaster.com/event/123'}]}})});await h.submit('find events Knicks');const card=h.log.children.find(n=>n.textContent.includes('Knicks event'));assert.equal(card.children.some(n=>n.tag==='a'),false);await card.children[0].onclick();assert.match(h.text(),/private opener could not load/);
+});
+test('non-Mac private result offers a copy action and no normal link fallback',async()=>{
+ const h=harness({privateOpener:()=>({requested:false}),ai:async()=>({events:{configured:true,checkedAt:'2026-11-04T19:00:00Z',total:1,events:[{name:'Knicks event',url:'https://www.ticketmaster.com/event/123'}]}})});await h.submit('find events Knicks');const card=h.log.children.find(n=>n.textContent.includes('Knicks event'));await card.children[0].onclick();assert.match(h.text(),/paste it into a new private/);assert.equal(h.log.children.some(n=>n.children.some(c=>c.tag==='a')),false);
 });

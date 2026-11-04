@@ -182,7 +182,19 @@
    if(event.priceRanges?.length){for(const range of event.priceRanges){const money=v=>new Intl.NumberFormat('en-US',{style:'currency',currency:range.currency}).format(v);parts.push('Published event price range: '+money(range.min)+'–'+money(range.max)+' '+range.currency);}}
    else parts.push('Ticketmaster did not supply a price range.');
    const card=message(parts.filter(Boolean).join('\n'));
-   if(event.url){const link=el('a','View event / tickets','copilot-action');link.href=event.url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);placement?.fitReply(card);}
+   if(event.url){
+    // Recognize Ticketmaster even if the private-opener module failed to load,
+    // so a missing helper cannot silently restore the signed-in browser link.
+    const ticketmaster=window.A1PrivateLinks?.isTicketmasterUrl(event.url)||/\/\/(?:[^/]+\.)?ticketmaster\./i.test(event.url);
+    if(ticketmaster)action(card,'Open Ticketmaster Privately',()=>{
+     if(!window.A1PrivateLinks?.openAssistantTicketmaster)throw new Error('The private opener could not load. Refresh App and retry.');
+     const result=window.A1PrivateLinks.openAssistantTicketmaster(event.url);
+     const info=message(result.requested?'Private opener requested through the macOS shortcut “A1VIP Private Open”. The shortcut must be installed and configured to open an incognito window.':'To keep your Ticketmaster account separate, copy this link and paste it into a new private/incognito window. This browser cannot create that window from the dashboard.');
+     action(info,'Copy Event Link',async()=>{if(!window.navigator?.clipboard?.writeText)throw new Error('Clipboard access is unavailable. Event address: '+event.url);await window.navigator.clipboard.writeText(event.url);message('Event link copied. Paste it into your private/incognito window.');});
+     if(result.requested)action(info,'Show Mac Shortcut Setup',()=>{message('One-time Chrome setup:\n1. Open the macOS Shortcuts app and create a shortcut named A1VIP Private Open.\n2. Add Run Shell Script. Set Shell to /bin/zsh and Pass Input to as arguments.\n3. Use this command:\n/usr/bin/open -na "Google Chrome" --args --incognito --new-window "$1"\n4. Run the event button again and approve the macOS prompt if asked.\nIncognito is separate from your regular login. Existing incognito windows can share their own signed-in session.');});
+    });
+    else {const link=el('a','View event / tickets','copilot-action');link.href=event.url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);placement?.fitReply(card);}
+   }
   }
   message('Published ranges are event-level information, not current section/row prices or a quote for seats together. Fees and availability must be checked on the ticket page.');
   if(result.hasMore){const card=message('More matching events are available.');action(card,'Next 10 Events',t=>events({...search,page:(search.page||0)+1},t));}
