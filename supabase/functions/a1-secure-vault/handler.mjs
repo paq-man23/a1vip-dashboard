@@ -1,6 +1,6 @@
 export function createHandler({env,fetchImpl=fetch}) {
  const base=env('SUPABASE_URL'),service=env('SUPABASE_SERVICE_ROLE_KEY'),anon=env('SUPABASE_ANON_KEY');
- const actions=new Set(['status','unlock','lock','list','reveal','edit','save','delete','accounts','permissions','grants','audit']);
+ const actions=new Set(['status','unlock','lock','list','reveal','edit','save','delete','accounts','permissions','grants','audit','preview_import','import_logins']);
  const uuid=value=>/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value||'');
  async function api(path,{token=service,method='GET',body}={}) {
   const r=await fetchImpl(base+path,{method,signal:AbortSignal.timeout(15000),headers:{apikey:token===service?service:anon,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
@@ -17,9 +17,10 @@ export function createHandler({env,fetchImpl=fetch}) {
   if(req.method==='OPTIONS')return new Response(null,{status:204,headers});
   if(req.method!=='POST')return reply({error:'POST required.'},405);
   try{
-   if(Number(req.headers.get('content-length')||0)>24000)return reply({error:'Request is too large.'},413);
-   const raw=await req.text();if(raw.length>24000)return reply({error:'Request is too large.'},413);
+   if(Number(req.headers.get('content-length')||0)>256000)return reply({error:'Request is too large.'},413);
+   const raw=await req.text();if(raw.length>256000)return reply({error:'Request is too large.'},413);
    let input;try{input=JSON.parse(raw);}catch{return reply({error:'Invalid request.'},400);}
+   if(raw.length>24000&&!['preview_import','import_logins'].includes(input?.action))return reply({error:'Request is too large.'},413);
    if(!input||!actions.has(input.action))return reply({error:'Unsupported vault action.'},400);
    const token=req.headers.get('authorization')?.replace(/^Bearer\s+/i,'');
    if(!token||token===service)return reply({error:'Sign in to the dashboard again.'},401);
@@ -48,7 +49,7 @@ export function createHandler({env,fetchImpl=fetch}) {
    delete input.password;const action=input.action;delete input.action;
    return reply(await rpc(action,input));
   }catch(error){
-   const safe=new Set(['Sign in to the dashboard again','Vault access has not been granted','Vault is locked. Enter your dashboard password again','Administrator access required','Choose a regular staff account','Choose valid staff accounts','Vault entry is unavailable','Vault editing has not been granted','This entry changed. Refresh before saving','Enter a name and valid entry type','Entry type cannot be changed','Enter valid entry details','Enter an HTTPS site URL, username, and password','Enter a valid company card number, cardholder, and MM/YY expiration','Choose a vault entry']);
+   const safe=new Set(['Sign in to the dashboard again','Vault access has not been granted','Vault is locked. Enter your dashboard password again','Administrator access required','Choose a regular staff account','Choose valid staff accounts','Vault entry is unavailable','Vault editing has not been granted','This entry changed. Refresh before saving','Enter a name and valid entry type','Entry type cannot be changed','Enter valid entry details','Enter an HTTPS site URL, username, and password','Enter a valid company card number, cardholder, and MM/YY expiration','Choose a vault entry','Choose between 1 and 200 login rows','Every imported row needs a site name and username','One or more imported login rows need correction','Import batch identifier is missing','This import batch has changed. Preview it again']);
    return reply({error:safe.has(error.safe)?error.safe:'The vault request could not be completed. Please retry.'},error.code==='42501'?403:400);
   }
  };

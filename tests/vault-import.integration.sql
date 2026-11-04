@@ -1,0 +1,50 @@
+begin;
+do $$ declare
+ a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); u uuid:=gen_random_uuid(); sa uuid:=gen_random_uuid(); sb uuid:=gen_random_uuid(); su uuid:=gen_random_uuid(); batch uuid:=gen_random_uuid();
+ atoken text; btoken text; utoken text; entries jsonb; result jsonb; item uuid; count_before bigint;
+begin
+ insert into auth.users(id,email) values(a,'import-admin-fixture@example.invalid'),(b,'second-import-admin-fixture@example.invalid'),(u,'import-sales-fixture@example.invalid');
+ insert into public.a1_staff(user_id,is_admin) values(a,true),(b,true),(u,false);
+ insert into auth.sessions(id,user_id,created_at,updated_at) values(sa,a,now(),now()),(sb,b,now(),now()),(su,u,now(),now());
+ insert into public.a1_activity_sessions(user_id,auth_session_id,display_name,idle_exempt) values(a,sa,'Admin A',true),(b,sb,'Admin B',true),(u,su,'Sales',false);
+ atoken:=public.a1_vault_service(a,sa,'unlock')->>'unlock_token';btoken:=public.a1_vault_service(b,sb,'unlock')->>'unlock_token';
+ entries:=jsonb_build_array(jsonb_build_object('row',2,'label','Import fixture','username','fixture-user','password','  EXACT-SYNTHETIC  ','url',''));
+ result:=public.a1_vault_service(a,sa,'preview_import',jsonb_build_object('unlock_token',atoken,'entries',entries));
+ if jsonb_array_length(result->'existing_rows')<>0 then raise exception 'New fixture was treated as existing';end if;
+ result:=public.a1_vault_service(a,sa,'import_logins',jsonb_build_object('unlock_token',atoken,'batch_id',batch,'entries',entries));
+ if result->>'created'<>'1' or result->>'skipped'<>'0' then raise exception 'Import counts incorrect';end if;
+ item:=(result->'ids'->>0)::uuid;
+ if public.a1_vault_service(b,sb,'reveal',jsonb_build_object('unlock_token',btoken,'id',item))->'details'->>'password'<>'  EXACT-SYNTHETIC  ' then raise exception 'Other administrator cannot reveal the imported entry or whitespace changed';end if;
+ if not exists(select 1 from jsonb_array_elements(public.a1_vault_service(b,sb,'list',jsonb_build_object('unlock_token',btoken))) x where x->>'id'=item::text) then raise exception 'Imported entry missing for another admin';end if;
+ result:=public.a1_vault_service(a,sa,'import_logins',jsonb_build_object('unlock_token',atoken,'batch_id',batch,'entries',entries));
+ if result->>'created'<>'1' then raise exception 'Retry receipt changed';end if;
+ entries:=jsonb_build_array(jsonb_build_object('row',2,'label','Import fixture','username','fixture-user','password','ATTEMPTED-OVERWRITE','url',''));
+ begin perform public.a1_vault_service(a,sa,'import_logins',jsonb_build_object('unlock_token',atoken,'batch_id',batch,'entries',jsonb_build_array(jsonb_build_object('row',2,'label','Changed identity fixture','username','fixture-user','password','SYNTHETIC','url',''))));raise exception 'Changed batch was accepted';exception when raise_exception then if sqlerrm<>'This import batch has changed. Preview it again' then raise;end if;end;
+ result:=public.a1_vault_service(a,sa,'preview_import',jsonb_build_object('unlock_token',atoken,'entries',entries));
+ if result->'existing_rows'<>'[2]'::jsonb then raise exception 'Existing identity was not flagged';end if;
+ result:=public.a1_vault_service(a,sa,'import_logins',jsonb_build_object('unlock_token',atoken,'batch_id',gen_random_uuid(),'entries',entries));
+ if result->>'created'<>'0' or result->>'skipped'<>'1' then raise exception 'Existing entry was not skipped';end if;
+ if public.a1_vault_service(a,sa,'reveal',jsonb_build_object('unlock_token',atoken,'id',item))->'details'->>'password'<>'  EXACT-SYNTHETIC  ' then raise exception 'Existing password was overwritten';end if;
+ result:=public.a1_vault_service(a,sa,'import_logins',jsonb_build_object('unlock_token',atoken,'batch_id',gen_random_uuid(),'entries',jsonb_build_array(jsonb_build_object('row',7,'label','Import fixture','username','fixture-user','password','SEPARATE-SYNTHETIC','url','','keep_separate',true))));
+ if result->>'created'<>'1' then raise exception 'Explicit separate login was not retained';end if;
+ if public.a1_vault_service(b,sb,'reveal',jsonb_build_object('unlock_token',btoken,'id',result->'ids'->>0))->'details'->>'password'<>'SEPARATE-SYNTHETIC' then raise exception 'Other administrator cannot see additional login';end if;
+ if a1_vault_private.login_identity('Same site','MemberA')=a1_vault_private.login_identity('Same site','membera') then raise exception 'Case-sensitive usernames were merged';end if;
+ select count(*) into count_before from a1_vault_private.a1_vault_items;
+ begin
+  perform public.a1_vault_service(a,sa,'import_logins',jsonb_build_object('unlock_token',atoken,'batch_id',gen_random_uuid(),'entries',jsonb_build_array(jsonb_build_object('row',3,'label','Atomic fixture','username','fixture','password','SYNTHETIC','url',''),jsonb_build_object('row',4,'label','Invalid fixture','username','fixture','password','','url',''))));raise exception 'Invalid batch accepted';
+ exception when raise_exception then if sqlerrm<>'One or more imported login rows need correction' then raise;end if;end;
+ if (select count(*) from a1_vault_private.a1_vault_items)<>count_before then raise exception 'Invalid batch partially imported';end if;
+ perform public.a1_vault_service(a,sa,'permissions',jsonb_build_object('unlock_token',atoken,'user_id',u,'passwords',true,'can_edit',true));utoken:=public.a1_vault_service(u,su,'unlock')->>'unlock_token';
+ begin perform public.a1_vault_service(u,su,'import_logins',jsonb_build_object('unlock_token',utoken,'batch_id',gen_random_uuid(),'entries',entries));raise exception 'Sales account imported';exception when insufficient_privilege then null;end;
+ begin perform public.a1_vault_service(u,su,'preview_import',jsonb_build_object('unlock_token',utoken,'entries',entries));raise exception 'Sales account checked vault identities';exception when insufficient_privilege then null;end;
+ if jsonb_array_length(public.a1_vault_service(u,su,'list',jsonb_build_object('unlock_token',utoken)))<>0 then raise exception 'Sales account received imported entries';end if;
+ -- Administrators also see entries CREATED by salespeople, without a share grant.
+ item:=(public.a1_vault_service(u,su,'save',jsonb_build_object('unlock_token',utoken,'kind','login','label','Sales-created fixture','details',jsonb_build_object('username','sales','password','SYNTHETIC','url','')))->>'id')::uuid;
+ if public.a1_vault_service(b,sb,'reveal',jsonb_build_object('unlock_token',btoken,'id',item))->'details'->>'password'<>'SYNTHETIC' then raise exception 'Admin cannot see sales-created entry';end if;
+ update a1_vault_private.a1_vault_unlocks set expires_at=now()-interval '1 second' where user_id=a;
+ begin perform public.a1_vault_service(a,sa,'import_logins',jsonb_build_object('unlock_token',atoken,'batch_id',gen_random_uuid(),'entries',entries));raise exception 'Expired unlock imported';exception when insufficient_privilege then null;end;
+ if has_table_privilege('authenticated','a1_vault_private.a1_vault_imports','SELECT') or has_function_privilege('authenticated','a1_vault_private.import_logins(uuid,uuid,text,jsonb)','EXECUTE') then raise exception 'Import service exposed to clients';end if;
+ if exists(select 1 from a1_vault_private.a1_vault_imports r where r.result::text like '%EXACT-SYNTHETIC%') then raise exception 'Import receipt leaked a password';end if;
+end $$;
+rollback;
+select 'PASS: encrypted login import, all-admin visibility, exact secrets, duplicate preservation, retry receipts, atomic validation, admin isolation and unlock expiry' as result;

@@ -7,6 +7,7 @@ async function ui({admin=true,custom}={}){
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  w.HTMLElement.prototype.scrollIntoView=function(){};w.AbortSignal=AbortSignal;w.confirm=()=>true;
  w.A1_SUPABASE_CONFIG={url:'https://fixture.supabase.co',publishableKey:'fixture'};
+ w.A1VaultImport=require('../vault-import.js');w.crypto.randomUUID=()=> 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
  w.supabase={createClient:()=>({auth:{getSession:async()=>({data:{session:{access_token:'fixture'}}}),onAuthStateChange(){}},from:()=>({select:()=>({eq:()=>({single:async()=>({data:{state:{added:{accounts:[{label:'Fixture tickets',url:'https://tickets.example.invalid/'}]}}}})})})})})};
  w.fetch=async(url,options)=>{const input=JSON.parse(options.body);calls.push(input);const overridden=await custom?.(input);if(overridden)return overridden;let result={ok:true};
   if(input.action==='status')result={admin,passwords:true,cards:admin,can_edit:admin};
@@ -15,6 +16,8 @@ async function ui({admin=true,custom}={}){
   if(input.action==='reveal'||input.action==='edit')result={id:'fixture-login',kind:'login',label:'Fixture tickets',version:1,details:{username:'fixture-user',password:'SYNTHETIC-SECRET',url:'https://tickets.example.invalid/'}};
   if(input.action==='accounts')result=[{id:'sales',name:'Fixture salesperson',admin:false,passwords:true,cards:false,can_edit:false}];
   if(input.action==='grants')result=['sales'];
+  if(input.action==='preview_import')result={existing_rows:[]};
+  if(input.action==='import_logins')result={created:input.entries.length,skipped:0,ids:[]};
   return {ok:true,status:200,json:async()=>result};
  };
  w.eval(code);await tick();await tick();
@@ -30,7 +33,7 @@ test('vault unlocks with existing password, masks list values, clears reveal det
  }finally{h.close();}
 });
 test('read-only salesperson has no admin, card, sharing, or editing controls',async()=>{
- const h=await ui({admin:false});try{await h.unlock();assert.equal(h.$('accessTab').hidden,true);assert.equal(h.$('auditTab').hidden,true);assert.equal(h.$('addCard').hidden,true);assert.equal(h.$('addLogin').hidden,true);assert.deepEqual([...h.$('items').querySelectorAll('button')].map(b=>b.textContent),['Reveal']);}finally{h.close();}
+ const h=await ui({admin:false});try{await h.unlock();assert.equal(h.$('accessTab').hidden,true);assert.equal(h.$('auditTab').hidden,true);assert.equal(h.$('addCard').hidden,true);assert.equal(h.$('addLogin').hidden,true);assert.equal(h.$('importExcel').hidden,true);assert.deepEqual([...h.$('items').querySelectorAll('button')].map(b=>b.textContent),['Reveal']);}finally{h.close();}
 });
 test('blur and pagehide clear editor secrets and the unlocked screen',async()=>{
  for(const event of ['blur','pagehide']){const h=await ui();try{await h.unlock();h.$('addLogin').click();await tick();h.$('entryPassword').value='SYNTHETIC-UNSAVED';h.w.dispatchEvent(new h.w.Event(event));assert.equal(h.$('entryPassword').value,'');assert.equal(h.$('content').hidden,true);assert.equal(h.$('editor').open,false);}finally{h.close();}}
@@ -44,4 +47,28 @@ test('revoked backend access locks and empties the vault immediately',async()=>{
 });
 test('creating a linked login sends only chosen fields and clears password inputs on save',async()=>{
  const h=await ui();try{await h.unlock();h.$('addLogin').click();for(let i=0;i<3;i++)await tick();h.$('siteLinks').value='https://tickets.example.invalid/';h.$('siteLinks').dispatchEvent(new h.w.Event('change'));assert.equal(h.$('entryUrl').value,'https://tickets.example.invalid/');h.$('entryUsername').value='fixture';h.$('entryPassword').value='NEW-SYNTHETIC';h.$('entryForm').dispatchEvent(new h.w.Event('submit',{cancelable:true}));for(let i=0;i<4;i++)await tick();const save=h.calls.find(c=>c.action==='save');assert.equal(save.kind,'login');assert.equal(save.details.password,'NEW-SYNTHETIC');assert.equal(save.unlock_token,'fixture-unlock-token');assert.equal(h.$('entryPassword').value,'');assert.equal(h.$('editor').open,false);}finally{h.close();}
+});
+async function chooseWorkbook(h,records){
+ const cell=value=>({value});const sheet={name:'Fixture',hidden:false,columns:3,rows:[{number:1,cells:['ACCOUNT','ACCOUNT #/PASSWORD',''].map(cell)},...records.map((values,i)=>({number:i+2,cells:values.map(cell)}))]};
+ h.w.A1VaultImport={...h.w.A1VaultImport,readXlsx:()=>[sheet]};h.w.fflate={};
+ Object.defineProperty(h.$('importFile'),'files',{configurable:true,value:[{name:'synthetic.xlsx',size:100,arrayBuffer:async()=>new ArrayBuffer(8)}]});
+ h.$('importFile').dispatchEvent(new h.w.Event('change'));for(let i=0;i<7;i++)await tick();return sheet;
+}
+test('Excel preview masks secrets, uses column three, sends no passwords until confirmation, and imports chosen rows',async()=>{
+ const h=await ui();try{await h.unlock();const sheet=await chooseWorkbook(h,[['same@example.invalid','IMPORT-SYNTHETIC-ONE','Site one'],['same@example.invalid','IMPORT-SYNTHETIC-TWO','Site two']]);
+ assert.equal(h.$('importDialog').open,true);assert.equal(h.$('importLabelColumn').value,'2');assert.equal(h.$('confirmImport').disabled,false);assert.equal(h.$('importPreview').querySelectorAll('tbody tr').length,2);assert.ok(!h.w.document.body.textContent.includes('IMPORT-SYNTHETIC-ONE'));
+ const check=h.calls.find(c=>c.action==='preview_import');assert.ok(check);assert.ok(!JSON.stringify(check).includes('IMPORT-SYNTHETIC'));assert.equal(h.calls.filter(c=>c.action==='import_logins').length,0);
+ h.$('confirmImport').click();for(let i=0;i<7;i++)await tick();const sent=h.calls.find(c=>c.action==='import_logins');assert.deepEqual(sent.entries.map(r=>r.label),['Site one','Site two']);assert.equal(sent.entries[0].password,'IMPORT-SYNTHETIC-ONE');assert.equal(h.$('importDialog').open,false);assert.equal(h.$('importPreview').textContent,'');assert.ok(sheet.rows.every(r=>r.cells.every(c=>!c.value)));assert.equal(h.w.localStorage.length,0);
+ }finally{h.close();}
+});
+test('additional logins for the same site/account can be deliberately kept separately',async()=>{
+ const h=await ui();try{await h.unlock();await chooseWorkbook(h,[['same@example.invalid','SYNTHETIC-OLD','Same site'],['same@example.invalid','SYNTHETIC-OTHER','Same site']]);
+ assert.equal(h.$('confirmImport').disabled,true);
+ const first=h.$('importPreview').querySelector('[aria-label="Import Excel row 2"]');first.checked=true;first.dispatchEvent(new h.w.Event('change'));
+ const separate=h.$('importPreview').querySelector('[aria-label="Keep Excel row 3 as a separate login"]');separate.checked=true;separate.dispatchEvent(new h.w.Event('change'));assert.equal(h.$('confirmImport').disabled,false);
+ h.$('confirmImport').click();for(let i=0;i<7;i++)await tick();const sent=h.calls.find(c=>c.action==='import_logins');assert.equal(sent.entries.length,2);assert.equal(sent.entries[1].keep_separate,true);
+ }finally{h.close();}
+});
+test('locking or cancelling discards workbook data and prevents pending previews from restoring it',async()=>{
+ for(const operation of ['cancel','lock']){const h=await ui();try{await h.unlock();const sheet=await chooseWorkbook(h,[['fixture','PRIVATE-IMPORT-SYNTHETIC','Fixture site']]);h.$(operation==='cancel'?'cancelImport':'lock').click();assert.equal(h.$('importDialog').open,false);assert.equal(h.$('importPreview').textContent,'');assert.ok(sheet.rows.every(r=>r.cells.every(c=>!c.value)));assert.equal(h.calls.filter(c=>c.action==='import_logins').length,0);}finally{h.close();}}
 });

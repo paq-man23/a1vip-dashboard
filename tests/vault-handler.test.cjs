@@ -41,3 +41,8 @@ test('successful password checks for a different identity never unlock the vault
  const h=await harness(c=>c.url.includes('/token?')?Response.json({user:{id:sid},access_token:'temporary-auth-token'}):null);
  assert.equal((await h.request({action:'unlock',password:'synthetic'})).status,403);assert.equal(h.calls.some(c=>c.body?.p_action==='unlock'),false);assert.ok(h.calls.at(-1).url.endsWith('/logout?scope=local'));
 });
+test('Excel import accepts bounded batches while preserving server identity and rejecting oversized requests',async()=>{
+ const h=await harness();const entries=[{row:2,label:'Fixture site',username:'fixture-user',password:'SYNTHETIC-IMPORT',url:'',notes:'x'.repeat(25000),keep_separate:true}];
+ const r=await h.request({action:'import_logins',batch_id:sid,unlock_token:'fixture-unlock',entries,p_actor:sid});assert.equal(r.status,200);const rpc=h.calls.at(-1);assert.equal(rpc.body.p_actor,id);assert.equal(rpc.body.p_action,'import_logins');assert.equal(rpc.body.p_input.entries[0].password,'SYNTHETIC-IMPORT');assert.ok(!(await r.text()).includes('SYNTHETIC-IMPORT'));
+ const tooLarge=await harness();assert.equal((await tooLarge.request({action:'import_logins',entries:[{notes:'x'.repeat(256001)}]})).status,413);assert.equal(tooLarge.calls.length,0);
+});
