@@ -5,6 +5,7 @@
  if(window.top!==window.self){document.body.replaceChildren();return;}
  const $=id=>document.getElementById(id),config=window.A1_SUPABASE_CONFIG;
  const client=window.supabase.createClient(config.url,config.publishableKey,{auth:{autoRefreshToken:false,detectSessionInUrl:false}});
+ let entryKind='login';
  let unlockToken='',expires=0,epoch=0,permissions=null,items=[],editing=null,shared=null,revealTimer,expiryTimer,busy=false;
  let importSheets=[],importRows=[],importBatch='',importEpoch=0,filePickerPending=false,pickerTimer;
  const say=message=>{$('status').textContent=message;};
@@ -34,12 +35,25 @@
  }
  function button(label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.addEventListener('click',()=>Promise.resolve().then(fn).catch(error=>say(error.message)));return b;}
  function text(tag,value){const n=document.createElement(tag);n.textContent=value;return n;}
- function panel(name){for(const id of ['items','access','audit']){$(id+'Panel').hidden=id!==name;$(id+'Tab').classList.toggle('is-active',id===name);$(id+'Tab').setAttribute('aria-pressed',String(id===name));}}
+ function panel(name){
+  if(name==='items'&&!permissions?.passwords||name==='cards'&&!permissions?.cards)return;
+  for(const id of ['items','cards','access','audit']){$(id+'Tab').classList.toggle('is-active',id===name);$(id+'Tab').setAttribute('aria-pressed',String(id===name));}
+  $('itemsPanel').hidden=!['items','cards'].includes(name);$('accessPanel').hidden=name!=='access';$('auditPanel').hidden=name!=='audit';
+  if(name==='items'||name==='cards'){
+   entryKind=name==='cards'?'card':'login';$('search').value='';
+   $('sectionTitle').textContent=entryKind==='card'?'Company Cards':'Site Passwords';
+   $('search').placeholder=entryKind==='card'?'Find a company card':'Find a site login';$('search').setAttribute('aria-label',entryKind==='card'?'Search company cards':'Search site passwords');
+   $('addLogin').hidden=!(permissions.can_edit&&permissions.passwords&&entryKind==='login');
+   $('addCard').hidden=!(permissions.can_edit&&permissions.cards&&entryKind==='card');
+   $('importExcel').hidden=!permissions.admin||entryKind!=='login';render();
+  }
+ }
  async function load(){items=await request('list');render();}
  function render(){
   const query=$('search').value.toLowerCase();$('items').replaceChildren();
-  const visible=items.filter(i=>[i.label,i.site_host,i.last_four].some(v=>String(v).toLowerCase().includes(query)));
-  if(!visible.length)$('items').append(text('p',items.length?'No matching entries.':'No entries have been assigned to you yet.'));
+  const categoryItems=items.filter(i=>i.kind===entryKind);
+  const visible=categoryItems.filter(i=>[i.label,i.site_host,i.last_four].some(v=>String(v).toLowerCase().includes(query)));
+  if(!visible.length)$('items').append(text('p',categoryItems.length?'No matching entries.':entryKind==='card'?'No company cards have been assigned to you yet.':'No site passwords have been assigned to you yet.'));
   for(const i of visible){
    const card=text('article','');card.className='card';card.append(text('h3',i.label),text('p',i.kind==='login'?(i.site_host||'Site login'):'Company card •••• '+i.last_four));
    const actions=text('div','');actions.className='toolbar';actions.append(button('Reveal',()=>reveal(i)));
@@ -191,10 +205,11 @@
    const password=$('unlockPassword').value;$('unlockPassword').value='';
    const result=await request('unlock',{password},true);unlockToken=result.unlock_token;expires=Date.parse(result.expires_at);expiryTimer=setTimeout(lock,Math.max(0,expires-Date.now()));
    permissions=await request('status',{},true);$('locked').hidden=true;$('content').hidden=false;$('lock').hidden=false;
+   $('itemsTab').hidden=!permissions.passwords;$('cardsTab').hidden=!permissions.cards;
    $('accessTab').hidden=!permissions.admin;$('auditTab').hidden=!permissions.admin;
    $('addLogin').hidden=!(permissions.can_edit&&permissions.passwords);$('addCard').hidden=!(permissions.can_edit&&permissions.cards);
    $('importExcel').hidden=!permissions.admin;
-   panel('items');await load();say('Vault unlocked for five minutes.');
+   panel(permissions.passwords?'items':'cards');await load();say('Vault unlocked for five minutes.');
    if(permissions.admin&&new URL(location.href).searchParams.has('account')){panel('access');await accounts();}
   }catch(error){lock();say(error.message);}finally{busy=false;$('unlockButton').disabled=false;}
  });
@@ -207,6 +222,7 @@
  $('cancelSharing').addEventListener('click',()=>{$('sharing').close();shared=null;});
  $('sharingForm').addEventListener('submit',async e=>{e.preventDefault();if(!shared||busy)return;busy=true;try{await request('grants',{id:shared.id,users:[...$('shareAccounts').querySelectorAll('input:checked')].map(i=>i.value)});$('sharing').close();shared=null;say('Entry sharing updated.');}catch(error){$('sharingMessage').textContent=error.message;}finally{busy=false;}});
  $('itemsTab').addEventListener('click',()=>panel('items'));
+ $('cardsTab').addEventListener('click',()=>panel('cards'));
  $('accessTab').addEventListener('click',()=>{panel('access');accounts().catch(e=>say(e.message));});
  $('auditTab').addEventListener('click',()=>{panel('audit');audit().catch(e=>say(e.message));});
  $('importExcel').addEventListener('click',event=>{if(!permissions?.admin||!unlockToken)return;if(event.isTrusted){filePickerPending=true;clearTimeout(pickerTimer);pickerTimer=setTimeout(()=>{filePickerPending=false;if(unlockToken)lock();},60000);}$('importFile').click();});

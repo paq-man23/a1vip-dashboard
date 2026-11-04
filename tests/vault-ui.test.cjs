@@ -72,3 +72,20 @@ test('additional logins for the same site/account can be deliberately kept separ
 test('locking or cancelling discards workbook data and prevents pending previews from restoring it',async()=>{
  for(const operation of ['cancel','lock']){const h=await ui();try{await h.unlock();const sheet=await chooseWorkbook(h,[['fixture','PRIVATE-IMPORT-SYNTHETIC','Fixture site']]);h.$(operation==='cancel'?'cancelImport':'lock').click();assert.equal(h.$('importDialog').open,false);assert.equal(h.$('importPreview').textContent,'');assert.ok(sheet.rows.every(r=>r.cells.every(c=>!c.value)));assert.equal(h.calls.filter(c=>c.action==='import_logins').length,0);}finally{h.close();}}
 });
+test('site passwords and company cards have separate lists, searches and creation controls',async()=>{
+ const h=await ui({custom:async input=>input.action==='list'?{ok:true,status:200,json:async()=>[
+  {id:'login-one',kind:'login',label:'Example site',site_host:'example.invalid'},
+  {id:'card-one',kind:'card',label:'Example company card',last_four:'1234'}
+ ]}:null});
+ try{await h.unlock();assert.equal(h.$('sectionTitle').textContent,'Site Passwords');assert.ok(h.$('items').textContent.includes('Example site'));assert.ok(!h.$('items').textContent.includes('Example company card'));assert.equal(h.$('addCard').hidden,true);assert.equal(h.$('importExcel').hidden,false);
+ h.$('search').value='site';h.$('search').dispatchEvent(new h.w.Event('input'));h.$('cardsTab').click();
+ assert.equal(h.$('search').value,'');assert.equal(h.$('sectionTitle').textContent,'Company Cards');assert.equal(h.$('cardsTab').getAttribute('aria-pressed'),'true');assert.equal(h.$('itemsTab').getAttribute('aria-pressed'),'false');assert.ok(!h.$('items').textContent.includes('Example site'));assert.ok(h.$('items').textContent.includes('Example company card'));assert.equal(h.$('addCard').hidden,false);assert.equal(h.$('addLogin').hidden,true);assert.equal(h.$('importExcel').hidden,true);
+ h.$('addCard').click();await tick();assert.equal(h.$('cardFields').hidden,false);assert.equal(h.$('loginFields').hidden,true);h.$('cancelEditor').click();
+ h.$('itemsTab').click();assert.equal(h.$('sectionTitle').textContent,'Site Passwords');assert.equal(h.$('addLogin').hidden,false);assert.equal(h.$('addCard').hidden,true);
+ h.$('lock').click();assert.equal(h.$('items').textContent,'');
+ }finally{h.close();}
+});
+test('card-only sales accounts start in Company Cards without password or admin controls',async()=>{
+ const h=await ui({admin:false,custom:async input=>input.action==='status'?{ok:true,status:200,json:async()=>({admin:false,passwords:false,cards:true,can_edit:false})}:input.action==='list'?{ok:true,status:200,json:async()=>[{id:'assigned-card',kind:'card',label:'Assigned card',last_four:'1234'}]}:null});
+ try{await h.unlock();assert.equal(h.$('itemsTab').hidden,true);assert.equal(h.$('cardsTab').hidden,false);assert.equal(h.$('sectionTitle').textContent,'Company Cards');assert.equal(h.$('accessTab').hidden,true);assert.equal(h.$('addCard').hidden,true);assert.equal(h.$('importExcel').hidden,true);assert.deepEqual([...h.$('items').querySelectorAll('button')].map(b=>b.textContent),['Reveal']);h.$('itemsTab').click();assert.equal(h.$('sectionTitle').textContent,'Company Cards');}finally{h.close();}
+});
