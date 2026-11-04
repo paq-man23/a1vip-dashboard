@@ -49,5 +49,5 @@ test('AI event plans call Discovery with normalized filters and never pass retur
 });
 test('missing or rejected Ticketmaster key reports a useful error without inventing results',async()=>{
  const missing=await harness(),r=await missing.run({action:'events',query:'Knicks'});assert.equal(r.body.events.configured,false);assert.match(r.body.events.error,/TICKETMASTER_API_KEY/);
- const rejected=await harness({ticketKey:'ticket-secret',ticketStatus:401}),failed=await rejected.run({action:'events',query:'Knicks'});assert.equal(failed.status,400);assert.match(failed.body.error,/rejected/);assert.doesNotMatch(JSON.stringify(failed.body),/ticket-secret/);
+ const rejected=await harness({ticketKey:'ticket-secret',ticketStatus:401}),failed=await rejected.run({action:'events',query:'Knicks'});assert.equal(failed.status,400);assert.match(failed.body.error,/authentication failed/);assert.doesNotMatch(JSON.stringify(failed.body),/ticket-secret/);
 });

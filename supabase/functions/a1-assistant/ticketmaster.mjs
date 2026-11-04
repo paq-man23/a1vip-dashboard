@@ -19,15 +19,24 @@ export function normalizeEvent(event){
  return {id:safeText(event.id,80),name:safeText(event.name),url:publicUrl(event.url),date:start.dateTBA||start.dateTBD?'':safeText(start.localDate,10),time:start.timeTBA||start.noSpecificTime||start.dateTBA||start.dateTBD?'':safeText(start.localTime,8),dateTBA:!!(start.dateTBA||start.dateTBD),timeTBA:!!(start.timeTBA||start.noSpecificTime),timezone:safeText(event.dates?.timezone||venue.timezone,80),status:safeText(event.dates?.status?.code,30),venue:safeText(venue.name),city:safeText(venue.city?.name,80),state:safeText(venue.state?.stateCode,10),priceRanges:ranges};
 }
 export async function discoverEvents(input,{env,fetchImpl=fetch,now=()=>new Date()}){
- const search=filters(input),key=env('TICKETMASTER_API_KEY');
+ const search=filters(input),key=String(env('TICKETMASTER_API_KEY')||'').trim();
  if(!key)return {configured:false,error:'Ticketmaster Discovery is not configured. An administrator needs to add TICKETMASTER_API_KEY in Supabase Edge Function secrets.'};
+ if(/[\s\"']/.test(key)||key.includes('=')||key.includes('://'))throw new Error('The saved Ticketmaster key contains extra text or formatting. Replace TICKETMASTER_API_KEY with only the Consumer Key value from Ticketmaster.');
  const url=new URL('https://app.ticketmaster.com/discovery/v2/events.json');
  for(const [k,v] of Object.entries({apikey:key,keyword:search.query,size:'10',page:String(search.page),sort:'date,asc',includeTest:'no'}))url.searchParams.set(k,v);
  if(search.city)url.searchParams.set('city',search.city);
  if(search.startDate||search.endDate)url.searchParams.set('localStartDateTime',(search.startDate||'2000-01-01')+'T00:00:00,'+(search.endDate||'2099-12-31')+'T23:59:59');
  else url.searchParams.set('startDateTime',now().toISOString().replace(/\.\d{3}Z$/,'Z'));
  let response;try{response=await fetchImpl(url.href,{signal:AbortSignal.timeout(12000),headers:{Accept:'application/json'},redirect:'error'});}catch{throw new Error('Ticketmaster could not be reached. Please try again shortly.');}
- if(!response.ok)throw new Error(response.status===429?'Ticketmaster’s request limit has been reached. Please try again later.':response.status===401||response.status===403?'Ticketmaster rejected the API key. Check that the Consumer Key is saved and Public APIs are enabled.':'Ticketmaster event search is temporarily unavailable.');
+ if(!response.ok){
+  // Classify only recognized provider faults. Never echo raw bodies, URLs or credentials.
+  let invalidKey=false,productAccess=false;
+  try{const body=await response.json(),code=body?.fault?.detail?.errorcode;invalidKey=code==='oauth.v2.InvalidApiKey'||code==='oauth.v2.FailedToResolveAPIKey';productAccess=code==='oauth.v2.InvalidAPICallAsNoApiProductMatchFound';}catch{}
+  if(invalidKey||response.status===401)throw new Error('Ticketmaster authentication failed (HTTP '+response.status+'). Replace the Supabase TICKETMASTER_API_KEY value with the Consumer Key, not the Consumer Secret, then retry.');
+  if(productAccess)throw new Error('Ticketmaster says this key is not authorized for the Discovery API (HTTP '+response.status+'). Confirm Public APIs are enabled for this exact developer app.');
+  if(response.status===403)throw new Error('Ticketmaster refused the server request (HTTP 403). This does not confirm the key is invalid. Test the same Consumer Key in Ticketmaster’s API Explorer to distinguish key access from a server restriction.');
+  throw new Error(response.status===429?'Ticketmaster’s request limit has been reached. Please try again later.':'Ticketmaster event search is temporarily unavailable (HTTP '+response.status+').');
+ }
  let body;try{body=await response.json();}catch{throw new Error('Ticketmaster returned an unreadable response. Please try again.');}
  if(!body||typeof body!=='object')throw new Error('Ticketmaster returned an unreadable response. Please try again.');
  const events=(Array.isArray(body._embedded?.events)?body._embedded.events:[]).slice(0,10).map(normalizeEvent);
