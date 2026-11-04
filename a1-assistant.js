@@ -1,21 +1,22 @@
-/* Internal-only dashboard guide and reviewed actions; no external AI or speech calls. */
+/* Al: conversational planning plus permission-checked dashboard actions. */
 (() => {
  const core=window.A1AssistantCore;
  let panel,log,input,send,mic,launcher,status,recognition,waiting=null,busy=false,epoch=0,owner=null,placement,aiTab,voicePending=false;
+ let conversation=[],modeNote,voiceEnabled=false,voiceToggle;
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const allowed=id=>A1Data.authenticated()&&A1Data.canAccess(id);
  function requireAccess(id){if(!allowed(id))throw new Error('That section is not enabled for your account.');}
  function valid(token){return epoch===token&&A1Data.authenticated()&&owner===A1Data.account()?.email;}
- function stopVoice(){}
+ function stopVoice(){if(recognition){recognition.onresult=null;recognition.onend=null;recognition.onerror=null;try{recognition.abort();}catch{}recognition=null;}mic?.setAttribute('aria-pressed','false');}
  function close(){document.body.classList.remove('al-chat-open');stopVoice();panel.hidden=true;launcher.hidden=false;launcher.setAttribute('aria-expanded','false');aiTab?.setAttribute('aria-expanded','false');aiTab?.classList.remove('is-active');(aiTab||launcher).focus();}
- function clear(){document.body.classList.remove('al-chat-open');document.querySelectorAll('.al-found-link').forEach(n=>n.classList.remove('al-found-link'));epoch++;waiting=null;busy=false;owner=null;stopVoice();if(log)log.replaceChildren();voicePending=false;if(input)input.value='';if(status)status.textContent='';if(panel)panel.hidden=true;if(launcher){launcher.hidden=false;launcher.setAttribute('aria-expanded','false');}aiTab?.setAttribute('aria-expanded','false');aiTab?.classList.remove('is-active');if(send)send.disabled=false;}
+ function clear(){document.body.classList.remove('al-chat-open');document.querySelectorAll('.al-found-link').forEach(n=>n.classList.remove('al-found-link'));epoch++;conversation=[];voiceEnabled=false;if(voiceToggle)voiceToggle.checked=false;if(mic)mic.hidden=true;waiting=null;busy=false;owner=null;stopVoice();if(log)log.replaceChildren();voicePending=false;if(input)input.value='';if(status)status.textContent='';if(panel)panel.hidden=true;if(launcher){launcher.hidden=false;launcher.setAttribute('aria-expanded','false');}aiTab?.setAttribute('aria-expanded','false');aiTab?.classList.remove('is-active');if(send)send.disabled=false;}
  function message(text,user=false){const n=el('div',text,user?'copilot-message is-user':'copilot-message');log.append(n);while(log.children.length>60)log.firstElementChild.remove();if(!user)placement?.fitReply(n);else log.scrollTop=log.scrollHeight;return n;}
  function action(parent,label,fn){const token=epoch;const b=el('button',label,'copilot-action');b.type='button';b.onclick=async()=>{
   if(!valid(token)){message('Your account access changed. Start a new request.');return;}
   if(busy)return;busy=true;send.disabled=true;
   try{await fn(token);}catch(error){if(valid(token))message(error.message);}finally{if(valid(token)){busy=false;send.disabled=false;}}
  };parent.append(b);placement?.fitReply(parent);return b;}
- async function load(section,token){requireAccess(section);status.textContent='Loading '+(core.sections.find(s=>s[0]===section)?.[1]||section)+'…';await A1Data.loadSection(section);if(!valid(token))throw new Error('Session changed.');requireAccess(section);status.textContent='';}
+ async function load(section,token,force=false){requireAccess(section);status.textContent='Loading '+(core.sections.find(s=>s[0]===section)?.[1]||section)+'…';await A1Data.loadSection(section,force);if(!valid(token))throw new Error('Session changed.');requireAccess(section);status.textContent='';}
  function go(id){requireAccess(id);showSection(id);}
  function greet(){waiting=null;const account=A1Data.account(),name=account?.username||account?.name;message((name&&name!==account.email?'Hi '+name+', I’m Al!':'Hi, I’m Al!')+' I’m here if you need a hand.');}
  function help(){
@@ -23,6 +24,8 @@
   if(allowed('customers'))examples.push('“find customer Jane Smith”');
   if(allowed('vendors'))examples.push('“find vendor Acme”');
   if(allowed('invoices'))examples.push('“find invoice 4100” or “create an invoice for Acme”');
+  if(allowed('invoices'))examples.push('“summary 2026 invoices” — totals and balances', '“who bought Olivia Rodrigo tickets?” — search event invoices');
+  if(allowed('tripItinerary'))examples.push('“find trip Florida”');
   if(allowed('main'))examples.push('“add button for example.com in main”');
   message('Here are a few things you can ask me:\n'+examples.join('\n'));
  }
@@ -52,9 +55,9 @@
   const section={invoice:'invoices',trip:'tripItinerary',letter:'formLetter'}[request.type];await load(section,token);
   const rows=request.type==='invoice'?A1Data.invoices():A1Data.documents(request.type==='trip'?'itinerary':'letter');
   const fields=request.type==='invoice'?['number','savedName','clientCompany','clientContact','createdDate']:request.type==='trip'?['savedName','eventName','talent','eventLocation','arrivalDate','eventDate']:['savedName','to','toEmail','subject','date'];
-  const found=core.matches(rows,request.query,fields,{voice:request.voice});message(found.length?found.length+' matching record'+(found.length===1?'':'s')+(found.length>12?' · showing the first 12. Narrow your search for more.':'.'):'No matching saved records. Try a number, name, company, or date.');
+  const found=request.type==='invoice'&&window.A1AssistantRecords?window.A1AssistantRecords.filter(rows,request):core.matches(rows,request.query,fields,{voice:request.voice});message(found.length?found.length+' matching record'+(found.length===1?'':'s')+(found.length>12?' · showing the first 12. Narrow your search for more.':'.'):'No matching saved records. Try a number, name, company, or date.');
   for(const record of found.slice(0,12)){
-   const card=message([request.type==='invoice'?'#'+record.number:record.savedName,record.clientCompany||record.eventName||record.subject,record.createdDate||record.eventDate||record.date].filter(Boolean).join(' · ')||'Saved record');
+   const card=message([request.type==='invoice'?'#'+record.number:record.savedName,record.clientCompany||record.eventName||record.subject,record.clientContact,record.status,record.createdDate||record.eventDate||record.date].filter(Boolean).join(' · ')||'Saved record');
    action(card,'Open '+(request.type==='invoice'?'Invoice / PO':request.type==='trip'?'Trip':'Letter'),()=>{
     requireAccess(section);if(!confirm('Open this saved record? This replaces the current unsaved editor for this section.'))return;
     go(section);({invoice:loadInvoiceFromHistory,trip:loadItineraryFromHistory,letter:loadLetterFromHistory})[request.type](record.id);
@@ -150,9 +153,38 @@
   try{const request={website:draft.website,category:draft.category};const item=window.A1AssistantActions.proposal(request);requireAccess(item.section);proposeButton(request);waiting=null;}
   catch(error){draft.category='';message(error.message+' Choose an enabled category for this button.');}
  }
+ async function summarize(request,token){
+  await load('invoices',token,true);
+  const rows=window.A1AssistantRecords.filter(A1Data.invoices(),request),result=window.A1AssistantRecords.summary(rows);
+  const money=value=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(value);
+  const lines=['Saved document summary'+(request.year?' · '+request.year:'')+(request.query?' · '+request.query:''),rows.length+' matching records.'];
+  for(const [key,label] of [['invoice','Invoices'],['po','Purchase orders']]){const r=result[key];if(r.count)lines.push(label+': '+r.count+' · Total '+money(r.total)+' · Balance '+money(r.balance));}
+  if(result.void)lines.push(result.void+' void records excluded from totals.');
+  lines.push('Balances reflect saved payment/credit adjustments. Invoices and POs are shown separately.');
+  const card=message(lines.join('\n'));action(card,'Show Matching Records',t=>records({...request,type:'invoice'},t));waiting={...request,type:'summary'};
+ }
+ async function plan(text,token){
+  if(!A1Data.assistantRequest)return null;
+  status.textContent='Al is thinking…';
+  let result;
+  try{result=await A1Data.assistantRequest({message:text,history:conversation.slice(-6)});}
+  catch(error){if(!valid(token))return null;message(error.message+' You can still use commands such as “find customer Jane” or “summary 2026 invoices”.');return null;}
+  if(!valid(token))return null;
+  if(result?.configured===false){if(modeNote)modeNote.textContent='Dashboard mode · Live AI needs an OpenAI API key. Search, summaries, drafts and guidance are ready.';message(result.error||'Live AI is not configured yet. Dashboard commands are still available.');return null;}
+  if(!result?.plan)return null;
+  if(modeNote)modeNote.textContent='AI connected · Chat, search, summaries and reviewed actions';
+  return result.plan;
+ }
  async function ask(text,voice=false){
   text=String(text||'').trim().slice(0,600);if(!text||!A1Data.authenticated())return;
   const token=epoch;message(text,true);let request=core.intent(text);
+  if((request.type==='unknown'||request.type==='help')&&waiting?.type!=='buttonWizard'){
+   const proposed=await plan(text,token);if(!valid(token))return;
+   if(proposed){request=proposed;if(request.type==='answer'){conversation.push(text);conversation=conversation.slice(-6);message(request.reply);return;}}
+  }
+  conversation.push(text);conversation=conversation.slice(-6);
+  if(request.type==='summary'){await summarize(request,token);return;}
+
   if(request.type==='startButton'){startButton(request);return;}
   if(waiting?.type==='buttonWizard'&&request.type==='unknown'){continueButton(text);return;}
   if(request.type==='guide'){waiting=null;message(core.guidance(request.topic,{admin:A1Data.isAdmin(),canAccess:allowed,vision:document.body.classList.contains('a1-vision')}));return;}
@@ -173,7 +205,18 @@
   else await records(request,token);
  }
  async function submit(event){event.preventDefault();if(busy)return;const text=input.value,voice=voicePending;voicePending=false;input.value='';busy=true;send.disabled=true;const token=epoch;try{await ask(text,voice);}catch(error){if(valid(token))message('I couldn’t finish that request: '+error.message);}finally{if(valid(token)){status.textContent='';busy=false;send.disabled=false;input.focus();}}}
- function voice(){status.textContent='Voice input is disabled in internal-only mode.';}
+ function voice(){
+  if(!voiceEnabled){status.textContent='Voice input is disabled. Enable it in Al settings first.';return;}
+  if(busy)return;if(recognition){stopVoice();status.textContent='Voice input stopped.';return;}
+  const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Speech)return;
+  const token=epoch;recognition=new Speech();recognition.lang='en-US';recognition.interimResults=false;recognition.continuous=false;
+  recognition.onresult=event=>{if(!valid(token)||panel.hidden)return;input.value=event.results[0][0].transcript.slice(0,600);voicePending=true;status.textContent='Review your words, then choose Send.';input.focus();};
+  recognition.onerror=()=>{if(valid(token))status.textContent='Voice input could not start. Check microphone permission or type your message.';stopVoice();};
+  recognition.onend=()=>{recognition=null;mic.setAttribute('aria-pressed','false');};
+  mic.setAttribute('aria-pressed','true');status.textContent='Listening… tap the microphone to stop.';
+  try{recognition.start();}catch{stopVoice();status.textContent='Voice input is unavailable. Please type your message.';}
+ }
+
  function init(){
   launcher=el('button',undefined,'copilot-launcher');launcher.type='button';launcher.setAttribute('aria-label','Open Al dashboard assistant');launcher.setAttribute('aria-controls','a1Copilot');launcher.setAttribute('aria-expanded','false');
   const image=el('img');image.src='./assets/al-ticket.png';image.alt='';image.setAttribute('aria-hidden','true');launcher.append(image);document.body.append(launcher);
@@ -181,13 +224,17 @@
   const header=el('header',undefined,'copilot-header');const title=el('div');const h=el('h2','Al');h.id='copilotTitle';title.append(h);header.append(title);
   const clearButton=el('button','New Chat','copilot-small al-new-chat');clearButton.type='button';clearButton.setAttribute('aria-label','New chat — clear Al conversation');clearButton.title='Clear this conversation and start again';clearButton.onclick=()=>{clear();owner=A1Data.account()?.email;panel.hidden=false;launcher.setAttribute('aria-expanded','true');aiTab?.setAttribute('aria-expanded','true');aiTab?.classList.add('is-active');placement?.layoutPanel();greet();input.focus();};const settings=el('details',undefined,'copilot-settings');const summary=el('summary','⚙');summary.setAttribute('aria-label','Al settings');settings.append(summary);header.append(settings);
   const closeButton=el('button','×','copilot-small');closeButton.type='button';closeButton.setAttribute('aria-label','Minimize Al');closeButton.title='Minimize Al';closeButton.onclick=close;header.append(closeButton,clearButton);panel.append(header);
-  panel.append(el('p','Guided mode · Search dashboard links and saved records, add a website button, or get step-by-step help with a draft.','copilot-mode'));
+  modeNote=el('p','Al · Dashboard search, summaries, drafts and guidance. Natural conversation connects when AI is configured.','copilot-mode');panel.append(modeNote);
   log=el('div',undefined,'copilot-log');log.setAttribute('role','log');log.setAttribute('aria-label','Assistant conversation');log.setAttribute('aria-live','polite');panel.append(log);
   status=el('p','','copilot-status');status.setAttribute('role','status');panel.append(status);
   const form=el('form',undefined,'copilot-form');input=el('textarea');input.rows=1;input.maxLength=600;input.placeholder='Ask Al… or type Help';input.setAttribute('aria-label','Message to dashboard assistant');input.addEventListener('input',()=>voicePending=false);form.append(input);
-  const controls=el('div');mic=el('button','🎙','copilot-small');mic.type='button';mic.setAttribute('aria-label','Voice input disabled in internal mode');mic.title='Voice input is disabled in internal-only mode.';mic.setAttribute('aria-pressed','false');mic.onclick=voice;send=el('button','Send','copilot-send');send.type='submit';controls.append(mic,send);form.append(controls);form.onsubmit=submit;panel.append(form);
-  const supported=false;mic.hidden=true;
-  settings.append(el('p','Internal mode: Al uses dashboard guidance and your permitted Supabase records. External AI and browser speech services are disabled. Chat clears on sign-out.','copilot-note'));
+  const controls=el('div');mic=el('button','🎙','copilot-small');mic.type='button';mic.setAttribute('aria-label','Start or stop voice input');mic.title='Dictate a message, then review and send';mic.setAttribute('aria-pressed','false');mic.onclick=voice;send=el('button','Send','copilot-send');send.type='submit';controls.append(mic,send);form.append(controls);form.onsubmit=submit;panel.append(form);
+  const supported=!!(window.SpeechRecognition||window.webkitSpeechRecognition);mic.hidden=true;
+  settings.append(el('p','AI receives only what you type and your last six requests. Record searches and calculations stay in the dashboard. Vault passwords and cards are excluded. Chat clears on sign-out or New Chat.','copilot-note'));
+  if(supported){const label=el('label');voiceToggle=el('input');voiceToggle.type='checkbox';voiceToggle.checked=false;voiceToggle.onchange=()=>{voiceEnabled=voiceToggle.checked;mic.hidden=!voiceEnabled;if(!voiceEnabled)stopVoice();};label.append(voiceToggle,el('span','Enable voice for this chat. Your browser may send microphone audio to its speech provider. Review the transcript before Send.'));settings.append(label);}
+  else settings.append(el('p','Voice input is unavailable in this browser. You can use your keyboard’s dictation.','copilot-note'));
+  const checkAI=el('button','Check AI connection','copilot-small');checkAI.type='button';checkAI.onclick=async()=>{const token=epoch;checkAI.disabled=true;try{const result=await A1Data.assistantRequest({action:'status'});if(valid(token))modeNote.textContent=result.configured?'AI configured · Ask a conversational question to test the connection.':'Dashboard mode · Add OPENAI_API_KEY in Supabase Edge Function secrets to enable live AI.';}catch(error){if(valid(token))status.textContent=error.message;}finally{checkAI.disabled=false;}};settings.append(checkAI);
+
   document.body.append(panel);
   function open(){if(!A1Data.authenticated())return;if(!panel.hidden){close();return;}if(owner!==A1Data.account()?.email){clear();owner=A1Data.account()?.email;}launcher.hidden=false;panel.hidden=false;launcher.setAttribute('aria-expanded','true');aiTab?.setAttribute('aria-expanded','true');aiTab?.classList.add('is-active');placement?.layoutPanel();if(!log.children.length)greet();input.focus();}
   launcher.onclick=open;aiTab=document.getElementById('a1AssistantTab');if(aiTab)aiTab.onclick=()=>{if(!panel.hidden){close();return;}open();};

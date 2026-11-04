@@ -11,9 +11,12 @@
   if(/password/.test(q))return 'password';
   if(/refresh|update/.test(q))return 'refresh';
   if(/layout|tablet|vision|duo|resize|stretch/.test(q))return 'layout';
+  if(/convert|transfer/.test(q)&&/purchase order|\bpo\b/.test(q))return 'convert';
+  if(/markup|mark up/.test(q))return 'markup';
+  if(/vault|company card/.test(q))return 'vault';
   if(/invoice|purchase order/.test(q))return 'invoices';
   if(/customer|vendor|contact/.test(q))return 'contacts';
-  if(/section|categor|what.*(?:in|is)|explain|describe|tell me about/.test(q)){
+  if(/section|categor|what\b.*\b(?:in|is)\b|explain|describe|tell me about/.test(q)){
    const section=sections.find(([id,label])=>q.includes(normalize(label))||q.includes(normalize(id)));
    return section?'section:'+section[0]:'sections';
   }
@@ -26,6 +29,9 @@
   if(topic==='password')return 'Choose Change Password beside your signed-in name. Enter your current password and the new password, then save. If you cannot sign in, use Forgot Password on the login screen.';
   if(topic==='refresh')return 'Choose Refresh App beside your name to load the newest dashboard files. The Refresh History / Refresh Contacts buttons inside a section reload that section’s saved records.';
   if(topic==='layout')return 'Use the layout menu beside your name to choose Auto, Tablet · Right, or Vision Pro. The choice is remembered on this device. Drag Al to move him; drag the corner of his speech bubble to resize it.';
+  if(topic==='markup')return canAccess('invoices')?'In Invoices & POs, use the Markup button to select a percentage. It starts off for a new invoice. When converting a PO, choose the markup during conversion; 30% is the default and you can change it. Review all prices before Save.':'Invoices & POs is not enabled for your account.';
+  if(topic==='convert')return canAccess('invoices')?'Open the saved purchase order in Invoices & POs, choose the conversion to invoice action, select the markup (30% by default), then choose the customer. Review the invoice and save it. The original purchase order remains saved.':'Invoices & POs is not enabled for your account.';
+  if(topic==='vault')return 'Open Secure Vault and unlock it with your dashboard password. Site Passwords and Company Cards have separate sections. Al cannot read, reveal, copy or send vault secrets. Access and sharing are controlled by your administrator.';
   if(topic==='invoices')return canAccess('invoices')?'Open Invoices & POs. Choose invoice or purchase order, start a new document, select a saved contact, add the event or items and prices, and review the preview. Use Save when you are ready. Saved documents are under History. You can also ask me “create an invoice for Acme” to prepare a draft.':'Your administrator has not enabled Invoices & POs for your account.';
   if(topic==='contacts'&&!canAccess('customers')&&!canAccess('vendors'))return 'Your administrator has not enabled Customers or Vendors for your account.';
   if(topic==='contacts')return 'Open Customers or Vendors. Search by name, company, email, or phone, or use the alphabet tabs. Select a card to view or edit it. Choose Add Customer / Add Vendor for a new card, then Save Contact. Contacts can be selected in document editors when you have access to those categories.';
@@ -37,6 +43,7 @@
  function intent(text){
   const raw=String(text||'').trim().replace(/[.!?]+$/,'');
   let m;
+  if(/^(?:summari[sz]e|summary|report|totals?)(?:\s+(?:for|of))?(?:\s+(20\d{2}))?(?:\s+(invoices?|purchase orders?|pos?))?$/i.test(raw)){const year=raw.match(/20\d{2}/)?.[0]||'';return {type:'summary',query:'',year,documentType:/purchase|\bpos?\b/i.test(raw)?'po':/invoice/i.test(raw)?'invoice':''};}
   const topic=guideTopic(raw);if(topic)return {type:'guide',topic};
   if(/^(hi|hello|hey|good morning|good afternoon|good evening)(?:[ ,]+al)?$/i.test(raw))return {type:'greeting'};
   const conversational=raw.replace(/^(?:please\s+|(?:can|could|would) you\s+|i(?:’|')?d like to\s+|i want to\s+)/i,'');
@@ -48,7 +55,7 @@
   if(/^(cancel|stop|reset|start over)$/i.test(raw))return {type:'cancel'};
   if((m=raw.match(/(?:create|make|start|new|prepare)\s+(?:a\s+|an\s+)?(?:new\s+)?(invoice|purchase order|po)(?:\s+(?:for|with)\s+(.+))?$/i)))return {type:'draft',purchase:!/^invoice$/i.test(m[1]),query:(m[2]||'').trim()};
   if((m=raw.match(/^(?:(?:find|search(?: for)?|look\s*up|show(?: me)?)\s+)?(?:a\s+|the\s+)?(customers?|vendors?|contacts?|invoices?|purchase orders?|trips?|itinerar(?:y|ies)|letters?|links?)\s*(?:named\s+|called\s+|for\s+|#\s*)?(.*)$/i))){
-   const word=m[1].toLowerCase();return {type:/customer|vendor|contact/.test(word)?'contact':/invoice|purchase/.test(word)?'invoice':/trip|itinerar/.test(word)?'trip':/letter/.test(word)?'letter':'link',kind:/vendor/.test(word)?'vendor':/customer/.test(word)?'customer':null,query:m[2].trim()};
+   const word=m[1].toLowerCase();return {...(/purchase|invoice/.test(word)?{documentType:/purchase/.test(word)?'po':'invoice'}:{}),type:/customer|vendor|contact/.test(word)?'contact':/invoice|purchase/.test(word)?'invoice':/trip|itinerar/.test(word)?'trip':/letter/.test(word)?'letter':'link',kind:/vendor/.test(word)?'vendor':/customer/.test(word)?'customer':null,query:m[2].trim()};
   }
   if((m=raw.match(/^(?:open|go to|take me to)\s+(.+)$/i))){const key=normalize(m[1]);const section=sections.find(([id,label])=>[normalize(id),normalize(label)].includes(key));if(section)return {type:'navigate',section:section[0]};}
   if(/help|how (do|can)|what can|guide|walk me/i.test(raw))return {type:'help',query:raw};

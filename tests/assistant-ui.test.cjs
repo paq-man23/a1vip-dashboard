@@ -1,12 +1,12 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-function harness({permissions=['main','customers','invoices'],pause,voice=false,links=[],contactRows,withTab=false,username='',ai}={}){
+function harness({permissions=['main','customers','invoices'],pause,voice=false,links=[],contactRows,withTab=false,username='',ai,invoiceRows=[]}={}){
  const listeners={},events={},loads=[],opened=[];let authenticated=true,aborted=0,recognizer;
  function node(tag='div'){
   return {tag,children:[],hidden:false,value:'',textContent:'',dataset:{},attributes:{},classList:{contains:()=>false,toggle(){},add(){},remove(){}},setAttribute(k,v){this.attributes[k]=v;},append(...nodes){for(const n of nodes){n.parent=this;this.children.push(n);}},replaceChildren(){this.children=[];},get firstElementChild(){return this.children[0];},remove(){this.parent.children=this.parent.children.filter(x=>x!==this);},focus(){},addEventListener(k,v){this[k]=v;}};
  }
- const tab=withTab?node('button'):null;const body=node(),data={linkBlocked:()=>false,authenticated:()=>authenticated,canAccess:id=>authenticated&&permissions.includes(id),isAdmin:()=>false,account:()=>({email:'user@example.invalid',username}),loadSection:async id=>{loads.push(id);if(pause)await pause;},contacts:()=>contactRows||[{kind:'customer',id:'j',displayName:'Jane Smith',email:'jane@example.invalid'}],invoices:()=>[],documents:()=>[]};
+ const tab=withTab?node('button'):null;const body=node(),data={linkBlocked:()=>false,authenticated:()=>authenticated,canAccess:id=>authenticated&&permissions.includes(id),isAdmin:()=>false,account:()=>({email:'user@example.invalid',username}),loadSection:async id=>{loads.push(id);if(pause)await pause;},contacts:()=>contactRows||[{kind:'customer',id:'j',displayName:'Jane Smith',email:'jane@example.invalid'}],invoices:()=>invoiceRows,documents:()=>[]};
  if(ai)data.assistantRequest=ai;
- const root={A1AssistantActions:require('../assistant-actions.js'),A1AssistantCore:require('../assistant-core.js'),addEventListener:(k,v)=>events[k]=v};
+ const root={A1AssistantRecords:require('../assistant-records.js'),A1AssistantActions:require('../assistant-actions.js'),A1AssistantCore:require('../assistant-core.js'),addEventListener:(k,v)=>events[k]=v};
  if(voice)root.SpeechRecognition=class{constructor(){recognizer=this;}start(){}abort(){aborted++;}};
  const buttons=links.map(row=>{const classes=new Set(row.hidden?['a1-personally-hidden']:[]);return {...row,isConnected:true,dataset:{label:row.label,url:row.url||'https://example.com'},classList:{contains:k=>classes.has(k),add:k=>classes.add(k),remove:k=>classes.delete(k)},closest:()=>({dataset:{section:row.section}}),scrollIntoView(){},focus(){},getBoundingClientRect:()=>({left:100}),parentElement:null};});
  const document={body,createElement:node,addEventListener:(k,v)=>listeners[k]=v,getElementById:id=>id==='a1AssistantTab'?tab:null,querySelectorAll:selector=>selector.includes('grid[data-section]')?buttons:[]};
@@ -24,7 +24,7 @@ test('Al never loads a category the account cannot access',async()=>{
 test('signout clears chat and rejects in-flight contact search results',async()=>{
  let release;const pause=new Promise(r=>release=r),h=harness({pause});const pending=h.submit('find customer Jane');h.signout();release();await pending;assert.equal(h.log.children.length,0);assert.equal(h.panel.hidden,true);assert.equal(h.input.value,'');
 });
-test('internal mode disables browser speech services even when available',()=>{
+test('browser speech stays off until explicitly enabled',()=>{
  const h=harness({voice:true});assert.equal(h.mic.hidden,true);h.mic.onclick();assert.equal(h.recognizer,undefined);assert.match(h.status.textContent,/disabled/);assert.deepEqual(h.loads,[]);
 });
 test('Yankees search navigates to the ticket button, reports suites and finds contacts by notes',async()=>{
@@ -57,7 +57,7 @@ test('add-button command shows a proposal without saving until the action is sel
 test('Al answers how-to questions directly without loading or changing dashboard records',async()=>{
  const h=harness();await h.submit('how do I move buttons?');assert.match(h.text(),/press and hold/);assert.match(h.text(),/Confirm the move/);assert.equal(h.loads.length,0);assert.equal(h.opened.length,0);
 });
-test('internal text search never calls the external AI adapter',async()=>{
+test('direct search commands do not need a model request',async()=>{
  let calls=0;const h=harness({ai:async()=>{calls++;throw new Error('External call forbidden');}});await h.submit('find customer Jane');assert.equal(calls,0);assert.match(h.text(),/Jane Smith/);
 });
 test('internal guidance works without any AI service',async()=>{
@@ -102,4 +102,29 @@ test('visible New Chat clears history and an unfinished task while keeping Al op
 });
 test('New Chat discards delayed results from the previous conversation',async()=>{
  let release;const pause=new Promise(r=>release=r),h=harness({pause});const pending=h.submit('find customer Jane');h.panel.children[0].children.find(n=>n.textContent==='New Chat').onclick();release();await pending;assert.equal(h.log.children.length,1);assert.doesNotMatch(h.text(),/Jane Smith/);
+});
+
+test('conversational plans search real permitted records and send only user text as history',async()=>{
+ const requests=[],h=harness({ai:async body=>{requests.push(body);return {configured:true,plan:{type:'contact',kind:'customer',query:requests.length===1?'Jane':'Acme'}};}});
+ await h.submit('Can you pull up Jane’s contact details for me?');assert.match(h.text(),/Jane Smith/);
+ await h.submit('What about Acme instead?');assert.deepEqual(Array.from(requests[1].history),['Can you pull up Jane’s contact details for me?']);assert.doesNotMatch(JSON.stringify(requests),/jane@example/);
+});
+test('conversational navigation cannot open a denied category',async()=>{
+ const h=harness({ai:async()=>({plan:{type:'navigate',section:'admin'}})});await h.submit('Take me to the account administration area please');assert.deepEqual(h.opened,[]);assert.match(h.text(),/not enabled/);
+});
+test('AI answers render as text, and a missing key preserves local searches',async()=>{
+ const h=harness({ai:async()=>({plan:{type:'answer',reply:'<script>bad()</script>'}})});await h.submit('Tell me your limitations');assert.match(h.text(),/<script>/);assert.equal(h.log.children.at(-1).children.length,0);
+ const fallback=harness({ai:async()=>({configured:false})});await fallback.submit('Jane');assert.match(fallback.text(),/not configured/);assert.match(fallback.text(),/Jane Smith/);
+});
+test('New Chat rejects delayed AI responses and clears prior user context',async()=>{
+ let release;const pause=new Promise(r=>release=r),requests=[],h=harness({ai:async body=>{requests.push(body);await pause;return {plan:{type:'answer',reply:'old answer'}};}});
+ const pending=h.submit('Tell me something about the dashboard');h.panel.children[0].children.find(n=>n.textContent==='New Chat').onclick();release();await pending;assert.doesNotMatch(h.text(),/old answer/);
+ await h.submit('What can this dashboard do for me?');assert.deepEqual(Array.from(requests[1].history),[]);
+});
+test('summary commands calculate actual saved invoice totals without an AI request',async()=>{
+ const h=harness({invoiceRows:[{number:'4145',type:'invoice-ticket',createdDate:'2026-01-01',lines:[{qty:2,unitCost:100}],credit:50}],ai:async()=>{throw new Error('Should not call AI');}});await h.submit('summary 2026 invoices');assert.match(h.text(),/Total \$200.00/);assert.match(h.text(),/Balance \$150.00/);
+});
+test('voice requires opt-in, transcribes without sending and stops on signout',()=>{
+ const h=harness({voice:true}),settings=h.panel.children[0].children[1],toggle=settings.children.find(n=>n.tag==='label').children[0];
+ assert.equal(h.recognizer,undefined);toggle.checked=true;toggle.onchange();assert.equal(h.mic.hidden,false);h.mic.onclick();h.recognizer.onresult({results:[[{transcript:'find customer Sonia'}]]});assert.equal(h.input.value,'find customer Sonia');assert.deepEqual(h.loads,[]);assert.match(h.status.textContent,/Review/);h.signout();assert.equal(h.aborted(),1);assert.equal(h.input.value,'');assert.equal(h.mic.hidden,true);
 });
