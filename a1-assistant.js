@@ -166,10 +166,10 @@
  }
  async function events(request,token){
   if(!request.query){waiting={type:'events',query:''};message('Which artist, team, event or venue should I look up? You can also give me a city and date.');return;}
-  status.textContent='Searching Ticketmaster events…';
+  status.textContent='Searching connected ticket sources…';
   const result=request.eventResults||(await A1Data.assistantRequest({action:'events',query:request.query,city:request.city||'',stateCode:request.stateCode||'',countryCode:request.countryCode||'',startDate:request.startDate||'',endDate:request.endDate||'',anyDate:request.anyDate===true,anyLocation:request.anyLocation===true,refine:request.refine===true,page:request.page||0}))?.events;
   if(!valid(token))return;
-  if(!result?.configured){message(result?.error||'Ticketmaster event discovery is not configured yet.');return;}
+  if(!result?.configured){message(result?.error||'Event discovery is not configured yet.');return;}
   const rows=result.events||[],search=result.search||request;
   waiting={...search,type:'events',refining:result.needsRefinement===true};delete waiting.eventResults;
   if(result.needsRefinement){
@@ -180,9 +180,11 @@
    return;
   }
   const scope=[search.query,search.locationLabel||search.city||search.stateCode||(search.anyLocation?'any location':''),[search.startDate,search.endDate&&search.endDate!==search.startDate?search.endDate:''].filter(Boolean).join(' to ')||(search.anyDate?'any month':'upcoming')].filter(Boolean).join(' · ');
-  message(scope+'\nTicketmaster Discovery · '+(result.total??rows.length)+' matching events'+(result.total>rows.length?' · showing '+rows.length:'')+'\nChecked '+new Date(result.checkedAt).toLocaleString('en-US',{timeZone:'America/New_York'})+' Eastern.');
+  const coverage=result.providers?.map(p=>p.name+': '+(p.status==='ok'?p.total+' matches':p.status==='not-configured'?'not connected':'temporarily unavailable')).join(' · ');
+  message(scope+'\n'+(result.source||'Ticketmaster Discovery')+' · '+(result.totalIsPageCount?rows.length+' events on this page':(result.total??rows.length)+' matching events'+(result.total>rows.length?' · showing '+rows.length:''))+'\n'+(coverage?coverage+'\n':'')+'Checked '+new Date(result.checkedAt).toLocaleString('en-US',{timeZone:'America/New_York'})+' Eastern.');
+  for(const provider of result.providers||[])if(provider.status==='error')message(provider.name+': '+provider.message+' Results from the other connected source are shown below.');
   if(!rows.length){
-   const info=message('No matching '+search.query+' events were returned'+(search.locationLabel?' in '+search.locationLabel:'')+(search.startDate||search.endDate?' for those dates':' among upcoming events')+' in Ticketmaster’s catalog. Try a different month or location.');
+   const info=message('No matching '+search.query+' events were returned'+(search.locationLabel?' in '+search.locationLabel:'')+(search.startDate||search.endDate?' for those dates':' among upcoming events')+' in the successfully searched catalogs. Try a different month or location.');
    if(search.city||search.stateCode||search.countryCode)action(info,'Search All Locations',t=>events({...search,city:'',stateCode:'',countryCode:'',anyLocation:true,page:0},t));
    if(search.startDate||search.endDate)action(info,'Search Any Month',t=>events({...search,startDate:'',endDate:'',anyDate:true,page:0},t));
   }
@@ -191,25 +193,33 @@
    if(event.time)parts.push(event.time+(event.timezone?' · '+event.timezone:''));else parts.push('Time to be announced');
    parts.push([event.venue,event.city,event.state].filter(Boolean).join(' · '));
    if(event.status)parts.push('Event status: '+event.status);
-   if(event.priceRanges?.length){for(const range of event.priceRanges){const money=v=>new Intl.NumberFormat('en-US',{style:'currency',currency:range.currency}).format(v);parts.push('Published event price range: '+money(range.min)+'–'+money(range.max)+' '+range.currency);}}
-   else parts.push('Ticketmaster did not supply a price range.');
+   const offers=event.offers||[{source:result.source||'Ticketmaster Discovery',url:event.url,priceRanges:event.priceRanges||[],priceSummary:event.priceSummary,checkedAt:result.checkedAt}];
+   for(const offer of offers){
+    const source=offer.source||'Ticket source';
+    if(offer.priceRanges?.length){for(const range of offer.priceRanges){const money=v=>new Intl.NumberFormat('en-US',{style:'currency',currency:range.currency}).format(v);parts.push(source+' · Published event price range: '+money(range.min)+'–'+money(range.max)+' '+range.currency);}}
+    else if(offer.priceSummary){
+     const summary=offer.priceSummary,format=value=>summary.currency?new Intl.NumberFormat('en-US',{style:'currency',currency:summary.currency}).format(value):Number(value).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+     const amounts=[['Lowest',summary.lowest],['Average',summary.average],['Highest',summary.highest]].filter(([,v])=>v!==null&&v!==undefined).map(([label,v])=>label+' '+format(v));
+     parts.push(source+' · Event-level pricing summary: '+(amounts.length?amounts.join(' · '):'No price amounts supplied')+(amounts.length&&!summary.currency?' (currency not supplied)':''));
+     if(summary.listingCount!==null&&summary.listingCount!==undefined)parts.push(source+' · '+summary.listingCount+' listings reported');
+    }else parts.push(/Ticketmaster/.test(source)?'Ticketmaster did not supply a price range.':source+' did not supply a pricing summary.');
+    if(offer.checkedAt)parts.push(source+' · Checked '+new Date(offer.checkedAt).toLocaleString('en-US',{timeZone:'America/New_York'})+' Eastern');
+   }
    const card=message(parts.filter(Boolean).join('\n'));
-   if(event.url){
-    const ticketmaster=/\/\/(?:[^/]+\.)?ticketmaster\./i.test(event.url);
+   for(const offer of offers)if(offer.url){
+    const source=offer.source||'Ticket source',ticketmaster=/\/\/(?:[^/]+\.)?ticketmaster\./i.test(offer.url);
     if(ticketmaster)action(card,'Open Ticketmaster',()=>{
-     if(A1Data.linkBlocked(event.url))throw new Error('This link is restricted by your administrator.');
-     // The user's current browser opens this window. In Safari this uses Safari's
-     // cookie session; it does not sign out, clear cookies, or invoke Shortcuts.
-     const popup=window.open(event.url,'_blank','popup=yes,scrollbars=yes,resizable=yes,width=1200,height=800');
+     if(A1Data.linkBlocked(offer.url))throw new Error('This link is restricted by your administrator.');
+     const popup=window.open(offer.url,'_blank','popup=yes,scrollbars=yes,resizable=yes,width=1200,height=800');
      if(popup){popup.opener=null;return;}
      const info=message('The popup was blocked. Allow popups for the A1 Dashboard in your browser settings, or copy the event link.');
-     action(info,'Copy Event Link',async()=>{if(!window.navigator?.clipboard?.writeText)throw new Error('Clipboard access is unavailable. Event address: '+event.url);await window.navigator.clipboard.writeText(event.url);message('Event link copied.');});
+     action(info,'Copy Event Link',async()=>{if(!window.navigator?.clipboard?.writeText)throw new Error('Clipboard access is unavailable. Event address: '+offer.url);await window.navigator.clipboard.writeText(offer.url);message('Event link copied.');});
     });
-    else {const link=el('a','View event / tickets','copilot-action');link.href=event.url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);placement?.fitReply(card);}
+    else {const link=el('a',/SeatGeek/.test(source)?'Open SeatGeek':'View event / tickets','copilot-action');link.href=offer.url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);placement?.fitReply(card);}
    }
   }
-  if(rows.length)message('Published ranges are event-level information, not current section/row prices or a quote for seats together. Fees and availability must be checked on the ticket page.');
-  if(result.hasMore){const card=message('More matching events are available.');action(card,'Next 10 Events',t=>events({...search,page:(search.page||0)+1},t));}
+  if(rows.length)message('Published ranges and pricing summaries are event-level information, not current section/row prices or a quote for seats together. Fees, currency and available quantities must be confirmed on the provider’s ticket page. Prices from different sources may not cover equivalent tickets.');
+  if(result.hasMore){const card=message('More matching events are available.');action(card,result.providers?'Next Results':'Next 10 Events',t=>events({...search,page:(search.page||0)+1},t));}
  }
  async function plan(text,token){
   if(!A1Data.assistantRequest)return null;
@@ -284,7 +294,7 @@
   settings.append(el('p','AI receives only what you type and your last six requests. Record searches and calculations stay in the dashboard. Vault passwords and cards are excluded. Chat clears on sign-out or New Chat.','copilot-note'));
   if(supported){const label=el('label');voiceToggle=el('input');voiceToggle.type='checkbox';voiceToggle.checked=false;voiceToggle.onchange=()=>{voiceEnabled=voiceToggle.checked;mic.hidden=!voiceEnabled;if(!voiceEnabled)stopVoice();};label.append(voiceToggle,el('span','Enable voice for this chat. Your browser may send microphone audio to its speech provider. Review the transcript before Send.'));settings.append(label);}
   else settings.append(el('p','Voice input is unavailable in this browser. You can use your keyboard’s dictation.','copilot-note'));
-  const checkAI=el('button','Check AI connection','copilot-small');checkAI.type='button';checkAI.onclick=async()=>{const token=epoch;checkAI.disabled=true;try{const result=await A1Data.assistantRequest({action:'status'});if(valid(token))modeNote.textContent=result.configured?'AI configured · Ticketmaster '+(result.ticketmasterConfigured?'configured':'not configured')+' · Ask a question to test access.':'Dashboard mode · Add OPENAI_API_KEY in Supabase Edge Function secrets to enable live AI.';}catch(error){if(valid(token))status.textContent=error.message;}finally{checkAI.disabled=false;}};settings.append(checkAI);
+  const checkAI=el('button','Check AI connection','copilot-small');checkAI.type='button';checkAI.onclick=async()=>{const token=epoch;checkAI.disabled=true;try{const result=await A1Data.assistantRequest({action:'status'});if(valid(token))modeNote.textContent=result.configured?'AI configured · Ticketmaster '+(result.ticketmasterConfigured?'configured':'not configured')+' · SeatGeek '+(result.seatgeekConfigured?'configured':'not configured')+' · Ask a question to test access.':'Dashboard mode · Add OPENAI_API_KEY in Supabase Edge Function secrets to enable live AI.';}catch(error){if(valid(token))status.textContent=error.message;}finally{checkAI.disabled=false;}};settings.append(checkAI);
 
   document.body.append(panel);
   function open(){if(!A1Data.authenticated())return;if(!panel.hidden){close();return;}if(owner!==A1Data.account()?.email){clear();owner=A1Data.account()?.email;}launcher.hidden=false;panel.hidden=false;launcher.setAttribute('aria-expanded','true');aiTab?.setAttribute('aria-expanded','true');aiTab?.classList.add('is-active');placement?.layoutPanel();if(!log.children.length)greet();input.focus();}
