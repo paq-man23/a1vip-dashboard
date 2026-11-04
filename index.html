@@ -467,7 +467,7 @@
       <button class="tab tab-invoices" data-category="vendors" onclick="showSection('vendors')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V3h8v4M3 12h18m-9 0v4"/></svg><span class="tab-label">Vendors</span></button>
       <button class="tab tab-letter" data-category="formLetter" onclick="showSection('formLetter')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 5 10 8L22 5"/></svg><span class="tab-label">Letters</span></button>
       <button class="tab tab-itinerary" data-category="tripItinerary" onclick="showSection('tripItinerary')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m22 2-6 20-4-9-10-4Z"/><path d="m12 13 10-11"/></svg><span class="tab-label">Trips</span></button>
-      <button class="tab tab-admin" data-vault-entry hidden onclick="A1VaultEntry.open()"><span aria-hidden="true">🔒</span><span class="tab-label">Secure Vault</span></button>
+      <button class="tab tab-vault" data-vault-entry hidden onclick="A1VaultEntry.open()"><span aria-hidden="true">🔒</span><span class="tab-label">Secure Vault</span></button>
       <button class="tab tab-admin" data-category="admin" data-admin-only hidden onclick="showSection('admin')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6Z"/><path d="m8 12 3 3 5-6"/></svg><span class="tab-label">Admin</span></button>
       <button id="a1AssistantTab" class="tab tab-ai" type="button" aria-controls="a1Copilot" aria-expanded="false" aria-label="Open Al AI assistant"><img class="al-tab-mascot" src="./assets/al-ticket.png" alt="" aria-hidden="true"><span class="tab-label">AI · Al</span></button>
     </div>
@@ -913,6 +913,7 @@
       <nav class="grid admin-navigation" aria-label="Admin tools">
         <button class="btn" onclick="showSection('admin')">Admin Home</button>
         <button class="btn" onclick="showSection('manageAccounts')">Manage Accounts &amp; User Layouts</button>
+        <button class="btn" data-vault-entry hidden onclick="A1VaultEntry.open()">Secure Vault</button>
         <button class="btn" onclick="showSection('domains')">A1 Domains & Emails</button>
         <button class="btn" onclick="openPopup('https://a1vipevents.com/')">A1VIP</button>
         <button class="btn" onclick="openPopup('https://a1vipevents.com/wp-login.php?redirect_to=https%3A%2F%2Fa1vipevents.com%2Fwp-admin%2F&reauth=1')">BackEnd</button>
@@ -1764,7 +1765,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       if (!isTouchDevice()) return; // only on touch devices
 
-      const adminTab = document.querySelector('.tab-admin');
+      const adminTab = document.querySelector('[data-category="admin"]');
       if (!adminTab) return;
 
       let pressTimer = null;

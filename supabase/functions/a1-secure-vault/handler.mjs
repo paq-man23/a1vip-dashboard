@@ -11,7 +11,7 @@ export function createHandler({env,fetchImpl=fetch}) {
  return async req=>{
   const origin=req.headers.get('origin');
   const allowed=!origin||origin==='https://a1dash.a1eei.com'||/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-  const headers={'Content-Type':'application/json','Cache-Control':'no-store, private','Pragma':'no-cache','Vary':'Origin','X-Content-Type-Options':'nosniff','Access-Control-Allow-Headers':'authorization, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS',...(origin&&allowed?{'Access-Control-Allow-Origin':origin}:{})};
+  const headers={'Content-Type':'application/json','Cache-Control':'no-store, private','Pragma':'no-cache','Vary':'Origin','X-Content-Type-Options':'nosniff','Access-Control-Allow-Headers':'authorization, apikey, x-client-info, content-type','Access-Control-Allow-Methods':'POST, OPTIONS',...(origin&&allowed?{'Access-Control-Allow-Origin':origin}:{})};
   const reply=(body,status=200)=>new Response(JSON.stringify(body),{status,headers});
   if(!allowed)return reply({error:'Origin is not allowed.'},403);
   if(req.method==='OPTIONS')return new Response(null,{status:204,headers});
