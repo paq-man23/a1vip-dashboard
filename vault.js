@@ -5,7 +5,7 @@
  if(window.top!==window.self){document.body.replaceChildren();return;}
  const $=id=>document.getElementById(id),config=window.A1_SUPABASE_CONFIG;
  const client=window.supabase.createClient(config.url,config.publishableKey,{auth:{autoRefreshToken:false,detectSessionInUrl:false}});
- let entryKind='login';
+ let entryKind='login',revealEpoch=0;
  let unlockToken='',expires=0,epoch=0,permissions=null,items=[],editing=null,shared=null,revealTimer,expiryTimer,busy=false;
  let importSheets=[],importRows=[],importBatch='',importEpoch=0,filePickerPending=false,pickerTimer;
  const say=message=>{$('status').textContent=message;};
@@ -20,7 +20,7 @@
   if(!response.ok){if(response.status===403||response.status===401)lock();throw new Error(result.error||'The vault request failed.');}
   return result;
  }
- function clearReveal(){clearTimeout(revealTimer);$('reveal').close();$('revealDetails').replaceChildren();$('revealTitle').textContent='';}
+ function clearReveal(){revealEpoch++;clearTimeout(revealTimer);$('reveal').close();$('revealDetails').replaceChildren();$('revealTitle').textContent='';}
  function clearEditor(){ $('editor').close();$('entryForm').reset();$('entryPassword').type='password';$('entryNumber').type='password';editing=null;$('editorMessage').textContent='';}
  function lock(notify=true){
   const wasOpen=!!unlockToken;unlockToken='';expires=0;epoch++;clearTimeout(expiryTimer);clearReveal();clearEditor();$('sharing').close();shared=null;
@@ -63,7 +63,7 @@
   }
  }
  async function reveal(item){
-  const result=await request('reveal',{id:item.id});clearReveal();const d=result.details;$('revealTitle').textContent=result.label;
+  clearReveal();const generation=revealEpoch;const result=await request('reveal',{id:item.id});if(generation!==revealEpoch)return;const d=result.details;$('revealTitle').textContent=result.label;
   A1VaultDetails.render($('revealDetails'),result.kind,d,{copy:async(value,label)=>{await navigator.clipboard.writeText(value);say('Copied '+label.toLowerCase()+'.');},onError:error=>say(error.message)});
   $('reveal').showModal();revealTimer=setTimeout(clearReveal,30000);
  }
@@ -209,7 +209,7 @@
    $('accessTab').hidden=!permissions.admin;$('auditTab').hidden=!permissions.admin;
    $('addLogin').hidden=!(permissions.can_edit&&permissions.passwords);$('addCard').hidden=!(permissions.can_edit&&permissions.cards);
    $('importExcel').hidden=!permissions.admin;
-   panel(permissions.passwords?'items':'cards');await load();say('Vault unlocked for five minutes.');
+   panel(permissions.passwords?'items':'cards');await load();say('Vault unlocked for '+Math.max(1,Math.round((expires-Date.now())/60000))+' minutes.');
    if(permissions.admin&&new URL(location.href).searchParams.has('account')){panel('access');await accounts();}
   }catch(error){lock();say(error.message);}finally{busy=false;$('unlockButton').disabled=false;}
  });
@@ -225,15 +225,20 @@
  $('cardsTab').addEventListener('click',()=>panel('cards'));
  $('accessTab').addEventListener('click',()=>{panel('access');accounts().catch(e=>say(e.message));});
  $('auditTab').addEventListener('click',()=>{panel('audit');audit().catch(e=>say(e.message));});
- $('importExcel').addEventListener('click',event=>{if(!permissions?.admin||!unlockToken)return;if(event.isTrusted){filePickerPending=true;clearTimeout(pickerTimer);pickerTimer=setTimeout(()=>{filePickerPending=false;if(unlockToken)lock();},60000);}$('importFile').click();});
+ $('importExcel').addEventListener('click',event=>{if(!permissions?.admin||!unlockToken)return;if(event.isTrusted){filePickerPending=true;clearTimeout(pickerTimer);pickerTimer=setTimeout(()=>{filePickerPending=false;if(unlockToken&&!permissions?.admin)lock();},60000);}$('importFile').click();});
  $('importFile').addEventListener('change',chooseImportFile);$('importFile').addEventListener('cancel',()=>{filePickerPending=false;clearTimeout(pickerTimer);});
  window.addEventListener('focus',()=>{if(filePickerPending)setTimeout(()=>{filePickerPending=false;clearTimeout(pickerTimer);},0);});
  $('importSheet').addEventListener('change',()=>{configureImportSheet();void previewImport();});
  for(const id of [...Object.values(importFields),'importHeaders'])$(id).addEventListener('change',()=>{for(const row of importRows)row.password='';importRows=[];importBatch='';importEpoch++;$('importPreview').replaceChildren();$('confirmImport').disabled=true;$('importMessage').textContent='Columns changed. Click Preview rows to review the mapping.';});
  $('rebuildImport').addEventListener('click',()=>void previewImport());$('confirmImport').addEventListener('click',()=>void commitImport());$('cancelImport').addEventListener('click',clearImport);$('importDialog').addEventListener('cancel',event=>{event.preventDefault();clearImport();});
- document.addEventListener('visibilitychange',()=>{if(document.hidden)lock();});
+ function leaveVault(){
+  if(!unlockToken)return;
+  if(!permissions?.admin||Date.now()>=expires)lock();else clearReveal();
+ }
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)leaveVault();});
  window.addEventListener('pagehide',()=>{lock(false);});
- window.addEventListener('blur',()=>{if(unlockToken&&!filePickerPending)lock();});
+ window.addEventListener('blur',()=>{if(!filePickerPending)leaveVault();});
+ window.addEventListener('focus',()=>{if(unlockToken&&Date.now()>=expires)lock();});
  client.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'||event==='PASSWORD_RECOVERY'){lock();permissions=null;$('locked').hidden=true;say('Sign in to the dashboard again.');}});
  void checkAccess();
 })();

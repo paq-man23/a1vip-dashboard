@@ -10,12 +10,14 @@ begin
  insert into public.a1_staff(user_id,is_admin) values(a,true),(u,false),(other_user,false);
  insert into public.a1_activity_sessions(user_id,auth_session_id,display_name,idle_exempt) values(a,sa,'Vault Admin',true),(u,su,'Vault Sales',false),(other_user,so,'Other',false);
  begin perform public.a1_vault_service(u,su,'unlock');raise exception 'Unpermitted user unlocked vault';exception when insufficient_privilege then null;end;
- atoken:=public.a1_vault_service(a,sa,'unlock')->>'unlock_token';
+ o:=public.a1_vault_service(a,sa,'unlock');atoken:=o->>'unlock_token';
+ if (o->>'expires_at')::timestamptz<>now()+interval '30 minutes' or not exists(select 1 from a1_vault_private.a1_vault_unlocks where user_id=a and expires_at=now()+interval '30 minutes') then raise exception 'Admin unlock must last 30 minutes';end if;
  o:=public.a1_vault_service(a,sa,'save',jsonb_build_object('unlock_token',atoken,'kind','login','label','Synthetic login','details',jsonb_build_object('url','https://tickets.example.invalid/','username','fixture','password','SYNTHETIC-NOT-A-REAL-PASSWORD')));
  i:=(o->>'id')::uuid;
  card:=(public.a1_vault_service(a,sa,'save',jsonb_build_object('unlock_token',atoken,'kind','card','label','Synthetic card','details',jsonb_build_object('number','4111111111111111','cardholder','Test Company','expiry','12/30','cvv','DO-NOT-STORE')))->>'id')::uuid;
  perform public.a1_vault_service(a,sa,'permissions',jsonb_build_object('unlock_token',atoken,'user_id',u,'passwords',true,'cards',false,'can_edit',false));
- utoken:=public.a1_vault_service(u,su,'unlock')->>'unlock_token';
+ o:=public.a1_vault_service(u,su,'unlock',jsonb_build_object('admin',true,'timeout_minutes',30));utoken:=o->>'unlock_token';
+ if (o->>'expires_at')::timestamptz<>now()+interval '5 minutes' or not exists(select 1 from a1_vault_private.a1_vault_unlocks where user_id=u and expires_at=now()+interval '5 minutes') then raise exception 'Sales unlock must remain five minutes regardless of client claims';end if;
  if jsonb_array_length(public.a1_vault_service(u,su,'list',jsonb_build_object('unlock_token',utoken)))<>0 then raise exception 'Unassigned entries leaked';end if;
  begin perform public.a1_vault_service(u,su,'reveal',jsonb_build_object('unlock_token',utoken,'id',i));raise exception 'Unassigned password leaked';exception when insufficient_privilege then null;end;
  perform public.a1_vault_service(a,sa,'grants',jsonb_build_object('unlock_token',atoken,'id',i,'users',jsonb_build_array(u)));
