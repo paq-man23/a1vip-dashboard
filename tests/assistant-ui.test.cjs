@@ -139,7 +139,7 @@ test('natural event requests preserve date/city filters through model planning a
  await h.submit('What Knicks games are in New York on December 1?');assert.equal(requests.length,1);assert.match(h.text(),/Knicks vs Bulls/);assert.match(h.text(),/did not supply a price range/);assert.deepEqual(h.loads,[]);
 });
 test('missing event query asks for a team or artist; missing key never claims there are no events',async()=>{
- const requests=[],h=harness({ai:async body=>{requests.push(body);return {events:{configured:false,error:'Add TICKETMASTER_API_KEY'}};}});await h.submit('find events');assert.match(h.text(),/Which artist/);assert.equal(requests.length,0);await h.submit('Knicks');assert.equal(requests[0].action,'events');assert.match(h.text(),/TICKETMASTER_API_KEY/);assert.doesNotMatch(h.text(),/No matching events/);
+ const requests=[],h=harness({ai:async body=>{requests.push(body);return {events:{configured:false,error:'Add TICKETMASTER_API_KEY'}};}});await h.submit('find events');assert.match(h.text(),/Which artist/);assert.equal(requests.length,0);await h.submit('Knicks');assert.equal(requests.at(-1).action,'events');assert.match(h.text(),/TICKETMASTER_API_KEY/);assert.doesNotMatch(h.text(),/No matching events/);
 });
 test('clearing chat rejects a delayed Ticketmaster response',async()=>{
  let release;const pending=new Promise(r=>release=r),h=harness({ai:async()=>{await pending;return {events:{configured:true,checkedAt:'2026-11-04T19:00:00Z',events:[{name:'Old event'}]}};}});const request=h.submit('find events Knicks');h.panel.children[0].children.find(n=>n.textContent==='New Chat').onclick();release();await request;assert.doesNotMatch(h.text(),/Old event/);
@@ -154,4 +154,16 @@ test('blocked Ticketmaster popup offers copying the link',async()=>{
 });
 test('signed-out event actions cannot open a popup',async()=>{
  const h=harness({ai:async()=>({events:{configured:true,checkedAt:'2026-11-04T19:00:00Z',total:1,events:[{name:'Knicks event',url:'https://www.ticketmaster.com/event/123'}]}})});await h.submit('find events Knicks');const card=h.log.children.find(n=>n.textContent.includes('Knicks event'));h.signout();await card.children[0].onclick();assert.equal(h.popups.length,0);
+});
+
+test('bare artist inquiry asks for location and carries public search context into the next turn',async()=>{
+ const requests=[],h=harness({ai:async body=>{requests.push(body);return {configured:true,plan:{type:'events',query:'Olivia Rodrigo'},events:{configured:true,needsRefinement:true,search:{query:'Olivia Rodrigo',city:'',stateCode:'',countryCode:'',startDate:'',endDate:'',anyDate:false,anyLocation:false},missing:['location','month']}};}});
+ await h.submit('Olivai Rodrigo');assert.match(h.text(),/Olivia Rodrigo/);assert.match(h.text(),/Which city or state/);assert.doesNotMatch(h.text(),/matching events/);await h.submit('Florida');assert.equal(requests[1].eventContext.query,'Olivia Rodrigo');assert.deepEqual(h.loads,[]);
+});
+test('Florida inquiry asks only for month and Any Month preserves the state filter',async()=>{
+ const requests=[],h=harness({ai:async body=>{requests.push(body);if(body.action==='events')return {events:{configured:true,search:{...body,locationLabel:'Florida'},checkedAt:'2026-11-04T19:00:00Z',events:[],total:0}};return {configured:true,plan:{type:'events',query:'Olivia Rodrigo',stateCode:'FL',countryCode:'US'},events:{configured:true,needsRefinement:true,search:{query:'Olivia Rodrigo',stateCode:'FL',countryCode:'US',locationLabel:'Florida'},missing:['month']}};}});
+ await h.submit('Olivia Rodrigo Florida');assert.match(h.text(),/Which month/);assert.doesNotMatch(h.text(),/Which city/);const info=h.log.children.at(-1);await info.children.find(n=>n.textContent==='Any Month').onclick();assert.equal(requests[1].stateCode,'FL');assert.equal(requests[1].anyDate,true);assert.match(h.text(),/No matching Olivia Rodrigo events were returned in Florida/);
+});
+test('plain find artist/location requests reach the planner rather than button/contact search',async()=>{
+ const requests=[],h=harness({ai:async body=>{requests.push(body);return {plan:{type:'answer',reply:'Which month would you like?'}};}});await h.submit('find Olivia Rodrigo Florida');assert.equal(requests[0].message,'find Olivia Rodrigo Florida');assert.deepEqual(h.loads,[]);assert.match(h.text(),/Which month/);
 });

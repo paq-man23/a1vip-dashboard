@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const sample=()=>({type:'contact',reply:'',query:'Jane',kind:'customer',section:'',topic:'',website:'',category:'',label:'',year:'',documentType:'',payment:'',city:'',startDate:'',endDate:'',purchase:false});
+const sample=()=>({type:'contact',reply:'',query:'Jane',kind:'customer',section:'',topic:'',website:'',category:'',label:'',year:'',documentType:'',payment:'',city:'',stateCode:'',countryCode:'',startDate:'',endDate:'',purchase:false,anyDate:false,anyLocation:false});
 async function harness({auth=true,member=true,disabled=false,key='server-secret',sections=['customers','invoices'],plan=sample(),providerStatus=200,incomplete=false,session=true,ticketKey='',ticketStatus=200}={}){
  const {createHandler}=await import('../supabase/functions/a1-assistant/handler.mjs');const calls=[],envReads=[];
  const handler=createHandler({env:name=>{envReads.push(name);return {SUPABASE_URL:'https://project.supabase.co',SUPABASE_ANON_KEY:'public',OPENAI_API_KEY:key,TICKETMASTER_API_KEY:ticketKey}[name];},fetchImpl:async(url,options)=>{
@@ -50,4 +50,19 @@ test('AI event plans call Discovery with normalized filters and never pass retur
 test('missing or rejected Ticketmaster key reports a useful error without inventing results',async()=>{
  const missing=await harness(),r=await missing.run({action:'events',query:'Knicks'});assert.equal(r.body.events.configured,false);assert.match(r.body.events.error,/TICKETMASTER_API_KEY/);
  const rejected=await harness({ticketKey:'ticket-secret',ticketStatus:401}),failed=await rejected.run({action:'events',query:'Knicks'});assert.equal(failed.status,400);assert.match(failed.body.error,/authentication failed/);assert.doesNotMatch(JSON.stringify(failed.body),/ticket-secret/);
+});
+
+test('ticket-agent mode asks for location and month without fetching broad unrelated results',async()=>{
+ const h=await harness({ticketKey:'ticket-secret',plan:{...sample(),type:'events',kind:'',query:'Olivia Rodrigo'}}),r=await h.run({message:'Olivai Rodrigo'});assert.equal(r.status,200);assert.equal(r.body.events.needsRefinement,true);assert.deepEqual(r.body.events.missing,['location','month']);assert.equal(r.body.events.search.query,'Olivia Rodrigo');assert.equal(h.calls.some(x=>x.url.includes('ticketmaster')),false);
+ const fl=await harness({ticketKey:'ticket-secret',plan:{...sample(),type:'events',kind:'',query:'Olivia Rodrigo',city:'Florida'}}),partial=await fl.run({message:'Olivia Rodrigo Florida'});assert.deepEqual(partial.body.events.missing,['month']);assert.equal(partial.body.events.search.stateCode,'FL');
+});
+test('any-month follow-up retains Florida and adds no invented date constraint',async()=>{
+ const h=await harness({ticketKey:'ticket-secret',plan:{...sample(),type:'events',kind:'',query:'Olivia Rodrigo',anyDate:true}}),r=await h.run({message:'any month',eventContext:{query:'Olivia Rodrigo',stateCode:'FL',countryCode:'US'}});assert.equal(r.status,200);assert.equal(r.body.events.needsRefinement,undefined);const url=new URL(h.calls.at(-1).url);assert.equal(url.searchParams.get('keyword'),'Olivia Rodrigo');assert.equal(url.searchParams.get('stateCode'),'FL');assert.equal(url.searchParams.has('localStartDateTime'),false);
+});
+test('Miami instead retains the artist and date range while replacing the state constraint',async()=>{
+ const h=await harness({ticketKey:'ticket-secret',plan:{...sample(),type:'events',kind:'',query:'Miami instead'}}),r=await h.run({message:'Miami instead',eventContext:{query:'Olivia Rodrigo',stateCode:'FL',countryCode:'US',startDate:'2027-03-01',endDate:'2027-03-31'}});assert.equal(r.status,200);const url=new URL(h.calls.at(-1).url);assert.equal(url.searchParams.get('keyword'),'Olivia Rodrigo');assert.equal(url.searchParams.get('city'),'Miami');assert.equal(url.searchParams.has('stateCode'),false);assert.equal(url.searchParams.get('countryCode'),'US');assert.equal(url.searchParams.get('localStartDateTime'),'2027-03-01T00:00:00,2027-03-31T23:59:59');
+});
+test('guided direct searches require missing details unless the user explicitly chooses any',async()=>{
+ const h=await harness({ticketKey:'ticket-secret'}),first=await h.run({action:'events',query:'Olivia Rodrigo',refine:true});assert.equal(first.body.events.needsRefinement,true);assert.equal(h.calls.some(x=>x.url.includes('ticketmaster')),false);
+ const second=await h.run({action:'events',query:'Olivia Rodrigo',refine:true,anyDate:true,anyLocation:true});assert.equal(second.body.events.configured,true);assert.equal(second.body.events.needsRefinement,undefined);
 });

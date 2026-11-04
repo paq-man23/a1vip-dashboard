@@ -167,13 +167,25 @@
  async function events(request,token){
   if(!request.query){waiting={type:'events',query:''};message('Which artist, team, event or venue should I look up? You can also give me a city and date.');return;}
   status.textContent='Searching Ticketmaster events…';
-  const result=request.eventResults||(await A1Data.assistantRequest({action:'events',query:request.query,city:request.city||'',startDate:request.startDate||'',endDate:request.endDate||'',page:request.page||0}))?.events;
+  const result=request.eventResults||(await A1Data.assistantRequest({action:'events',query:request.query,city:request.city||'',stateCode:request.stateCode||'',countryCode:request.countryCode||'',startDate:request.startDate||'',endDate:request.endDate||'',anyDate:request.anyDate===true,anyLocation:request.anyLocation===true,refine:request.refine===true,page:request.page||0}))?.events;
   if(!valid(token))return;
   if(!result?.configured){message(result?.error||'Ticketmaster event discovery is not configured yet.');return;}
-  waiting={...request,type:'events'};delete waiting.eventResults;
   const rows=result.events||[],search=result.search||request;
-  message('Ticketmaster Discovery · '+(result.total??rows.length)+' matching events'+(result.total>rows.length?' · showing '+rows.length:'')+'\nChecked '+new Date(result.checkedAt).toLocaleString('en-US',{timeZone:'America/New_York'})+' Eastern.');
-  if(!rows.length)message('No matching events were returned. Try another city or date, or a shorter artist/team name. This search covers Ticketmaster’s event catalog.');
+  waiting={...search,type:'events',refining:result.needsRefinement===true};delete waiting.eventResults;
+  if(result.needsRefinement){
+   const locationMissing=result.missing?.includes('location');
+   const info=message(locationMissing?'I’ll look up '+search.query+'. Which city or state would you like? You can also give me a month, such as “Miami in March 2027”.':'I’ll look up '+search.query+(search.locationLabel?' in '+search.locationLabel:'')+'. Which month or dates would you like? Include the year if needed, or choose Any Month.');
+   if(locationMissing)action(info,'Any Location',t=>events({...search,city:'',stateCode:'',countryCode:'',anyLocation:true,refine:true,page:0},t));
+   else action(info,'Any Month',t=>events({...search,startDate:'',endDate:'',anyDate:true,refine:true,page:0},t));
+   return;
+  }
+  const scope=[search.query,search.locationLabel||search.city||search.stateCode||(search.anyLocation?'any location':''),[search.startDate,search.endDate&&search.endDate!==search.startDate?search.endDate:''].filter(Boolean).join(' to ')||(search.anyDate?'any month':'upcoming')].filter(Boolean).join(' · ');
+  message(scope+'\nTicketmaster Discovery · '+(result.total??rows.length)+' matching events'+(result.total>rows.length?' · showing '+rows.length:'')+'\nChecked '+new Date(result.checkedAt).toLocaleString('en-US',{timeZone:'America/New_York'})+' Eastern.');
+  if(!rows.length){
+   const info=message('No matching '+search.query+' events were returned'+(search.locationLabel?' in '+search.locationLabel:'')+(search.startDate||search.endDate?' for those dates':' among upcoming events')+' in Ticketmaster’s catalog. Try a different month or location.');
+   if(search.city||search.stateCode||search.countryCode)action(info,'Search All Locations',t=>events({...search,city:'',stateCode:'',countryCode:'',anyLocation:true,page:0},t));
+   if(search.startDate||search.endDate)action(info,'Search Any Month',t=>events({...search,startDate:'',endDate:'',anyDate:true,page:0},t));
+  }
   for(const event of rows){
    const parts=[event.name,event.dateTBA?'Date to be announced':event.date||'Date unavailable'];
    if(event.time)parts.push(event.time+(event.timezone?' · '+event.timezone:''));else parts.push('Time to be announced');
@@ -196,14 +208,14 @@
     else {const link=el('a','View event / tickets','copilot-action');link.href=event.url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);placement?.fitReply(card);}
    }
   }
-  message('Published ranges are event-level information, not current section/row prices or a quote for seats together. Fees and availability must be checked on the ticket page.');
+  if(rows.length)message('Published ranges are event-level information, not current section/row prices or a quote for seats together. Fees and availability must be checked on the ticket page.');
   if(result.hasMore){const card=message('More matching events are available.');action(card,'Next 10 Events',t=>events({...search,page:(search.page||0)+1},t));}
  }
  async function plan(text,token){
   if(!A1Data.assistantRequest)return null;
   status.textContent='Al is thinking…';
   let result;
-  try{result=await A1Data.assistantRequest({message:text,history:conversation.slice(-6)});}
+  try{result=await A1Data.assistantRequest({message:text,history:conversation.slice(-6),...(waiting?.type==='events'&&waiting.query?{eventContext:{query:waiting.query,city:waiting.city||'',stateCode:waiting.stateCode||'',countryCode:waiting.countryCode||'',startDate:waiting.startDate||'',endDate:waiting.endDate||'',anyDate:waiting.anyDate===true,anyLocation:waiting.anyLocation===true}}:{})});}
   catch(error){if(!valid(token))return null;return {type:'answer',reply:error.message+' You can still use commands such as “find customer Jane” or “summary 2026 invoices”.'};}
   if(!valid(token))return null;
   if(result?.configured===false){if(modeNote)modeNote.textContent='Dashboard mode · Live AI needs an OpenAI API key. Search, summaries, drafts and guidance are ready.';message(result.error||'Live AI is not configured yet. Dashboard commands are still available.');return null;}
@@ -215,8 +227,7 @@
   text=String(text||'').trim().slice(0,600);if(!text||!A1Data.authenticated())return;
   const token=epoch;message(text,true);let request=core.intent(text);
   if(request.type==='events'&&/\b(?:in|on|this|next|from|between|tomorrow|tonight)\b/i.test(request.query))request={type:'unknown',query:text};
-  if(waiting?.type==='events'&&!waiting.query&&request.type==='unknown')request={type:'events',query:text};
-  if((request.type==='unknown'||request.type==='help')&&waiting?.type!=='buttonWizard'){
+  if((request.type==='unknown'||request.type==='help'||request.type==='global')&&waiting?.type!=='buttonWizard'){
    const proposed=await plan(text,token);if(!valid(token))return;
    if(proposed){request=proposed;if(request.type==='answer'){conversation.push(text);conversation=conversation.slice(-6);message(request.reply);return;}}
   }
