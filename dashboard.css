@@ -319,3 +319,5 @@ body .copilot-panel .copilot-header>div{order:-2}
 .account-preview-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}.account-preview-tabs .tab{font-size:14px;min-height:44px;padding:10px 14px}.account-preview-tabs [aria-pressed=true]{outline:2px solid #facc15;outline-offset:2px}
 .account-preview-content h3{font-size:24px;color:#facc15}.account-preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:14px}.account-preview-grid .btn{min-width:0;min-height:78px;white-space:normal;overflow-wrap:anywhere;cursor:default;pointer-events:none;font-size:17px}
 @media(max-width:600px){.account-dashboard-preview{padding:12px}.account-preview-toolbar{top:-12px}.account-preview-toolbar h2{font-size:16px}.account-preview-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.account-preview-grid .btn{font-size:13px;padding:10px;min-height:65px}}
+
+.tab-vault{--tab-accent:#fbbf24}

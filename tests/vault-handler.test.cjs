@@ -46,3 +46,11 @@ test('Excel import accepts bounded batches while preserving server identity and 
  const r=await h.request({action:'import_logins',batch_id:sid,unlock_token:'fixture-unlock',entries,p_actor:sid});assert.equal(r.status,200);const rpc=h.calls.at(-1);assert.equal(rpc.body.p_actor,id);assert.equal(rpc.body.p_action,'import_logins');assert.equal(rpc.body.p_input.entries[0].password,'SYNTHETIC-IMPORT');assert.ok(!(await r.text()).includes('SYNTHETIC-IMPORT'));
  const tooLarge=await harness();assert.equal((await tooLarge.request({action:'import_logins',entries:[{notes:'x'.repeat(256001)}]})).status,413);assert.equal(tooLarge.calls.length,0);
 });
+test('browser preflight allows the Supabase SDK header while rejecting untrusted origins',async()=>{
+ const {createHandler}=await import('../supabase/functions/a1-secure-vault/handler.mjs');
+ const handle=createHandler({env:()=>'',fetchImpl:async()=>{throw new Error('Preflight must not query Auth or data');}});
+ for(const origin of ['https://a1dash.a1eei.com','https://evil.example']){
+  const r=await handle(new Request('https://fixture/functions/v1/a1-secure-vault',{method:'OPTIONS',headers:{Origin:origin,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'apikey,authorization,content-type,x-client-info'}}));
+  if(origin.includes('evil')){assert.equal(r.status,403);assert.equal(r.headers.get('Access-Control-Allow-Origin'),null);}else{assert.equal(r.status,204);assert.equal(r.headers.get('Access-Control-Allow-Origin'),origin);assert.match(r.headers.get('Access-Control-Allow-Headers'),/x-client-info/);}
+ }
+});
