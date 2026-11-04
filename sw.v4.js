@@ -2,7 +2,7 @@
 // Update style: show "New update available" banner in the page; activate on user click.
 // If you need to force all installs to fetch this worker, bump CACHE_NAME.
 
-const CACHE_NAME = 'a1vip-static-v60'; // bump this once
+const CACHE_NAME = 'a1vip-static-v61'; // bump this once
 
 
 // Resolve relative to worker scope (safe for GitHub Pages subpaths)
@@ -41,7 +41,7 @@ self.addEventListener('fetch', (event) => {
   // Supabase auth/data and non-GET requests must never enter the asset cache.
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;
   // Never cache the standalone vault screen or its code.
-  if (/\/(vault(?:-entry)?\.(?:html|js|css)|supabase-2\.99\.1\.js)$/.test(url.pathname)) {
+  if (/\/(vault(?:-entry|-import)?\.(?:html|js|css)|supabase-2\.99\.1\.js)$/.test(url.pathname)) {
     event.respondWith(fetch(req, {cache:'no-store'}));
     return;
   }
