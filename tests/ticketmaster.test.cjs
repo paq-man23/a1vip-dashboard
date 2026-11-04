@@ -16,3 +16,15 @@ test('TBA time and absent price are preserved rather than replaced with false da
 test('upstream errors and timeouts do not reveal API URLs or keys',async()=>{
  const {discoverEvents}=await load();for(const status of [401,429,500])await assert.rejects(()=>discoverEvents({query:'Knicks'},{env:()=> 'ticket-secret',fetchImpl:async()=>new Response('{}',{status})}),error=>!/ticket-secret|https:/.test(error.message));await assert.rejects(()=>discoverEvents({query:'Knicks'},{env:()=> 'ticket-secret',fetchImpl:async()=>{throw new Error('https://example.invalid?apikey=ticket-secret');}}),/could not be reached/);
 });
+
+test('pasted whitespace is removed but embedded labels/quotes are rejected without exposing the saved value',async()=>{
+ const {discoverEvents}=await load();let sent;
+ await discoverEvents({query:'Knicks'},{env:()=> ' \n ticket-secret \r\n',fetchImpl:async url=>{sent=new URL(url).searchParams.get('apikey');return new Response('{}');}});assert.equal(sent,'ticket-secret');
+ for(const key of ['TICKETMASTER_API_KEY=ticket-secret','"ticket-secret"','ticket secret'])await assert.rejects(()=>discoverEvents({query:'Knicks'},{env:()=>key,fetchImpl:async()=>{throw Error('should not call');}}),error=>/extra text/.test(error.message)&&!error.message.includes(key));
+});
+test('403 access refusal is distinguished from a recognized invalid-key fault without exposing provider text',async()=>{
+ const {discoverEvents}=await load();
+ await assert.rejects(()=>discoverEvents({query:'Knicks'},{env:()=> 'ticket-secret',fetchImpl:async()=>new Response('<html>private-provider-details ticket-secret</html>',{status:403})}),error=>/server request \(HTTP 403\)/.test(error.message)&&!/ticket-secret|private-provider/.test(error.message));
+ await assert.rejects(()=>discoverEvents({query:'Knicks'},{env:()=> 'ticket-secret',fetchImpl:async()=>new Response(JSON.stringify({fault:{detail:{errorcode:'oauth.v2.InvalidApiKey'},faultstring:'ticket-secret'}}),{status:403})}),/authentication failed/);
+ await assert.rejects(()=>discoverEvents({query:'Knicks'},{env:()=> 'ticket-secret',fetchImpl:async()=>new Response(JSON.stringify({fault:{detail:{errorcode:'oauth.v2.InvalidAPICallAsNoApiProductMatchFound'}}}),{status:403})}),/not authorized for the Discovery API/);
+});
