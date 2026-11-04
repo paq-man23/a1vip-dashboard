@@ -11,7 +11,7 @@ async function ui({admin=true,custom}={}){
  w.supabase={createClient:()=>({auth:{getSession:async()=>({data:{session:{access_token:'fixture'}}}),onAuthStateChange(){}},from:()=>({select:()=>({eq:()=>({single:async()=>({data:{state:{added:{accounts:[{label:'Fixture tickets',url:'https://tickets.example.invalid/'}]}}}})})})})})};
  w.fetch=async(url,options)=>{const input=JSON.parse(options.body);calls.push(input);const overridden=await custom?.(input);if(overridden)return overridden;let result={ok:true};
   if(input.action==='status')result={admin,passwords:true,cards:admin,can_edit:admin};
-  if(input.action==='unlock')result={unlock_token:'fixture-unlock-token',expires_at:new Date(Date.now()+300000).toISOString()};
+  if(input.action==='unlock')result={unlock_token:'fixture-unlock-token',expires_at:new Date(Date.now()+(admin?1800000:300000)).toISOString()};
   if(input.action==='list')result=[{id:'fixture-login',kind:'login',label:'Fixture tickets',site_host:'tickets.example.invalid',last_four:'',version:1}];
   if(input.action==='reveal'||input.action==='edit')result={id:'fixture-login',kind:'login',label:'Fixture tickets',version:1,details:{username:'fixture-user',password:'SYNTHETIC-SECRET',url:'https://tickets.example.invalid/'}};
   if(input.action==='accounts')result=[{id:'sales',name:'Fixture salesperson',admin:false,passwords:true,cards:false,can_edit:false}];
@@ -36,7 +36,7 @@ test('read-only salesperson has no admin, card, sharing, or editing controls',as
  const h=await ui({admin:false});try{await h.unlock();assert.equal(h.$('accessTab').hidden,true);assert.equal(h.$('auditTab').hidden,true);assert.equal(h.$('addCard').hidden,true);assert.equal(h.$('addLogin').hidden,true);assert.equal(h.$('importExcel').hidden,true);assert.deepEqual([...h.$('items').querySelectorAll('button')].map(b=>b.textContent),['Reveal']);}finally{h.close();}
 });
 test('blur and pagehide clear editor secrets and the unlocked screen',async()=>{
- for(const event of ['blur','pagehide']){const h=await ui();try{await h.unlock();h.$('addLogin').click();await tick();h.$('entryPassword').value='SYNTHETIC-UNSAVED';h.w.dispatchEvent(new h.w.Event(event));assert.equal(h.$('entryPassword').value,'');assert.equal(h.$('content').hidden,true);assert.equal(h.$('editor').open,false);}finally{h.close();}}
+ for(const event of ['blur','pagehide']){const h=await ui({admin:false});try{await h.unlock();h.$('addLogin').click();await tick();h.$('entryPassword').value='SYNTHETIC-UNSAVED';h.w.dispatchEvent(new h.w.Event(event));assert.equal(h.$('entryPassword').value,'');assert.equal(h.$('content').hidden,true);assert.equal(h.$('editor').open,false);}finally{h.close();}}
 });
 test('late secret responses cannot restore values after the vault locks',async()=>{
  let release;const delayed=new Promise(r=>release=r);
@@ -88,4 +88,22 @@ test('site passwords and company cards have separate lists, searches and creatio
 test('card-only sales accounts start in Company Cards without password or admin controls',async()=>{
  const h=await ui({admin:false,custom:async input=>input.action==='status'?{ok:true,status:200,json:async()=>({admin:false,passwords:false,cards:true,can_edit:false})}:input.action==='list'?{ok:true,status:200,json:async()=>[{id:'assigned-card',kind:'card',label:'Assigned card',last_four:'1234'}]}:null});
  try{await h.unlock();assert.equal(h.$('itemsTab').hidden,true);assert.equal(h.$('cardsTab').hidden,false);assert.equal(h.$('sectionTitle').textContent,'Company Cards');assert.equal(h.$('accessTab').hidden,true);assert.equal(h.$('addCard').hidden,true);assert.equal(h.$('importExcel').hidden,true);assert.deepEqual([...h.$('items').querySelectorAll('button')].map(b=>b.textContent),['Reveal']);h.$('itemsTab').click();assert.equal(h.$('sectionTitle').textContent,'Company Cards');}finally{h.close();}
+});
+test('admins receive a 30-minute timer, keep their session across focus changes and hide revealed secrets',async()=>{
+ const h=await ui();try{
+ let expiryCallback;const originalTimeout=h.w.setTimeout.bind(h.w);h.w.setTimeout=(fn,ms,...args)=>{if(ms>300000){assert.ok(ms<=1800000&&ms>1790000);expiryCallback=fn;}return originalTimeout(fn,ms,...args);};
+ await h.unlock();assert.ok(h.$('status').textContent.includes('30 minutes'));assert.equal(typeof expiryCallback,'function');
+ h.$('items').querySelector('button').click();for(let i=0;i<3;i++)await tick();assert.ok(h.$('revealDetails').textContent.includes('SYNTHETIC-SECRET'));
+ h.w.dispatchEvent(new h.w.Event('blur'));assert.equal(h.$('content').hidden,false);assert.equal(h.$('reveal').open,false);assert.equal(h.$('revealDetails').textContent,'');
+ h.$('addLogin').click();await tick();h.$('entryPassword').value='UNSAVED-SYNTHETIC';
+ Object.defineProperty(h.w.document,'hidden',{configurable:true,value:true});h.w.document.dispatchEvent(new h.w.Event('visibilitychange'));assert.equal(h.$('content').hidden,false);assert.equal(h.$('entryPassword').value,'UNSAVED-SYNTHETIC');
+ expiryCallback();assert.equal(h.$('content').hidden,true);assert.equal(h.$('entryPassword').value,'');
+ }finally{h.close();}
+});
+test('closing an admin vault page still locks and clears secrets',async()=>{
+ const h=await ui();try{await h.unlock();h.$('addLogin').click();await tick();h.$('entryPassword').value='UNSAVED-SYNTHETIC';h.w.dispatchEvent(new h.w.Event('pagehide'));assert.equal(h.$('content').hidden,true);assert.equal(h.$('entryPassword').value,'');}finally{h.close();}
+});
+test('an admin switching away also discards a pending reveal without locking the session',async()=>{
+ let release;const delayed=new Promise(r=>release=r);const h=await ui({custom:async input=>input.action==='reveal'?delayed:null});
+ try{await h.unlock();h.$('items').querySelector('button').click();await tick();h.w.dispatchEvent(new h.w.Event('blur'));release({ok:true,status:200,json:async()=>({label:'Late',kind:'login',details:{password:'LATE-SYNTHETIC'}})});for(let i=0;i<4;i++)await tick();assert.equal(h.$('content').hidden,false);assert.equal(h.$('reveal').open,false);assert.equal(h.$('revealDetails').textContent,'');}finally{h.close();}
 });
