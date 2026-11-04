@@ -34,14 +34,14 @@
  }
  function button(label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.addEventListener('click',()=>Promise.resolve().then(fn).catch(error=>say(error.message)));return b;}
  function text(tag,value){const n=document.createElement(tag);n.textContent=value;return n;}
- function panel(name){for(const id of ['items','access','audit'])$(id+'Panel').hidden=id!==name;}
+ function panel(name){for(const id of ['items','access','audit']){$(id+'Panel').hidden=id!==name;$(id+'Tab').classList.toggle('is-active',id===name);$(id+'Tab').setAttribute('aria-pressed',String(id===name));}}
  async function load(){items=await request('list');render();}
  function render(){
   const query=$('search').value.toLowerCase();$('items').replaceChildren();
   const visible=items.filter(i=>[i.label,i.site_host,i.last_four].some(v=>String(v).toLowerCase().includes(query)));
   if(!visible.length)$('items').append(text('p',items.length?'No matching entries.':'No entries have been assigned to you yet.'));
   for(const i of visible){
-   const card=text('article','');card.className='card';card.append(text('h3',i.label),text('p',i.kind==='login'?i.site_host:'Company card •••• '+i.last_four));
+   const card=text('article','');card.className='card';card.append(text('h3',i.label),text('p',i.kind==='login'?(i.site_host||'Site login'):'Company card •••• '+i.last_four));
    const actions=text('div','');actions.className='toolbar';actions.append(button('Reveal',()=>reveal(i)));
    if(permissions.can_edit)actions.append(button('Edit',()=>edit(i)),button('Delete',async()=>{if(confirm('Permanently delete '+i.label+'?')){await request('delete',{id:i.id,version:i.version});await load();}}));
    if(permissions.admin)actions.append(button('Share',()=>share(i)));
@@ -50,13 +50,7 @@
  }
  async function reveal(item){
   const result=await request('reveal',{id:item.id});clearReveal();const d=result.details;$('revealTitle').textContent=result.label;
-  const fields=result.kind==='login'?[['Website',d.url],['Username',d.username],['Password',d.password],['Notes',d.notes]]:[['Cardholder',d.cardholder],['Card number',d.number],['Expiration',d.expiry],['Billing address',d.billing],['Notes',d.notes]];
-  for(const [label,value] of fields){
-   if(!value)continue;const row=text('div','');row.append(text('strong',label));const p=text('p',value);p.className='secret';row.append(p,button('Copy '+label.toLowerCase(),async()=>{await navigator.clipboard.writeText(value);say('Copied '+label.toLowerCase()+'.');}));$('revealDetails').append(row);
-  }
-  if(result.kind==='login'){
-   try{const url=new URL(d.url);if(url.protocol==='https:'&&!url.username&&!url.password){const a=text('a','Open website');a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';$('revealDetails').append(a);}}catch{}
-  }
+  A1VaultDetails.render($('revealDetails'),result.kind,d,{copy:async(value,label)=>{await navigator.clipboard.writeText(value);say('Copied '+label.toLowerCase()+'.');},onError:error=>say(error.message)});
   $('reveal').showModal();revealTimer=setTimeout(clearReveal,30000);
  }
  async function siteOptions(){

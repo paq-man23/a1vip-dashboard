@@ -20,7 +20,7 @@ async function ui({admin=true,custom}={}){
   if(input.action==='import_logins')result={created:input.entries.length,skipped:0,ids:[]};
   return {ok:true,status:200,json:async()=>result};
  };
- w.eval(code);await tick();await tick();
+ w.eval(fs.readFileSync("vault-details.js","utf8"));w.eval(code);await tick();await tick();
  const $=id=>w.document.getElementById(id);
  async function unlock(){ $('unlockPassword').value='synthetic-dashboard-password';$('unlockForm').dispatchEvent(new w.Event('submit',{cancelable:true}));for(let i=0;i<5;i++)await tick();}
  return {w,$,calls,unlock,close:()=>w.close()};
