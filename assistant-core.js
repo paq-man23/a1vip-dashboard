@@ -44,6 +44,8 @@
   const raw=String(text||'').trim().replace(/[.!?]+$/,'');
   let m;
   if(/^(?:summari[sz]e|summary|report|totals?)(?:\s+(?:for|of))?(?:\s+(20\d{2}))?(?:\s+(invoices?|purchase orders?|pos?))?$/i.test(raw)){const year=raw.match(/20\d{2}/)?.[0]||'';return {type:'summary',query:'',year,documentType:/purchase|\bpos?\b/i.test(raw)?'po':/invoice/i.test(raw)?'invoice':''};}
+  if((m=raw.match(/^(?:(?:find|search(?: for)?|show(?: me)?)\s+)?(?:upcoming\s+)?events?(?:\s+for)?(?:\s+(.*))?$/i)))return {type:'events',query:(m[1]||'').trim()};
+  if(/\b(?:upcoming|concerts?|games?|events?|tour|playing|performing)\b/i.test(raw)&&!/\b(?:invoice|purchase order|customer|vendor|trip|letter|button|link|markup)\b/i.test(raw))return {type:'unknown',query:raw};
   const topic=guideTopic(raw);if(topic)return {type:'guide',topic};
   if(/^(hi|hello|hey|good morning|good afternoon|good evening)(?:[ ,]+al)?$/i.test(raw))return {type:'greeting'};
   const conversational=raw.replace(/^(?:please\s+|(?:can|could|would) you\s+|i(?:’|')?d like to\s+|i want to\s+)/i,'');

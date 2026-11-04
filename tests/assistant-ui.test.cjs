@@ -128,3 +128,18 @@ test('voice requires opt-in, transcribes without sending and stops on signout',(
  const h=harness({voice:true}),settings=h.panel.children[0].children[1],toggle=settings.children.find(n=>n.tag==='label').children[0];
  assert.equal(h.recognizer,undefined);toggle.checked=true;toggle.onchange();assert.equal(h.mic.hidden,false);h.mic.onclick();h.recognizer.onresult({results:[[{transcript:'find customer Sonia'}]]});assert.equal(h.input.value,'find customer Sonia');assert.deepEqual(h.loads,[]);assert.match(h.status.textContent,/Review/);h.signout();assert.equal(h.aborted(),1);assert.equal(h.input.value,'');assert.equal(h.mic.hidden,true);
 });
+
+test('direct event search displays real provider details and price limitations without loading customer records',async()=>{
+ const requests=[],h=harness({ai:async body=>{requests.push(body);return {events:{configured:true,source:'Ticketmaster Discovery',checkedAt:'2026-11-04T19:00:00Z',total:1,events:[{name:'Knicks vs Bulls',date:'2026-12-01',time:'19:30:00',timezone:'America/New_York',venue:'Madison Square Garden',city:'New York',status:'onsale',url:'https://www.ticketmaster.com/event/event-1',priceRanges:[{min:150,max:600,currency:'USD'}]}]}};}});
+ await h.submit('find events Knicks');assert.equal(requests[0].action,'events');assert.equal(requests[0].query,'Knicks');assert.match(h.text(),/Knicks vs Bulls/);assert.match(h.text(),/Published event price range/);assert.match(h.text(),/not current section\/row prices/);assert.deepEqual(h.loads,[]);
+});
+test('natural event requests preserve date/city filters through model planning and do not make duplicate Discovery calls',async()=>{
+ const requests=[],h=harness({ai:async body=>{requests.push(body);return {configured:true,plan:{type:'events',query:'Knicks',city:'New York',startDate:'2026-12-01',endDate:'2026-12-01'},events:{configured:true,checkedAt:'2026-11-04T19:00:00Z',total:1,events:[{name:'Knicks vs Bulls',date:'2026-12-01',priceRanges:[]}]}};}});
+ await h.submit('What Knicks games are in New York on December 1?');assert.equal(requests.length,1);assert.match(h.text(),/Knicks vs Bulls/);assert.match(h.text(),/did not supply a price range/);assert.deepEqual(h.loads,[]);
+});
+test('missing event query asks for a team or artist; missing key never claims there are no events',async()=>{
+ const requests=[],h=harness({ai:async body=>{requests.push(body);return {events:{configured:false,error:'Add TICKETMASTER_API_KEY'}};}});await h.submit('find events');assert.match(h.text(),/Which artist/);assert.equal(requests.length,0);await h.submit('Knicks');assert.equal(requests[0].action,'events');assert.match(h.text(),/TICKETMASTER_API_KEY/);assert.doesNotMatch(h.text(),/No matching events/);
+});
+test('clearing chat rejects a delayed Ticketmaster response',async()=>{
+ let release;const pending=new Promise(r=>release=r),h=harness({ai:async()=>{await pending;return {events:{configured:true,checkedAt:'2026-11-04T19:00:00Z',events:[{name:'Old event'}]}};}});const request=h.submit('find events Knicks');h.panel.children[0].children.find(n=>n.textContent==='New Chat').onclick();release();await request;assert.doesNotMatch(h.text(),/Old event/);
+});

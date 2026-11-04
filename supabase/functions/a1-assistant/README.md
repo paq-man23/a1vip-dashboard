@@ -1,6 +1,6 @@
 # Al conversational dashboard assistant
 
-Deploy `index.ts`, `handler.mjs` and `planner.mjs` together. Set `OPENAI_API_KEY` in Supabase Dashboard → Edge Functions → Secrets; never put a key in frontend files or GitHub. Optional `OPENAI_MODEL` defaults to `gpt-4.1-mini`. OpenAI API billing/quota must be active. No key means dashboard search, guidance, draft preparation and summaries continue; conversational requests explicitly report configuration is needed. In Al settings, Check AI connection checks key presence; a conversational question verifies actual provider access.
+Deploy `index.ts`, `handler.mjs`, `planner.mjs` and `ticketmaster.mjs` together. Set `OPENAI_API_KEY` in Supabase Dashboard → Edge Functions → Secrets; never put a key in frontend files or GitHub. Optional `OPENAI_MODEL` defaults to `gpt-4.1-mini`. OpenAI API billing/quota must be active. No key means dashboard search, guidance, draft preparation and summaries continue; conversational requests explicitly report configuration is needed. In Al settings, Check AI connection checks key presence; a conversational question verifies actual provider access.
 
 The endpoint validates the bearer token through Supabase Auth, current staff membership, disabled status and the dashboard activity session before using the provider. It retains the existing `verify_jwt:false` deployment because it performs its own Auth checks. The provider key stays on the server. Auth and record reads use the caller's token, never a service-role credential.
 
@@ -13,3 +13,9 @@ A bounded per-instance burst guard limits model requests to 12/minute/user. This
 Voice is opt-in per chat, starts only on a microphone click and fills a reviewable transcript without submitting. Browser speech recognition may use the browser vendor's remote service; the UI discloses this before opt-in. Closing, hiding, clearing or signing out stops listening. Unsupported browsers offer typing/keyboard dictation. Vault remains a separate screen without Al.
 
 Validation: `npm test`, including model-request privacy, rejected permissions, missing-key behavior, provider failures, stale-response cancellation, voice opt-in and deterministic financial summary fixtures. Real provider access additionally requires an authenticated dashboard conversation after secret setup.
+
+## Ticketmaster Discovery
+
+Deploy `ticketmaster.mjs` with the other three function files. Save the approved Ticketmaster **Consumer Key** as `TICKETMASTER_API_KEY` in Supabase Edge Function secrets. Consumer Secret and OAuth callbacks are not used by Discovery. Key presence is reported through the authenticated Al settings check; an actual search verifies access. The API key never reaches the browser or OpenAI. All event requests require the same Auth, staff and activity-session checks as chat.
+
+Al accepts natural event questions with artist/team/venue, city and date/range. The model produces only validated search filters; returned provider data is rendered directly and never sent back to OpenAI. The explicit `find events Knicks` command also works without an OpenAI key. Results use event-local date/time, preserve TBA flags and event status, show public event links, and label optional published price ranges as event-level information with unconfirmed fees. No section, row, seat quantity, live availability or resale quote is invented. Results include source/check time and pages of ten within Discovery's deep-paging limit. An absent/rejected key, provider limit, empty search or timeout gives an explicit message.

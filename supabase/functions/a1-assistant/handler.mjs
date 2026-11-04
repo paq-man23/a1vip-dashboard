@@ -1,3 +1,4 @@
+import {discoverEvents} from './ticketmaster.mjs';
 import {sections,schema,validatePlan,instructions} from './planner.mjs';
 export function createHandler({env,fetchImpl=fetch}){
  const base=env('SUPABASE_URL'),anon=env('SUPABASE_ANON_KEY');
@@ -16,26 +17,34 @@ export function createHandler({env,fetchImpl=fetch}){
    let members,profiles;try{[members,profiles]=await Promise.all([api('/rest/v1/a1_staff?select=is_admin&user_id=eq.'+encodeURIComponent(actor.id)),api('/rest/v1/a1_account_profiles?select=username,allowed_sections,disabled&user_id=eq.'+encodeURIComponent(actor.id))]);}catch{return reply({error:'Unable to check account access.'},403);}
    if(!members?.length||profiles?.[0]?.disabled)return reply({error:'Dashboard access required.'},403);
    try{await api('/rest/v1/rpc/a1_activity_session',{method:'POST',body:JSON.stringify({p_action:'start'})});}catch{return reply({error:'Your dashboard session ended. Sign in again.'},401);}
+   if(body.action!=='status'){
+   const now=Date.now(),hits=(recent.get(actor.id)||[]).filter(t=>now-t<60000);
+   if(hits.length>=12)return reply({error:'Please wait a minute before asking Al again.'},429);
+   if(recent.size>=1000)for(const [id,times] of recent)if(now-times.at(-1)>=60000)recent.delete(id);
+   if(recent.size>=1000&&!recent.has(actor.id))return reply({error:'Al is busy. Please try again shortly.'},429);
+   recent.set(actor.id,[...hits,now]);
+   }
+   const ticketSearch=async input=>{try{return reply({events:await discoverEvents(input,{env,fetchImpl})});}catch(error){return reply({error:error.message},400);}};
+   if(body.action==='events')return ticketSearch(body);
    const key=env('OPENAI_API_KEY');
-   if(body.action==='status')return reply({configured:!!key,mode:key?'ai':'dashboard-guide'});
+   if(body.action==='status')return reply({configured:!!key,mode:key?'ai':'dashboard-guide',ticketmasterConfigured:!!env('TICKETMASTER_API_KEY')});
    if(!key)return reply({configured:false,mode:'dashboard-guide',error:'Live AI needs an OpenAI API key configured by your administrator. Dashboard search and guidance still work.'});
    if(typeof body.message!=='string'||!body.message.trim()||body.message.length>600)return reply({error:'Enter a message of 600 characters or fewer.'},400);
    const admin=members[0].is_admin===true,profile=profiles?.[0];
    const canAccess=id=>admin||( !['admin','manageAccounts','domains'].includes(id)&&(!profile?.allowed_sections||profile.allowed_sections.includes(id)) );
    // Only user-entered text is accepted as conversation context. No client-provided
    // record snapshots, assistant results, roles, prompts or tool definitions pass through.
-   const now=Date.now(),hits=(recent.get(actor.id)||[]).filter(t=>now-t<60000);
-   if(hits.length>=12)return reply({error:'Please wait a minute before asking Al again.'},429);
-   if(recent.size>=1000)for(const [id,times] of recent)if(now-times.at(-1)>=60000)recent.delete(id);
-   if(recent.size>=1000&&!recent.has(actor.id))return reply({error:'Al is busy. Please try again shortly.'},429);
-   recent.set(actor.id,[...hits,now]);
    const history=Array.isArray(body.history)?body.history.slice(-6).filter(x=>typeof x==='string'&&x.length<=600):[];
-   const response=await fetchImpl('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},signal:AbortSignal.timeout(25000),body:JSON.stringify({model:env('OPENAI_MODEL')||'gpt-4.1-mini',store:false,max_output_tokens:1200,instructions:instructions(sections.filter(canAccess),admin),input:[...history,body.message].map(content=>({role:'user',content})),text:{format:{type:'json_schema',name:'dashboard_plan',strict:true,schema}}})});
+   const response=await fetchImpl('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},signal:AbortSignal.timeout(25000),body:JSON.stringify({model:env('OPENAI_MODEL')||'gpt-4.1-mini',store:false,max_output_tokens:1200,instructions:instructions(sections.filter(canAccess),admin)+'\nCurrent date/time: '+new Date().toISOString()+'; user timezone America/New_York.',input:[...history,body.message].map(content=>({role:'user',content})),text:{format:{type:'json_schema',name:'dashboard_plan',strict:true,schema}}})});
    if(!response.ok)return reply({error:response.status===429?'AI is busy or its API quota is unavailable. Try again shortly; dashboard commands still work.':'AI connection failed. Ask your administrator to check the API configuration.'},503);
    const result=await response.json();
    if(result.status!=='completed')return reply({error:'Al could not finish the response. Please try a shorter request.'},502);
    const output=(result.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('');
    let plan;try{plan=validatePlan(JSON.parse(output),canAccess);}catch{return reply({error:'Al could not safely interpret this request. Try naming the section and task.'},422);}
+   if(plan.type==='events'){
+    try{return reply({configured:true,mode:'ai',plan,events:await discoverEvents(plan,{env,fetchImpl})});}
+    catch(error){return reply({error:error.message},503);}
+   }
    return reply({configured:true,mode:'ai',plan});
   }catch{return reply({error:'Al could not complete that request. Please try again.'},502);}
  };

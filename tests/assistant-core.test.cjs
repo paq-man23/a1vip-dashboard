@@ -51,3 +51,7 @@ test('bare and conversational task requests never become dashboard searches',()=
 });
 
 test("polite complete button commands retain website and category",()=>{const r=intent("Can you add a button for example.com in main");assert.equal(r.type,"addButton");assert.equal(r.website,"example.com");assert.equal(r.category,"main");});
+
+test('external event questions route to live discovery without confusing saved invoice searches',()=>{
+ assert.deepEqual(intent('find events Knicks'),{type:'events',query:'Knicks'});assert.equal(intent('find events').query,'');assert.equal(intent('What Knicks games are in New York?').type,'unknown');assert.equal(intent('find invoice Knicks').type,'invoice');assert.equal(intent('how do I add event items to an invoice?').type,'guide');
+});
