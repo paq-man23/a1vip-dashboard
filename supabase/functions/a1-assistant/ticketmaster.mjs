@@ -1,16 +1,39 @@
 // Public event discovery only. No purchases, account data or live seat inventory.
 const safeText=(value,max=200)=>typeof value==='string'?value.slice(0,max):'';
+const usStates={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',DC:'District of Columbia',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
+const cities={nyc:'New York','new york city':'New York',miami:'Miami',orlando:'Orlando',tampa:'Tampa','fort lauderdale':'Fort Lauderdale',jacksonville:'Jacksonville','west palm beach':'West Palm Beach','boca raton':'Boca Raton',tallahassee:'Tallahassee',boston:'Boston',chicago:'Chicago','las vegas':'Las Vegas','los angeles':'Los Angeles',atlanta:'Atlanta',dallas:'Dallas',austin:'Austin'};
+const stateCode=value=>Object.keys(usStates).find(code=>code===value.toUpperCase()||usStates[code].toLowerCase()===value.toLowerCase())||'';
+export function locationOnly(value){
+ const clean=safeText(value).trim().replace(/^(?:in|near|around)\s+/i,'').replace(/\s+(?:instead|please)$/i,'').trim();
+ const state=stateCode(clean);if(state&&clean.toLowerCase()!=='new york')return {city:'',stateCode:state,countryCode:'US'};
+ const city=cities[clean.toLowerCase()]||(clean.toLowerCase()==='new york'?'New York':'');
+ return city?{city,stateCode:'',countryCode:''}:null;
+}
+function splitLocation(query){
+ const suffixes=[...Object.values(usStates),...Object.keys(cities)].sort((a,b)=>b.length-a.length);
+ for(const suffix of suffixes){if(query.toLowerCase().endsWith(' '+suffix.toLowerCase())){const rest=query.slice(0,-suffix.length).replace(/(?:\s+in|\s+near|,)\s*$/i,'').trim();if(rest)return {query:rest,...(locationOnly(suffix)||{})};}}
+ const short=query.match(/^(.+?)(?:\s+in\s+|,\s*|\s+)([A-Z]{2})$/);if(short&&usStates[short[2]])return {query:short[1].trim(),city:'',stateCode:short[2],countryCode:'US'};
+ return {query};
+}
 function date(value){
  if(!value)return '';if(typeof value!=='string'||!/^20\d{2}-\d{2}-\d{2}$/.test(value)||(!Number.isFinite(new Date(value+'T00:00:00Z').valueOf())||new Date(value+'T00:00:00Z').toISOString().slice(0,10)!==value))throw new Error('Use a valid event date in YYYY-MM-DD format.');return value;
 }
 export function filters(input){
  if(!input||typeof input!=='object')throw new Error('Enter an artist, team, event or venue to search.');
- const query=safeText(input.query,121).trim(),city=safeText(input.city,81).trim();
- if(!query||query.length>120||city.length>80)throw new Error('Enter an event search of 120 characters or fewer.');
- const startDate=date(input.startDate),endDate=date(input.endDate),page=input.page??0;
+ const rawQuery=safeText(input.query,121).trim(),rawCity=safeText(input.city,81).trim();
+ if(!rawQuery||rawQuery.length>120||rawCity.length>80)throw new Error('Enter an event search of 120 characters or fewer.');
+ const split=splitLocation(rawQuery);
+ const query=split.query;
+ let city=rawCity||split.city||'',state=safeText(input.stateCode,50).trim()||split.stateCode||'',country=safeText(input.countryCode,3).trim().toUpperCase()||split.countryCode||'';
+ const cityLocation=locationOnly(city);if(cityLocation?.stateCode){state=state||cityLocation.stateCode;country=country||cityLocation.countryCode;city='';}else if(cityLocation?.city)city=cityLocation.city;
+ if(state){state=stateCode(state)||state.toUpperCase();if(!/^[A-Z]{2}$/.test(state))throw new Error('Choose a valid two-letter state or province code.');if(!country&&usStates[state])country='US';}
+ if(country&&!/^[A-Z]{2}$/.test(country))throw new Error('Choose a valid two-letter country code.');
+ const anyLocation=input.anyLocation===true;if(anyLocation){city='';state='';country='';}
+ const startDate=input.anyDate===true?'':date(input.startDate),endDate=input.anyDate===true?'':date(input.endDate),page=input.page??0;
  if(startDate&&endDate&&startDate>endDate)throw new Error('The end date must be on or after the start date.');
  if(!Number.isInteger(page)||page<0||page>99)throw new Error('Narrow your search by date or city to see more events.');
- return {query,city,startDate,endDate,page};
+ const locationLabel=[city,(country==='US'?usStates[state]:state)||state,country&&country!=='US'?country:''].filter(Boolean).join(', ');
+ return {query,city,stateCode:state,countryCode:country,startDate,endDate,page,anyDate:input.anyDate===true,anyLocation,locationLabel};
 }
 function publicUrl(value){try{const url=new URL(value);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)return '';const hosts=['ticketmaster.com','ticketmaster.ca','ticketmaster.co.uk','ticketmaster.ie','ticketmaster.de','ticketmaster.fr','ticketmaster.es','ticketmaster.nl','ticketmaster.se','ticketmaster.no','ticketmaster.dk','ticketmaster.fi','ticketmaster.be','ticketmaster.at','ticketmaster.ch','ticketmaster.com.au','ticketmaster.co.nz','ticketmaster.com.mx','livenation.com','ticketweb.com','universe.com','frontgatetickets.com'];if(!hosts.some(host=>url.hostname===host||url.hostname.endsWith('.'+host)))return '';if([...url.searchParams.keys()].some(k=>/apikey|secret|token/i.test(k)))return '';url.protocol='https:';return url.href;}catch{return '';}}
 export function normalizeEvent(event){
@@ -25,6 +48,8 @@ export async function discoverEvents(input,{env,fetchImpl=fetch,now=()=>new Date
  const url=new URL('https://app.ticketmaster.com/discovery/v2/events.json');
  for(const [k,v] of Object.entries({apikey:key,keyword:search.query,size:'10',page:String(search.page),sort:'date,asc',includeTest:'no'}))url.searchParams.set(k,v);
  if(search.city)url.searchParams.set('city',search.city);
+ if(search.stateCode)url.searchParams.set('stateCode',search.stateCode);
+ if(search.countryCode)url.searchParams.set('countryCode',search.countryCode);
  if(search.startDate||search.endDate)url.searchParams.set('localStartDateTime',(search.startDate||'2000-01-01')+'T00:00:00,'+(search.endDate||'2099-12-31')+'T23:59:59');
  else url.searchParams.set('startDateTime',now().toISOString().replace(/\.\d{3}Z$/,'Z'));
  let response;try{response=await fetchImpl(url.href,{signal:AbortSignal.timeout(12000),headers:{Accept:'application/json'},redirect:'error'});}catch{throw new Error('Ticketmaster could not be reached. Please try again shortly.');}

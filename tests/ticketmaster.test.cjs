@@ -28,3 +28,19 @@ test('403 access refusal is distinguished from a recognized invalid-key fault wi
  await assert.rejects(()=>discoverEvents({query:'Knicks'},{env:()=> 'ticket-secret',fetchImpl:async()=>new Response(JSON.stringify({fault:{detail:{errorcode:'oauth.v2.InvalidApiKey'},faultstring:'ticket-secret'}}),{status:403})}),/authentication failed/);
  await assert.rejects(()=>discoverEvents({query:'Knicks'},{env:()=> 'ticket-secret',fetchImpl:async()=>new Response(JSON.stringify({fault:{detail:{errorcode:'oauth.v2.InvalidAPICallAsNoApiProductMatchFound'}}}),{status:403})}),/not authorized for the Discovery API/);
 });
+
+test('artist/location shorthand separates Florida and state abbreviations from performer keywords',async()=>{
+ const {filters}=await load();
+ for(const query of ['Olivia Rodrigo Florida','Olivia Rodrigo in Florida','Olivia Rodrigo FL']){const search=filters({query});assert.equal(search.query,'Olivia Rodrigo');assert.equal(search.stateCode,'FL');assert.equal(search.countryCode,'US');assert.equal(search.city,'');assert.equal(search.locationLabel,'Florida');}
+ const cityField=filters({query:'Olivia Rodrigo',city:'Florida'});assert.equal(cityField.stateCode,'FL');assert.equal(cityField.city,'');
+ const miami=filters({query:'Olivia Rodrigo Miami'});assert.equal(miami.query,'Olivia Rodrigo');assert.equal(miami.city,'Miami');
+ const nyc=filters({query:'Knicks NYC'});assert.equal(nyc.query,'Knicks');assert.equal(nyc.city,'New York');
+ assert.equal(filters({query:'Florida Georgia Line'}).query,'Florida Georgia Line');
+});
+test('Discovery sends an actual Florida state filter and explicit widening clears only the selected scope',async()=>{
+ const {discoverEvents,filters}=await load();let requested;
+ await discoverEvents({query:'Olivia Rodrigo Florida',anyDate:true},{env:()=> 'ticket-secret',fetchImpl:async url=>{requested=new URL(url);return new Response('{}');}});
+ assert.equal(requested.searchParams.get('keyword'),'Olivia Rodrigo');assert.equal(requested.searchParams.get('stateCode'),'FL');assert.equal(requested.searchParams.get('countryCode'),'US');assert.equal(requested.searchParams.has('city'),false);
+ const wide=filters({query:'Olivia Rodrigo',stateCode:'FL',countryCode:'US',anyLocation:true,startDate:'2027-03-01',endDate:'2027-03-31'});assert.equal(wide.stateCode,'');assert.equal(wide.startDate,'2027-03-01');
+ const dates=filters({query:'Olivia Rodrigo',stateCode:'FL',startDate:'2027-03-01',anyDate:true});assert.equal(dates.stateCode,'FL');assert.equal(dates.startDate,'');
+});
