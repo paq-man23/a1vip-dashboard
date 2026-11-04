@@ -28,7 +28,9 @@
     const onAbort = () => controller.abort();
     if (externalSignal?.aborted) controller.abort();
     else externalSignal?.addEventListener('abort', onAbort, { once:true });
-    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 15000);
+    const requestUrl=String(typeof input==='string'?input:input?.url||input);
+    const timeout=requestUrl.includes('/functions/v1/a1-assistant')?60000:15000;
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeout);
     try { return await fetch(input, { ...options, signal:controller.signal }); }
     catch(error) {
       if (timedOut) throw new Error('The login/data connection timed out. Check your internet connection and try again.');
@@ -394,6 +396,14 @@
     return result.data;
   }
   window.A1Data = {
+    assistantRequest:async body=>{
+      const identity=user?.id,c=requireReady();
+      const result=await c.functions.invoke('a1-assistant',{body});
+      if(user?.id!==identity||!ready||recoveryUserId)throw new Error('Session changed. Start a new request.');
+      if(result.error){let detail;try{detail=await result.error.context?.json();}catch{}throw new Error(detail?.error||'AI connection unavailable. Dashboard commands still work.');}
+      if(result.data?.error&&result.data?.configured!==false)throw new Error(result.data.error);
+      return result.data;
+    },
     previewDocumentNumber:async type=>check(await requireReady().rpc('a1_preview_document_number',{p_type:type})),
     cancelRestore:()=>{window.A1Activity?.stop();clear();},
     loadSection, canAccess, refreshAccess, linkBlocked, blockedLinks:()=>copy(accountAccess.blocked_links),
