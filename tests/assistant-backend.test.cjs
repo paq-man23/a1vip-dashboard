@@ -1,14 +1,15 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const sample=()=>({type:'contact',reply:'',query:'Jane',kind:'customer',section:'',topic:'',website:'',category:'',label:'',year:'',documentType:'',payment:'',city:'',stateCode:'',countryCode:'',startDate:'',endDate:'',purchase:false,anyDate:false,anyLocation:false});
-async function harness({auth=true,member=true,disabled=false,key='server-secret',sections=['customers','invoices'],plan=sample(),providerStatus=200,incomplete=false,session=true,ticketKey='',ticketStatus=200}={}){
+async function harness({auth=true,member=true,disabled=false,key='server-secret',sections=['customers','invoices'],plan=sample(),providerStatus=200,incomplete=false,session=true,ticketKey='',ticketStatus=200,seatgeekId='',seatgeekStatus=200}={}){
  const {createHandler}=await import('../supabase/functions/a1-assistant/handler.mjs');const calls=[],envReads=[];
- const handler=createHandler({env:name=>{envReads.push(name);return {SUPABASE_URL:'https://project.supabase.co',SUPABASE_ANON_KEY:'public',OPENAI_API_KEY:key,TICKETMASTER_API_KEY:ticketKey}[name];},fetchImpl:async(url,options)=>{
+ const handler=createHandler({env:name=>{envReads.push(name);return {SUPABASE_URL:'https://project.supabase.co',SUPABASE_ANON_KEY:'public',OPENAI_API_KEY:key,TICKETMASTER_API_KEY:ticketKey,SEATGEEK_CLIENT_ID:seatgeekId}[name];},fetchImpl:async(url,options)=>{
   calls.push({url,options});const json=(data,status=200)=>new Response(JSON.stringify(data),{status});
   if(url.endsWith('/auth/v1/user'))return auth?json({id:'test-user'}):json({},401);
   if(url.includes('/a1_staff?'))return json(member?[{is_admin:false}]:[]);
   if(url.includes('/a1_account_profiles?'))return json([{username:'test-user',disabled,allowed_sections:sections}]);
   if(url.includes('/rpc/a1_activity_session'))return json({},session?200:401);
   if(url.startsWith('https://app.ticketmaster.com/'))return json({_embedded:{events:[{id:'event-1',name:'Knicks vs Bulls',dates:{start:{localDate:'2026-12-01',localTime:'19:30:00'},timezone:'America/New_York'},url:'https://www.ticketmaster.com/event/event-1'}]},page:{totalElements:1,totalPages:1}},ticketStatus);
+  if(url.startsWith('https://api.seatgeek.com/'))return json({events:[{id:99,title:'Knicks vs Bulls',datetime_local:'2026-12-01T19:30:00',url:'https://seatgeek.com/event/99',venue:{name:'Madison Square Garden',city:'New York',state:'NY'},stats:{lowest_price:100,listing_count:20}}],meta:{total:1}},seatgeekStatus);
   if(url==='https://api.openai.com/v1/responses')return json({status:incomplete?'incomplete':'completed',output:[{content:[{type:'output_text',text:JSON.stringify(plan)}]}]},providerStatus);
   throw new Error('Unexpected request');
  }});
@@ -32,7 +33,7 @@ test('provider failure and incomplete responses are explicit, without leaking cr
  for(const options of [{providerStatus:429},{providerStatus:500},{incomplete:true}]){const h=await harness(options),r=await h.run();assert.ok(r.status>=500);assert.doesNotMatch(JSON.stringify(r.body),/server-secret/);}
 });
 test('status checks configuration without sending a model request',async()=>{
- const h=await harness(),r=await h.run({action:'status'});assert.deepEqual(r.body,{configured:true,mode:'ai',ticketmasterConfigured:false});assert.equal(h.calls.some(x=>x.url.includes('openai')),false);
+ const h=await harness(),r=await h.run({action:'status'});assert.deepEqual(r.body,{configured:true,mode:'ai',ticketmasterConfigured:false,seatgeekConfigured:false});assert.equal(h.calls.some(x=>x.url.includes('openai')),false);
 });
 test('input validation and per-instance burst protection bound API usage',async()=>{
  const h=await harness();assert.equal((await h.run({message:'x'.repeat(601)})).status,400);assert.equal((await h.run(null)).status,400);
@@ -65,4 +66,12 @@ test('Miami instead retains the artist and date range while replacing the state 
 test('guided direct searches require missing details unless the user explicitly chooses any',async()=>{
  const h=await harness({ticketKey:'ticket-secret'}),first=await h.run({action:'events',query:'Olivia Rodrigo',refine:true});assert.equal(first.body.events.needsRefinement,true);assert.equal(h.calls.some(x=>x.url.includes('ticketmaster')),false);
  const second=await h.run({action:'events',query:'Olivia Rodrigo',refine:true,anyDate:true,anyLocation:true});assert.equal(second.body.events.configured,true);assert.equal(second.body.events.needsRefinement,undefined);
+});
+
+test('SeatGeek-only accounts can use public event search after the same staff/session checks',async()=>{
+ const h=await harness({key:'',seatgeekId:'sg-id'}),r=await h.run({action:'events',query:'Knicks'});assert.equal(r.status,200);assert.equal(r.body.events.events[0].offers[0].source,'SeatGeek');assert.equal(h.calls.some(x=>x.url.includes('ticketmaster')),false);assert.doesNotMatch(JSON.stringify(r.body),/sg-id/);
+ for(const options of [{member:false},{session:false}]){const denied=await harness({...options,seatgeekId:'sg-id'});await denied.run({action:'events',query:'Knicks'});assert.equal(denied.calls.some(x=>x.url.includes('seatgeek')),false);}
+});
+test('one provider failing does not discard valid results from the other',async()=>{
+ const h=await harness({ticketKey:'ticket-secret',ticketStatus:401,seatgeekId:'sg-id'}),r=await h.run({action:'events',query:'Knicks'});assert.equal(r.status,200);assert.equal(r.body.events.events[0].offers[0].source,'SeatGeek');assert.equal(r.body.events.providers.find(p=>p.name==='Ticketmaster Discovery').status,'error');
 });

@@ -1,4 +1,5 @@
-import {discoverEvents,filters,locationOnly} from './ticketmaster.mjs';
+import {searchEvents} from './event-search.mjs';
+import {filters,locationOnly} from './ticketmaster.mjs';
 import {sections,schema,validatePlan,instructions} from './planner.mjs';
 export function createHandler({env,fetchImpl=fetch}){
  const base=env('SUPABASE_URL'),anon=env('SUPABASE_ANON_KEY');
@@ -26,18 +27,18 @@ export function createHandler({env,fetchImpl=fetch}){
    }
    const lookupEvents=async(input,guided=false)=>{
     const search=filters(input);
-    if(guided&&env('TICKETMASTER_API_KEY')){
+    if(guided&&(env('TICKETMASTER_API_KEY')||env('SEATGEEK_CLIENT_ID'))){
      const missing=[];
      if(!search.city&&!search.stateCode&&!search.countryCode&&!search.anyLocation)missing.push('location');
      if(!search.startDate&&!search.endDate&&!search.anyDate)missing.push('month');
      if(missing.length)return {configured:true,needsRefinement:true,search,missing};
     }
-    return discoverEvents(search,{env,fetchImpl});
+    return searchEvents(search,{env,fetchImpl});
    };
    const ticketSearch=async input=>{try{return reply({events:await lookupEvents(input,input.refine===true)});}catch(error){return reply({error:error.message},400);}};
    if(body.action==='events')return ticketSearch(body);
    const key=env('OPENAI_API_KEY');
-   if(body.action==='status')return reply({configured:!!key,mode:key?'ai':'dashboard-guide',ticketmasterConfigured:!!env('TICKETMASTER_API_KEY')});
+   if(body.action==='status')return reply({configured:!!key,mode:key?'ai':'dashboard-guide',ticketmasterConfigured:!!env('TICKETMASTER_API_KEY'),seatgeekConfigured:!!env('SEATGEEK_CLIENT_ID')});
    if(!key)return reply({configured:false,mode:'dashboard-guide',error:'Live AI needs an OpenAI API key configured by your administrator. Dashboard search and guidance still work.'});
    if(typeof body.message!=='string'||!body.message.trim()||body.message.length>600)return reply({error:'Enter a message of 600 characters or fewer.'},400);
    const admin=members[0].is_admin===true,profile=profiles?.[0];
