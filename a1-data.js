@@ -397,6 +397,7 @@
     previewDocumentNumber:async type=>check(await requireReady().rpc('a1_preview_document_number',{p_type:type})),
     cancelRestore:()=>{window.A1Activity?.stop();clear();},
     loadSection, canAccess, refreshAccess, linkBlocked, blockedLinks:()=>copy(accountAccess.blocked_links),
+    vaultStatus:async()=>check(await requireReady().functions.invoke('a1-secure-vault',{body:{action:'status'}})),
     listAccounts:async()=>check(await requireAdmin().rpc('a1_list_accounts')),
     accountAction,
     accountPermissions:async id=>check(await requireAdmin().from('a1_account_profiles').select('allowed_sections,blocked_links,admin_role').eq('user_id',id).single()),

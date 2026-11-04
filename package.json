@@ -7,6 +7,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "0.5.9",
     "@xmldom/xmldom": "0.9.12",
-    "fflate": "0.8.3"
+    "fflate": "0.8.3",
+    "jsdom": "26.1.0"
   }
 }

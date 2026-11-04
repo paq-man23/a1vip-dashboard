@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 function ui(save){
  const html=fs.readFileSync('index.html','utf8');const script=html.slice(html.indexOf('    async function saveInvoice(){'),html.indexOf('    function exportInvoiceFile(){'));
  const fields=new Map(),alerts=[];const context={invoiceSaveInFlight:false,currentInvoiceId:'inv-draft',currentInvoiceVersion:null,currentInvoiceAutoNumber:true,currentInvoiceSnapshot:{},currentImportConflictHash:null,
- collectInvoiceFromForm:()=>({id:'inv-draft',autoNumber:true,number:'',lines:[]}),loadInvoices:()=>[],loadInvoicePresets:()=>({clientCompanies:[],clientContacts:[],clientEmails:[],clientPhones:[],terms:[],paymentTypes:[],deliveryMethods:[],eventNames:[],venues:[]}),addUnique(){},A1Data:{save,version:()=>1},setFieldValue:(id,value)=>fields.set(id,value),document:{getElementById:()=>({})},refreshCloudViews(){},refreshInvoicePreview(){},alert:text=>alerts.push(text)};
+ collectInvoiceFromForm:()=>({id:'inv-draft',autoNumber:true,number:'',lines:[]}),loadInvoices:()=>[],loadInvoicePresets:()=>({clientCompanies:[],clientContacts:[],clientEmails:[],clientPhones:[],terms:[],paymentTypes:[],deliveryMethods:[],eventNames:[],venues:[]}),addUnique(){},A1Data:{save,version:()=>1},setFieldValue:(id,value)=>fields.set(id,value),document:{getElementById:()=>({})},refreshCloudViews(){},refreshInvoiceNumberPreview(){},refreshInvoicePreview(){},alert:text=>alerts.push(text)};
  vm.runInNewContext(script,context);return {context,fields,alerts};
 }
 test('the saved DB number replaces the draft placeholder and is retained for subsequent edits',async()=>{
