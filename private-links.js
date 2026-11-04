@@ -41,19 +41,5 @@
   const reset=()=>{alt=false;cancel();refresh();};root.addEventListener('blur',reset);root.addEventListener('a1-signed-out',reset);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)reset();});refresh();
  }
- const eventHosts=['ticketmaster.com','ticketmaster.ca','ticketmaster.co.uk','ticketmaster.ie','ticketmaster.de','ticketmaster.fr','ticketmaster.es','ticketmaster.nl','ticketmaster.se','ticketmaster.no','ticketmaster.dk','ticketmaster.fi','ticketmaster.be','ticketmaster.at','ticketmaster.ch','ticketmaster.com.au','ticketmaster.co.nz','ticketmaster.com.mx'];
- function isTicketmasterUrl(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&eventHosts.some(host=>u.hostname===host||u.hostname.endsWith('.'+host));}catch{return false;}}
- function openAssistantTicketmaster(value){
-  if(!root.A1Data?.authenticated())throw new Error('Sign in before opening this event.');
-  if(!isTicketmasterUrl(value))throw new Error('This is not a supported Ticketmaster event address.');
-  if(root.A1Data.linkBlocked?.(value))throw new Error('This link is restricted by your administrator.');
-  const nav=root.navigator||{};
-  const mac=/Mac/i.test(nav.platform||nav.userAgent||'')&&!/iPhone|iPad|iPod/i.test(nav.userAgent||'')&&!(nav.maxTouchPoints>1);
-  if(!mac)return {requested:false};
-  // A normal web popup shares cookies. Only dispatch to the OS private opener;
-  // never substitute window.open, the staff iframe, or a regular tab.
-  root.location.href='shortcuts://run-shortcut?name='+encodeURIComponent('A1VIP Private Open')+'&input=text&text='+encodeURIComponent(value);
-  return {requested:true};
- }
- root.A1PrivateLinks={refresh,cancel,isTicketmasterUrl,openAssistantTicketmaster};document.addEventListener('DOMContentLoaded',init);
+ root.A1PrivateLinks={refresh,cancel};document.addEventListener('DOMContentLoaded',init);
 })(window);
