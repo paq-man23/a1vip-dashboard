@@ -25,6 +25,7 @@
   if(allowed('vendors'))examples.push('“find vendor Acme”');
   if(allowed('invoices'))examples.push('“find invoice 4100” or “create an invoice for Acme”');
   if(allowed('invoices'))examples.push('“summary 2026 invoices” — totals and balances', '“who bought Olivia Rodrigo tickets?” — search event invoices');
+  examples.push('“find events Knicks” — upcoming Ticketmaster events', '“When is Olivia Rodrigo playing in New York?”');
   if(allowed('tripItinerary'))examples.push('“find trip Florida”');
   if(allowed('main'))examples.push('“add button for example.com in main”');
   message('Here are a few things you can ask me:\n'+examples.join('\n'));
@@ -163,26 +164,52 @@
   lines.push('Balances reflect saved payment/credit adjustments. Invoices and POs are shown separately.');
   const card=message(lines.join('\n'));action(card,'Show Matching Records',t=>records({...request,type:'invoice'},t));waiting={...request,type:'summary'};
  }
+ async function events(request,token){
+  if(!request.query){waiting={type:'events',query:''};message('Which artist, team, event or venue should I look up? You can also give me a city and date.');return;}
+  status.textContent='Searching Ticketmaster events…';
+  const result=request.eventResults||(await A1Data.assistantRequest({action:'events',query:request.query,city:request.city||'',startDate:request.startDate||'',endDate:request.endDate||'',page:request.page||0}))?.events;
+  if(!valid(token))return;
+  if(!result?.configured){message(result?.error||'Ticketmaster event discovery is not configured yet.');return;}
+  waiting={...request,type:'events'};delete waiting.eventResults;
+  const rows=result.events||[],search=result.search||request;
+  message('Ticketmaster Discovery · '+(result.total??rows.length)+' matching events'+(result.total>rows.length?' · showing '+rows.length:'')+'\nChecked '+new Date(result.checkedAt).toLocaleString('en-US',{timeZone:'America/New_York'})+' Eastern.');
+  if(!rows.length)message('No matching events were returned. Try another city or date, or a shorter artist/team name. This search covers Ticketmaster’s event catalog.');
+  for(const event of rows){
+   const parts=[event.name,event.dateTBA?'Date to be announced':event.date||'Date unavailable'];
+   if(event.time)parts.push(event.time+(event.timezone?' · '+event.timezone:''));else parts.push('Time to be announced');
+   parts.push([event.venue,event.city,event.state].filter(Boolean).join(' · '));
+   if(event.status)parts.push('Event status: '+event.status);
+   if(event.priceRanges?.length){for(const range of event.priceRanges){const money=v=>new Intl.NumberFormat('en-US',{style:'currency',currency:range.currency}).format(v);parts.push('Published event price range: '+money(range.min)+'–'+money(range.max)+' '+range.currency);}}
+   else parts.push('Ticketmaster did not supply a price range.');
+   const card=message(parts.filter(Boolean).join('\n'));
+   if(event.url){const link=el('a','View event / tickets','copilot-action');link.href=event.url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);placement?.fitReply(card);}
+  }
+  message('Published ranges are event-level information, not current section/row prices or a quote for seats together. Fees and availability must be checked on the ticket page.');
+  if(result.hasMore){const card=message('More matching events are available.');action(card,'Next 10 Events',t=>events({...search,page:(search.page||0)+1},t));}
+ }
  async function plan(text,token){
   if(!A1Data.assistantRequest)return null;
   status.textContent='Al is thinking…';
   let result;
   try{result=await A1Data.assistantRequest({message:text,history:conversation.slice(-6)});}
-  catch(error){if(!valid(token))return null;message(error.message+' You can still use commands such as “find customer Jane” or “summary 2026 invoices”.');return null;}
+  catch(error){if(!valid(token))return null;return {type:'answer',reply:error.message+' You can still use commands such as “find customer Jane” or “summary 2026 invoices”.'};}
   if(!valid(token))return null;
   if(result?.configured===false){if(modeNote)modeNote.textContent='Dashboard mode · Live AI needs an OpenAI API key. Search, summaries, drafts and guidance are ready.';message(result.error||'Live AI is not configured yet. Dashboard commands are still available.');return null;}
   if(!result?.plan)return null;
   if(modeNote)modeNote.textContent='AI connected · Chat, search, summaries and reviewed actions';
-  return result.plan;
+  return {...result.plan,eventResults:result.events};
  }
  async function ask(text,voice=false){
   text=String(text||'').trim().slice(0,600);if(!text||!A1Data.authenticated())return;
   const token=epoch;message(text,true);let request=core.intent(text);
+  if(request.type==='events'&&/\b(?:in|on|this|next|from|between|tomorrow|tonight)\b/i.test(request.query))request={type:'unknown',query:text};
+  if(waiting?.type==='events'&&!waiting.query&&request.type==='unknown')request={type:'events',query:text};
   if((request.type==='unknown'||request.type==='help')&&waiting?.type!=='buttonWizard'){
    const proposed=await plan(text,token);if(!valid(token))return;
    if(proposed){request=proposed;if(request.type==='answer'){conversation.push(text);conversation=conversation.slice(-6);message(request.reply);return;}}
   }
   conversation.push(text);conversation=conversation.slice(-6);
+  if(request.type==='events'){await events(request,token);return;}
   if(request.type==='summary'){await summarize(request,token);return;}
 
   if(request.type==='startButton'){startButton(request);return;}
@@ -192,6 +219,7 @@
   if(request.type==='addButton'){waiting=null;proposeButton(request);return;}
   if(request.type==='cancel'){waiting=null;message('Cancelled. No changes were saved.');return;}
   if(request.type==='unknown'&&waiting&&waiting.type!=='buttonWizard')request={...waiting,query:text};
+  if(request.type==='events'){await events(request,token);return;}
   if(request.type==='unknown'&&/^(?:add|create|make|move|remove|delete|rename|change|update)\b/i.test(text)){message('I can help you add or move a button, or prepare an invoice. Tell me which task you want help with—for example, “add a button” or “how do I move a button?”');return;}
   request.voice=voice;
   if(request.type==='help'){help();return;}
@@ -233,7 +261,7 @@
   settings.append(el('p','AI receives only what you type and your last six requests. Record searches and calculations stay in the dashboard. Vault passwords and cards are excluded. Chat clears on sign-out or New Chat.','copilot-note'));
   if(supported){const label=el('label');voiceToggle=el('input');voiceToggle.type='checkbox';voiceToggle.checked=false;voiceToggle.onchange=()=>{voiceEnabled=voiceToggle.checked;mic.hidden=!voiceEnabled;if(!voiceEnabled)stopVoice();};label.append(voiceToggle,el('span','Enable voice for this chat. Your browser may send microphone audio to its speech provider. Review the transcript before Send.'));settings.append(label);}
   else settings.append(el('p','Voice input is unavailable in this browser. You can use your keyboard’s dictation.','copilot-note'));
-  const checkAI=el('button','Check AI connection','copilot-small');checkAI.type='button';checkAI.onclick=async()=>{const token=epoch;checkAI.disabled=true;try{const result=await A1Data.assistantRequest({action:'status'});if(valid(token))modeNote.textContent=result.configured?'AI configured · Ask a conversational question to test the connection.':'Dashboard mode · Add OPENAI_API_KEY in Supabase Edge Function secrets to enable live AI.';}catch(error){if(valid(token))status.textContent=error.message;}finally{checkAI.disabled=false;}};settings.append(checkAI);
+  const checkAI=el('button','Check AI connection','copilot-small');checkAI.type='button';checkAI.onclick=async()=>{const token=epoch;checkAI.disabled=true;try{const result=await A1Data.assistantRequest({action:'status'});if(valid(token))modeNote.textContent=result.configured?'AI configured · Ticketmaster '+(result.ticketmasterConfigured?'configured':'not configured')+' · Ask a question to test access.':'Dashboard mode · Add OPENAI_API_KEY in Supabase Edge Function secrets to enable live AI.';}catch(error){if(valid(token))status.textContent=error.message;}finally{checkAI.disabled=false;}};settings.append(checkAI);
 
   document.body.append(panel);
   function open(){if(!A1Data.authenticated())return;if(!panel.hidden){close();return;}if(owner!==A1Data.account()?.email){clear();owner=A1Data.account()?.email;}launcher.hidden=false;panel.hidden=false;launcher.setAttribute('aria-expanded','true');aiTab?.setAttribute('aria-expanded','true');aiTab?.classList.add('is-active');placement?.layoutPanel();if(!log.children.length)greet();input.focus();}

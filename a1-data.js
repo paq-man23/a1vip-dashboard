@@ -29,7 +29,7 @@
     if (externalSignal?.aborted) controller.abort();
     else externalSignal?.addEventListener('abort', onAbort, { once:true });
     const requestUrl=String(typeof input==='string'?input:input?.url||input);
-    const timeout=requestUrl.includes('/functions/v1/a1-assistant')?60000:15000;
+    const timeout=requestUrl.includes('/functions/v1/a1-assistant')?75000:15000;
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeout);
     try { return await fetch(input, { ...options, signal:controller.signal }); }
     catch(error) {
