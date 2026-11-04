@@ -183,15 +183,15 @@
    else parts.push('Ticketmaster did not supply a price range.');
    const card=message(parts.filter(Boolean).join('\n'));
    if(event.url){
-    // Recognize Ticketmaster even if the private-opener module failed to load,
-    // so a missing helper cannot silently restore the signed-in browser link.
-    const ticketmaster=window.A1PrivateLinks?.isTicketmasterUrl(event.url)||/\/\/(?:[^/]+\.)?ticketmaster\./i.test(event.url);
-    if(ticketmaster)action(card,'Open Ticketmaster Privately',()=>{
-     if(!window.A1PrivateLinks?.openAssistantTicketmaster)throw new Error('The private opener could not load. Refresh App and retry.');
-     const result=window.A1PrivateLinks.openAssistantTicketmaster(event.url);
-     const info=message(result.requested?'Private opener requested through the macOS shortcut “A1VIP Private Open”. The shortcut must be installed and configured to open an incognito window.':'To keep your Ticketmaster account separate, copy this link and paste it into a new private/incognito window. This browser cannot create that window from the dashboard.');
-     action(info,'Copy Event Link',async()=>{if(!window.navigator?.clipboard?.writeText)throw new Error('Clipboard access is unavailable. Event address: '+event.url);await window.navigator.clipboard.writeText(event.url);message('Event link copied. Paste it into your private/incognito window.');});
-     if(result.requested)action(info,'Show Mac Shortcut Setup',()=>{message('One-time Chrome setup:\n1. Open the macOS Shortcuts app and create a shortcut named A1VIP Private Open.\n2. Add Run Shell Script. Set Shell to /bin/zsh and Pass Input to as arguments.\n3. Use this command:\n/usr/bin/open -na "Google Chrome" --args --incognito --new-window "$1"\n4. Run the event button again and approve the macOS prompt if asked.\nIncognito is separate from your regular login. Existing incognito windows can share their own signed-in session.');});
+    const ticketmaster=/\/\/(?:[^/]+\.)?ticketmaster\./i.test(event.url);
+    if(ticketmaster)action(card,'Open Ticketmaster',()=>{
+     if(A1Data.linkBlocked(event.url))throw new Error('This link is restricted by your administrator.');
+     // The user's current browser opens this window. In Safari this uses Safari's
+     // cookie session; it does not sign out, clear cookies, or invoke Shortcuts.
+     const popup=window.open(event.url,'_blank','popup=yes,scrollbars=yes,resizable=yes,width=1200,height=800');
+     if(popup){popup.opener=null;return;}
+     const info=message('The popup was blocked. Allow popups for the A1 Dashboard in your browser settings, or copy the event link.');
+     action(info,'Copy Event Link',async()=>{if(!window.navigator?.clipboard?.writeText)throw new Error('Clipboard access is unavailable. Event address: '+event.url);await window.navigator.clipboard.writeText(event.url);message('Event link copied.');});
     });
     else {const link=el('a','View event / tickets','copilot-action');link.href=event.url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);placement?.fitReply(card);}
    }
