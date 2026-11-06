@@ -18,7 +18,15 @@ export async function responseSummary(response){
    const serialized=JSON.stringify(data).slice(0,10000).toLowerCase();
    summary.category=/rate.limit|too many request/.test(serialized)?'rate_limit':/unauthori|authentication|invalid.token|api.token/.test(serialized)?'authentication':/permission|forbidden/.test(serialized)?'permission':/page|parameter|sort/.test(serialized)?'request_parameter':'provider_error';
   }
- }catch{summary.shape='non_json';}
+ }catch{
+  summary.shape='non_json';
+  if(!response.ok)try{
+   const text=(await response.clone().text()).slice(0,10000);
+   const fields=['lastUpdateFrom','lastUpdateTo','createdDateFrom','createdDateTo','pageNumber','limit','sortedBy','sortDir'].filter(field=>text.toLowerCase().includes(field.toLowerCase()));
+   if(fields.length)summary.parameterFields=fields;
+   summary.category=/rate.limit|too many request/i.test(text)?'rate_limit':/unauthori|authentication|invalid.token/i.test(text)?'authentication':/required|filter|parameter|date.range/i.test(text)?'request_parameter':'provider_error';
+  }catch{}
+ }
  return summary;
 }
 export function dashboardFailure(path,status,data){

@@ -70,9 +70,10 @@ export function createHandler({env,fetchImpl=fetch,sleep=ms=>new Promise(resolve
      const pageBases={};
      const skyboxHeaders={'X-Account':input.accountId,'X-Api-Token':input.apiToken.trim(),'X-Application-Token':input.applicationToken.trim()};
      await Promise.all(Object.keys(resources).map(async kind=>{
-      const u=pageUrl(kind,{page:0,until:new Date().toISOString()});u.searchParams.set('limit','1');u.searchParams.delete('lastUpdateTo');
+      const probeUntil=new Date().toISOString(),probeSince=new Date(Date.now()-86400000).toISOString();
+      const u=pageUrl(kind,{page:0,since:probeSince,until:probeUntil});u.searchParams.set('limit','1');
       const r=await skyboxRead(u,kind,skyboxHeaders,true,report,'connection_access',deadline);
-      if(!r.ok)throw Error(`Skybox ${resources[kind]} access failed (HTTP ${r.status}). Check the account, tokens, and permissions.`);
+      if(!r.ok)throw skyboxHttpError(kind,r.status);
       const first=await r.json();if(!Array.isArray(first.rows)||!Number.isInteger(first.rowCount))throw Error('Unexpected Skybox response format');
       if(first.rows.some(row=>String(row.accountId)!==input.accountId))throw Error('Skybox returned a different account');
       pageBases[kind]=1;
@@ -106,4 +107,9 @@ export function retryAfterMs(value,fallback,now=Date.now()){
  if(value==null)return fallback;
  const seconds=Number(value),ms=Number.isFinite(seconds)?seconds*1000:Date.parse(value)-now;
  return Number.isFinite(ms)?Math.max(fallback,Math.ceil(ms)):fallback;
+}
+
+export function skyboxHttpError(kind,status){
+ const advice=status===401||status===403?'Check the account, tokens, and permissions.':status===400?'Skybox rejected the request parameters; your credentials have not been classified as invalid.':status===429?'Skybox is rate limiting requests; wait before retrying.':'Skybox could not complete this request.';
+ return Error(`Skybox ${resources[kind]} access failed (HTTP ${status}). ${advice}`);
 }
