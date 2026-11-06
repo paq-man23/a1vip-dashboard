@@ -463,6 +463,7 @@
       <button class="tab tab-travel" data-category="travel" onclick="showSection('travel')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6Z"/></svg><span class="tab-label">Travel</span></button>
       <button class="tab tab-social" data-category="social" onclick="showSection('social')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 11a9 9 0 0 1-9 9 9 9 0 0 1-4-1l-5 2 2-5a9 9 0 0 1-1-4 9 9 0 0 1 17-1Z"/><path d="M8 11h8m-8 4h5"/></svg><span class="tab-label">Social</span></button>
       <button class="tab tab-invoices" data-category="invoices" onclick="showSection('invoices')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H5v20h14V7Z"/><path d="M14 2v5h5M8 11h8m-8 4h8m-8 4h5"/></svg><span class="tab-label">Invoices &amp; POs</span></button>
+      <button class="tab tab-invoices" data-category="seatSniper" onclick="showSection('seatSniper')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5"/></svg><span class="tab-label">Seat Sniper / Skybox</span></button>
       <button class="tab tab-invoices" data-category="customers" onclick="showSection('customers')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="7" r="4"/><path d="M2 21v-3a7 7 0 0 1 14 0v3M17 3a4 4 0 0 1 0 8m2 3a6 6 0 0 1 3 5v2"/></svg><span class="tab-label">Customers</span></button>
       <button class="tab tab-invoices" data-category="vendors" onclick="showSection('vendors')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V3h8v4M3 12h18m-9 0v4"/></svg><span class="tab-label">Vendors</span></button>
       <button class="tab tab-letter" data-category="formLetter" onclick="showSection('formLetter')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 5 10 8L22 5"/></svg><span class="tab-label">Letters</span></button>
@@ -893,6 +894,41 @@
     </div>
 
 
+    <div id="seatSniper" class="section" style="display:none;">
+      <h2>Seat Sniper / Skybox</h2>
+      <p>Find your Skybox inventory and discover events through Ticketmaster and SeatGeek.</p>
+      <form class="invoice-toolbar" onsubmit="event.preventDefault();A1SeatSniper.inventory(true)">
+        <label>Artist, team, venue, section, or ID <input id="seatSniperQuery" type="search" maxlength="120" placeholder="Search tickets or events"></label>
+        <button class="btn" type="submit">Search Our Inventory</button>
+      </form>
+      <div id="seatSniperInventory" aria-live="polite"></div>
+      <details><summary>Search Ticketmaster &amp; SeatGeek</summary>
+        <form class="invoice-toolbar" onsubmit="A1SeatSniper.events(event)">
+          <label>State code <input id="seatSniperState" maxlength="2" placeholder="FL" size="4"></label>
+          <label>From <input id="seatSniperFrom" type="date"></label><label>Through <input id="seatSniperTo" type="date"></label>
+          <button class="btn" type="submit">Find Events</button>
+        </form>
+        <p>Uses the search above. External results are separate from A1 inventory; prices and availability must be verified with each source.</p>
+        <div id="seatSniperEvents" aria-live="polite"></div>
+      </details>
+      <div id="skyboxConnectionPanel" hidden data-admin-only class="invoice-history-card">
+        <h3>Skybox Connection &amp; Sync</h3>
+        <p id="skyboxConnectionSummary" role="status"></p>
+        <form onsubmit="A1SeatSniper.configure(event)" autocomplete="off">
+          <div class="invoice-toolbar">
+            <label>Skybox Account ID <input id="skyboxAccountId" inputmode="numeric" pattern="[0-9]+" required></label>
+            <label>Application Token <input id="skyboxApplicationToken" type="password" autocomplete="new-password" required></label>
+            <label>Account API Token <input id="skyboxApiToken" type="password" autocomplete="new-password" required></label>
+          </div>
+          <p>Get your account API token in Skybox: Logged In As → External Accounts → API Invitation +. Tokens are stored encrypted and never displayed again.</p>
+          <button class="btn" type="submit">Test Connection &amp; Enable Sync</button>
+        </form>
+        <p>Customers, vendors, invoices, purchase orders, and inventory sync automatically while the dashboard is closed. History imports in pages; completed scans refresh after five minutes. A1 document edits are protected; conflicts appear under Admin → Imports Needing Review.</p>
+        <div class="invoice-toolbar"><button class="btn" onclick="A1SeatSniper.sync()">Sync Next Pages Now</button><button class="btn" onclick="A1SeatSniper.status()">Refresh Status</button><button class="btn" onclick="A1SeatSniper.pause()">Pause Sync</button><button class="btn" onclick="A1SeatSniper.pause('resume')">Resume Sync</button><button class="btn" onclick="showSection('admin')">Review Import Conflicts</button></div>
+        <p id="seatSniperMessage" role="status" aria-live="polite"></p><div id="skyboxApiProgress"></div>
+      </div>
+    </div>
+
     <div id="customers" class="section" style="display:none;">
       <h3>Customers</h3><p>Browse by last name or search. Edit contact cards to save phone numbers, notes, and photos across devices. Cards without a last name are indexed by company or display name.</p>
       <div class="invoice-toolbar"><button class="btn" onclick="A1Contacts.add('customer')">Add Customer</button><button class="btn" onclick="refreshInvoiceHistory()">Refresh Contacts</button><button class="btn" data-admin-only hidden onclick="showSection('admin')">Skybox Import</button></div>
@@ -1245,6 +1281,7 @@
 <script src="./a1-invoice-fields.js"></script>
 <script src="./a1-contacts.js"></script>
 <script src="./skybox-ui.js"></script>
+<script src="./seat-sniper.js"></script>
 <script>
     /* ===== Config ===== */
     const STORAGE_KEY = 'a1vip-button-manager-v2';
@@ -1816,6 +1853,7 @@
       if(id==='invoices')refreshInvoiceNumberPreview();
       if(id==='admin')window.A1Activity?.history();
       if(id==='manageAccounts')window.A1Accounts?.load();
+      if(id==='seatSniper')window.A1SeatSniper?.open();
     }
 
     async function loadSectionData(id,force=false){

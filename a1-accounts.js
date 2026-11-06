@@ -1,6 +1,6 @@
 /* Admin account controls and category visibility; authority is checked again in Supabase. */
 (() => {
- const sections=[['main','Main Links'],['luxury','Suites'],['accounts','Ticket Accounts'],['travel','Travel'],['social','Social'],['invoices','Invoices & POs'],['customers','Customers'],['vendors','Vendors'],['formLetter','Letters'],['tripItinerary','Trips']];
+ const sections=[['main','Main Links'],['luxury','Suites'],['accounts','Ticket Accounts'],['travel','Travel'],['social','Social'],['invoices','Invoices & POs'],['seatSniper','Seat Sniper / Skybox'],['customers','Customers'],['vendors','Vendors'],['formLetter','Letters'],['tripItinerary','Trips']];
  let rows=[],selected=null,mode='edit',busy=false;
  const node=id=>document.getElementById(id);
  function button(label,action){const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=label;b.addEventListener('click',action);return b;}
