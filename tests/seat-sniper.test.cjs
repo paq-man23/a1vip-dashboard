@@ -1,0 +1,10 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
+function setup(admin=true,fail=false){
+ const html=fs.readFileSync('index.html','utf8');const dom=new JSDOM(html,{url:'https://a1dash.a1eei.com',runScripts:'outside-only'});const w=dom.window,calls=[];
+ w.A1Data={isAdmin:()=>admin,authenticated:()=>true,skyboxRequest:async input=>{calls.push(input);if(fail)throw Error('Skybox denied connection');if(input.action==='status')return {configured:false,resources:[]};if(input.action==='inventory')return {total:1,rows:[{id:1,eventName:'<script>test</script>',quantity:2,syncedAt:new Date().toISOString()}]};return {configured:true};}};
+ w.eval(fs.readFileSync('seat-sniper.js','utf8'));return {w,calls,api:w.A1SeatSniper};
+}
+test('connection submits only on explicit action and clears both tokens on success or error',async()=>{
+ for(const fail of [false,true]){const {w,calls,api}=setup(true,fail);w.document.getElementById('skyboxAccountId').value='123';w.document.getElementById('skyboxApplicationToken').value='APP-SYNTHETIC';w.document.getElementById('skyboxApiToken').value='API-SYNTHETIC';assert.equal(calls.length,0);await api.configure({preventDefault(){}});assert.equal(calls[0].action,'configure');for(const id of ['skyboxApplicationToken','skyboxApiToken'])assert.equal(w.document.getElementById(id).value,'');assert.doesNotMatch(w.document.body.textContent,/APP-SYNTHETIC|API-SYNTHETIC/);w.close();}
+});
+test('regular inventory users see escaped listings without admin connection controls',async()=>{const {w,calls,api}=setup(false);await api.open();assert.equal(w.document.getElementById('skyboxConnectionPanel').hidden,true);assert.deepEqual(calls.map(c=>c.action),['inventory']);const inventory=w.document.getElementById('seatSniperInventory');assert.match(inventory.textContent,/<script>test<\/script>/);assert.equal(inventory.querySelectorAll('script').length,0);w.dispatchEvent(new w.Event('a1-signed-out'));assert.equal(inventory.textContent,'');w.close();});

@@ -46,7 +46,7 @@ export function createHandler({env,fetchImpl=fetch}){
     const name=username(input.username),display=String(input.name||name).trim();
     if(!validUsername(name)||display.length>120)return reply({error:'Use a 2–40 character username with letters, numbers, dots, dashes, or underscores.'},400);
     if(typeof input.password!=='string'||input.password.length<8||input.password.length>200)return reply({error:'Choose a password with at least 8 characters.'},400);
-    const allowed=['main','luxury','accounts','travel','social','invoices','customers','vendors','formLetter','tripItinerary'];
+    const allowed=['main','luxury','accounts','travel','social','invoices','customers','vendors','formLetter','tripItinerary','seatSniper'];
     if(!Array.isArray(input.sections)||input.sections.some(x=>!allowed.includes(x)))return reply({error:'Choose valid categories for this user.'},400);
     const existing=await api('/rest/v1/a1_account_profiles?select=user_id&username=eq.'+encodeURIComponent(name));
     if(existing?.length)return reply({error:'That username is already in use.'},400);

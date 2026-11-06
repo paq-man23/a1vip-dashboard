@@ -42,3 +42,19 @@ Customers and vendors share an editable Rolodex. Letter tabs use the imported la
 Staff changes overlay the latest Skybox contact, preserving imported originals and protecting locally added details from weekly imports. Unedited fields continue to receive Skybox updates. Simultaneous contact edits are rejected rather than overwriting another device's save.
 
 Invoice contact search shows clickable matches as you type. Selecting a contact fills the invoice fields. Saving an invoice does not automatically overwrite a contact: choose **Save invoice details to contact** to update the selected contact's changed name, company, email, phone, address, or payment preference. Existing invoices remain historical snapshots.
+
+## Skybox API / Seat Sniper workspace
+
+The Seat Sniper / Skybox tab combines a searchable synced inventory with the existing Ticketmaster/SeatGeek discovery backend. This workspace does not claim to migrate the separate inactive A1VIP SEAT SNIPER project; its source must be supplied before restoring its previous features.
+
+Admins connect in the tab with the Skybox Account ID, Application Token, and account API Token (External Accounts → API Invitation +). The server checks access to all five list endpoints and detects pagination before enabling the connection. Credentials are encrypted in Supabase Vault; browser responses contain only connection status. The separate worker secret also remains in Vault. The application reads Skybox and never writes to Skybox.
+
+Apply the `skybox_api_sync` migration, deploy `supabase/functions/a1-skybox-sync`, then apply the `skybox_api_schedule` migration (`supabase/skybox-api-schedule.sql` is the same schedule for manual setup). The minute worker advances up to one 50-record page per resource per pass; completed scans wait five minutes. Initial historical sync can take multiple passes. Invoices/POs use overlapping last-update windows after backfill. Contacts and inventory use repeated full scans. Status shows completion, next page, counts and errors; manual sync advances the next pages, and Pause stops unattended reads. No credentials are bundled in the repository.
+
+Source IDs reuse the existing import identities, revisions, contact overlays, immutable originals and invoice conflict review. API summary records without ticket lines remain explicitly labeled summaries. Missing/invalid financial values or non-USD documents stop their page for conversion review rather than creating incorrect invoices. Such pages retry after five minutes and do not advance their watermark. API conversion does not restore details absent from Skybox responses.
+
+Inventory projects safe event/seat/quantity/list-price fields only; barcodes, transfer URLs, and internal purchase costs are excluded. A completed inventory scan retires absent listings only when its distinct-ID count matches the provider total; shifting pagination restarts the scan. Synced availability is a cached snapshot and must be checked before a quote or sale. The old Mac export importer remains available; avoid running both sources concurrently during the API cutover because their snapshots have different shapes.
+
+The new tab is assignable under Manage Accounts; existing regular-user category grants are preserved. Admins control credentials and syncing. Every browser request checks current membership, category access and a live Auth/dashboard session. The worker uses a fenced lease; pausing or reconnecting invalidates in-flight writes.
+
+Official schema: https://skybox.vividseats.com/services/openapi.json (API v1; inspected November 6, 2026).

@@ -29,7 +29,7 @@
     if (externalSignal?.aborted) controller.abort();
     else externalSignal?.addEventListener('abort', onAbort, { once:true });
     const requestUrl=String(typeof input==='string'?input:input?.url||input);
-    const timeout=requestUrl.includes('/functions/v1/a1-assistant')?75000:15000;
+    const timeout=/\/functions\/v1\/(a1-assistant|a1-skybox-sync)/.test(requestUrl)?90000:15000;
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeout);
     try { return await fetch(input, { ...options, signal:controller.signal }); }
     catch(error) {
@@ -402,6 +402,16 @@
       if(user?.id!==identity||!ready||recoveryUserId)throw new Error('Session changed. Start a new request.');
       if(result.error){let detail;try{detail=await result.error.context?.json();}catch{}throw new Error(detail?.error||'AI connection unavailable. Dashboard commands still work.');}
       if(result.data?.error&&result.data?.configured!==false)throw new Error(result.data.error);
+      return result.data;
+    },
+    skyboxRequest:async body=>{
+      const identity=user?.id,c=requireReady();
+      if(body.action==='inventory'&&!canAccess('seatSniper'))throw new Error('Category access required.');
+      if(body.action!=='inventory')requireAdmin();
+      const result=await c.functions.invoke('a1-skybox-sync',{body});
+      if(user?.id!==identity||!ready||recoveryUserId)throw new Error('Session changed. Sign in again.');
+      if(result.error){let detail;try{detail=await result.error.context?.json();}catch{}throw new Error(detail?.error||'Skybox connection unavailable.');}
+      if(result.data?.error)throw new Error(result.data.error);
       return result.data;
     },
     previewDocumentNumber:async type=>check(await requireReady().rpc('a1_preview_document_number',{p_type:type})),
