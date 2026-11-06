@@ -46,3 +46,20 @@ test('setup paces inventory probes and retries a provider throttle without chang
  const r=await h(new Request('https://fn.invalid',{method:'POST',headers:{authorization:'Bearer '+bearer},body:JSON.stringify({action:'configure',accountId:'123',apiToken:'NEW-API',applicationToken:'NEW-APP'})}));assert.equal(r.status,200);assert.equal(inventoryCalls,3);assert.deepEqual(waits,[12000,10500]);assert.equal(calls.find(c=>c.p_action==='configure').p_input.apiToken,'NEW-API');assert.doesNotMatch(await r.text(),/NEW-API|NEW-APP|secret provider/);
 });
 test('Retry-After supports seconds and HTTP dates and never shortens the minimum cooldown',async()=>{const {retryAfterMs}=await import('../supabase/functions/a1-skybox-sync/handler.mjs');assert.equal(retryAfterMs('12',10500),12000);assert.equal(retryAfterMs('0',10500),10500);assert.equal(retryAfterMs('invalid',10500),10500);assert.equal(retryAfterMs('Fri, 06 Nov 2026 23:00:30 GMT',10500,Date.parse('2026-11-06T23:00:00Z')),30000);});
+test('diagnostics summarize provider failures without retaining tokens, headers or customer data',async()=>{
+ const {responseSummary,dashboardFailure}=await import('../supabase/functions/a1-skybox-sync/diagnostics.mjs');
+ const r=Response.json({error:'Invalid API token NEW-API-PRIVATE',rows:[{email:'private@example.invalid',apiToken:'NEW-API-PRIVATE'}],rowCount:1},{status:401,headers:{'X-Api-Token':'HEADER-PRIVATE'}});
+ const summary=await responseSummary(r);assert.equal(summary.httpStatus,401);assert.equal(summary.category,'authentication');assert.equal(summary.returnedRows,1);assert.doesNotMatch(JSON.stringify(summary),/PRIVATE|example.invalid|apiToken/);
+ const failure=dashboardFailure('/rest/v1/rpc/a1_skybox_service',400,{code:'P0001',message:'Sign in again SECRET-PRIVATE',details:'PRIVATE'});assert.equal(failure.diagnostic.category,'session');assert.equal(failure.diagnostic.code,'P0001');assert.doesNotMatch(JSON.stringify(failure.diagnostic),/PRIVATE/);
+});
+test('admin failures return a diagnostic reference and safe database code in the existing error message',async()=>{
+ const {createHandler}=await import('../supabase/functions/a1-skybox-sync/handler.mjs');const logs=[];
+ const bearer='header.'+Buffer.from(JSON.stringify({session_id:'fixture-session'})).toString('base64url')+'.signature';
+ const h=createHandler({env,logger:e=>logs.push(e),fetchImpl:async(url,options)=>{
+  if(String(url).includes('/auth/v1/user'))return Response.json({id:'admin'});
+  if(String(url).includes('/a1_staff?'))return Response.json([{is_admin:true}]);
+  return Response.json({code:'PGRST202',message:'Could not find the function; PRIVATE-TOKEN',details:'private@example.invalid'},{status:404});
+ }});
+ const r=await h(new Request('https://fn.invalid',{method:'POST',headers:{authorization:'Bearer '+bearer},body:JSON.stringify({action:'configure',accountId:'123',apiToken:'PRIVATE-TOKEN',applicationToken:'PRIVATE-APP'})}));
+ const body=await r.json();assert.equal(r.status,500);assert.match(body.error,/Diagnostic .*a1_skybox_reserve_request.*PGRST202/);assert.ok(body.diagnostic.id);assert.ok(logs.some(x=>x.category==='schema_cache'));assert.doesNotMatch(JSON.stringify({logs,body}),/PRIVATE-TOKEN|PRIVATE-APP|example.invalid/);
+});
