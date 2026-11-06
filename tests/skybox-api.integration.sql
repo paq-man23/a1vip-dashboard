@@ -27,5 +27,17 @@ begin
  if public.a1_skybox_service('claim','{}') is not null then raise exception 'Paused worker ran';end if;
  if has_function_privilege('authenticated','public.a1_skybox_service(text,jsonb)','execute') or has_schema_privilege('authenticated','a1_skybox_private','usage') then raise exception 'Private API exposed';end if;
 end $$;
+do $$
+declare first_slot jsonb; second_slot jsonb; cooled jsonb;
+begin
+ update a1_skybox_private.rate_limits set next_request_at=clock_timestamp()-interval '1 second';
+ first_slot:=public.a1_skybox_reserve_request('inventory');
+ second_slot:=public.a1_skybox_reserve_request('inventory');
+ if (first_slot->>'waitMs')::integer<>0 or (second_slot->>'waitMs')::integer<10000 then raise exception 'Inventory requests were not paced';end if;
+ perform public.a1_skybox_reserve_request('customer',60000);
+ cooled:=public.a1_skybox_reserve_request('customer');
+ if (cooled->>'reserved')::boolean or (cooled->>'waitMs')::integer<59000 then raise exception 'Retry-After cooldown ignored';end if;
+ if has_function_privilege('anon','public.a1_skybox_reserve_request(text,bigint)','execute') or has_function_privilege('authenticated','public.a1_skybox_reserve_request(text,bigint)','execute') then raise exception 'Public throttle access';end if;
+end $$;
 rollback;
 select 'PASS: encrypted credentials, no secret readback, leased runs, inbound contact and inventory writes, failed page retention, category restrictions, pause and fencing' as result;
