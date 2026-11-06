@@ -63,3 +63,14 @@ test('admin failures return a diagnostic reference and safe database code in the
  const r=await h(new Request('https://fn.invalid',{method:'POST',headers:{authorization:'Bearer '+bearer},body:JSON.stringify({action:'configure',accountId:'123',apiToken:'PRIVATE-TOKEN',applicationToken:'PRIVATE-APP'})}));
  const body=await r.json();assert.equal(r.status,500);assert.match(body.error,/Diagnostic .*a1_skybox_reserve_request.*PGRST202/);assert.ok(body.diagnostic.id);assert.ok(logs.some(x=>x.category==='schema_cache'));assert.doesNotMatch(JSON.stringify({logs,body}),/PRIVATE-TOKEN|PRIVATE-APP|example.invalid/);
 });
+test('invoice timeouts identify the resource and stage without classifying credentials as invalid',async()=>{
+ const {createHandler}=await import('../supabase/functions/a1-skybox-sync/handler.mjs');const logs=[],requests=[];
+ const bearer='header.'+Buffer.from(JSON.stringify({session_id:'fixture-session'})).toString('base64url')+'.signature';
+ const h=createHandler({env,sleep:async()=>{},logger:e=>logs.push(e),fetchImpl:async(url,options)=>{
+  const p=String(url);if(p.includes('/auth/v1/user'))return Response.json({id:'admin'});if(p.includes('/a1_staff?'))return Response.json([{is_admin:true}]);
+  if(p.includes('/a1_skybox_reserve_request'))return Response.json({reserved:true,waitMs:0});
+  if(p.startsWith('https://skybox')){requests.push(new URL(p));if(p.includes('/invoices?')){const e=Error('SENSITIVE-FAILURE');e.name='TimeoutError';throw e;}return Response.json({rows:[{id:1,accountId:123}],rowCount:1});}
+  return Response.json({configured:true});
+ }});
+ const r=await h(new Request('https://fn.invalid',{method:'POST',headers:{authorization:'Bearer '+bearer},body:JSON.stringify({action:'configure',accountId:'123',apiToken:'PRIVATE-API',applicationToken:'PRIVATE-APP'})}));const body=await r.json();assert.equal(r.status,400);assert.match(body.error,/Skybox invoices did not respond/);assert.match(body.error,/connection_access.*invoices/);assert.ok(logs.some(e=>e.resource==='invoices'&&e.timeoutMs===45000));assert.equal(requests.find(u=>u.pathname.endsWith('/invoices')).searchParams.has('lastUpdateTo'),false);assert.doesNotMatch(JSON.stringify({logs,body}),/PRIVATE-API|PRIVATE-APP|SENSITIVE-FAILURE/);
+});

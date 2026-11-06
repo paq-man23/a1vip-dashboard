@@ -9,13 +9,18 @@ export function createHandler({env,fetchImpl=fetch,sleep=ms=>new Promise(resolve
  }
  const rpc=(action,input={})=>api('/rest/v1/rpc/a1_skybox_service',{method:'POST',body:{p_action:action,p_input:input}});
  const reserve=(kind,retryMs=0)=>api('/rest/v1/rpc/a1_skybox_reserve_request',{method:'POST',body:{p_kind:kind,p_retry_ms:retryMs}});
- async function skyboxRead(url,kind,headers,retry=false,report=()=>{},stage='sync_page'){
+ async function skyboxRead(url,kind,headers,retry=false,report=()=>{},stage='sync_page',deadline=Date.now()+75000){
   for(let attempt=0;attempt<(retry?2:1);attempt++){
    const slot=await reserve(kind);
    report({stage:'request_pacing',resource:resources[kind],waitMs:Number(slot?.waitMs)||0,reserved:slot?.reserved===true});
    if(!slot?.reserved)throw Error(`Skybox ${resources[kind]} is cooling down. Try again after a short wait.`);
    if(slot.waitMs>0)await sleep(slot.waitMs);
-   let response;try{response=await fetchImpl(url,{headers,signal:AbortSignal.timeout(12000)});}catch(error){report({stage,resource:resources[kind],failure:error.name==='TimeoutError'||error.name==='AbortError'?'timeout':'network'});throw error;}
+   const timeoutMs=Math.min(stage.startsWith('connection_')||kind==='invoice'?45000:12000,Math.max(1,deadline-Date.now()));
+   let response;try{response=await fetchImpl(url,{headers,signal:AbortSignal.timeout(timeoutMs)});}catch(cause){
+    const failure=cause.name==='TimeoutError'||cause.name==='AbortError'?'timeout':'network';
+    const diagnostic={stage,resource:resources[kind],failure,timeoutMs};report(diagnostic);
+    const error=Error(failure==='timeout'?`Skybox ${resources[kind]} did not respond within the allowed time. Your credentials were not rejected. Please try again shortly.`:`Skybox ${resources[kind]} could not be reached. Please try again shortly.`);error.diagnostic=diagnostic;throw error;
+   }
    report({stage,resource:resources[kind],pageNumber:url.searchParams.get('pageNumber')===null?'default':Number(url.searchParams.get('pageNumber')),attempt:attempt+1,...await responseSummary(response)});
    if(response.status!==429)return response;
    const wait=retryAfterMs(response.headers.get('retry-after'),kind==='inventory'?10500:1100);
@@ -41,7 +46,7 @@ export function createHandler({env,fetchImpl=fetch,sleep=ms=>new Promise(resolve
   if(!allowed)return reply({error:'Origin is not allowed'},403);
   if(req.method==='OPTIONS')return new Response(null,{status:204,headers});
   if(req.method!=='POST')return reply({error:'POST required'},405);
-  let lease;
+  let lease;const deadline=Date.now()+75000;
   try{
    const raw=await req.text();if(raw.length>12000)return reply({error:'Request too large'},413);let input;try{input=JSON.parse(raw);}catch{return reply({error:'Invalid request'},400);}
    if(!input||!['status','configure','pause','resume','sync','inventory','scheduled'].includes(input.action))return reply({error:'Unsupported action'},400);
@@ -65,13 +70,13 @@ export function createHandler({env,fetchImpl=fetch,sleep=ms=>new Promise(resolve
      const pageBases={};
      const skyboxHeaders={'X-Account':input.accountId,'X-Api-Token':input.apiToken.trim(),'X-Application-Token':input.applicationToken.trim()};
      await Promise.all(Object.keys(resources).map(async kind=>{
-      const u=pageUrl(kind,{page:0,until:new Date().toISOString()});u.searchParams.set('limit','1');
-      const r=await skyboxRead(u,kind,skyboxHeaders,true,report,'connection_access');
+      const u=pageUrl(kind,{page:0,until:new Date().toISOString()});u.searchParams.set('limit','1');u.searchParams.delete('lastUpdateTo');
+      const r=await skyboxRead(u,kind,skyboxHeaders,true,report,'connection_access',deadline);
       if(!r.ok)throw Error(`Skybox ${resources[kind]} access failed (HTTP ${r.status}). Check the account, tokens, and permissions.`);
       const first=await r.json();if(!Array.isArray(first.rows)||!Number.isInteger(first.rowCount))throw Error('Unexpected Skybox response format');
       if(first.rows.some(row=>String(row.accountId)!==input.accountId))throw Error('Skybox returned a different account');
       pageBases[kind]=1;
-      if(first.rows.length){u.searchParams.set('pageNumber','1');const probe=await skyboxRead(u,kind,skyboxHeaders,true,report,'connection_pagination');if(!probe.ok)throw Error(`Skybox ${resources[kind]} pagination verification failed (HTTP ${probe.status}). Try again after a short wait.`);const second=await probe.json();if(!Array.isArray(second.rows))throw Error('Unexpected Skybox pagination');pageBases[kind]=second.rows[0]?.id===first.rows[0].id?1:0;}
+      if(first.rows.length){u.searchParams.set('pageNumber','1');if(kind!=='inventory')u.searchParams.set('id',String(first.rows[0].id));const probe=await skyboxRead(u,kind,skyboxHeaders,true,report,'connection_pagination',deadline);if(!probe.ok)throw Error(`Skybox ${resources[kind]} pagination verification failed (HTTP ${probe.status}). Try again after a short wait.`);const second=await probe.json();if(!Array.isArray(second.rows))throw Error('Unexpected Skybox pagination');pageBases[kind]=second.rows[0]?.id===first.rows[0].id?1:0;}
 
      }));
      return reply(await rpc('configure',{...identity,accountId:input.accountId,applicationToken:input.applicationToken.trim(),apiToken:input.apiToken.trim(),pageBases}));
@@ -84,7 +89,7 @@ export function createHandler({env,fetchImpl=fetch,sleep=ms=>new Promise(resolve
    for(const kind of Object.keys(resources)){
     const state=job.states[kind];if(state)state.pageBase=state.page_base;if(!state||((!job.manual||state.errors>0)&&new Date(state.next_due)>new Date()))continue;
     try{
-     const response=await skyboxRead(pageUrl(kind,state),kind,{'X-Account':job.accountId,'X-Api-Token':job.apiToken,'X-Application-Token':job.applicationToken},false,report);
+     const response=await skyboxRead(pageUrl(kind,state),kind,{'X-Account':job.accountId,'X-Api-Token':job.apiToken,'X-Application-Token':job.applicationToken},false,report,'sync_page',deadline);
      if(!response.ok){const error=Error(`Skybox ${resources[kind]} HTTP ${response.status}${response.status===429?' — rate limited; will retry':''}`);error.retryMs=response.status===429?retryAfterMs(response.headers.get('retry-after'),300000):0;throw error;}
      const page=validatePage(await response.json(),state.page);if(page.rows.length&&page.rows.some(row=>String(row.accountId)!==String(job.accountId)))throw Error('Skybox returned a different account');
      const items=[];let errors=0;
