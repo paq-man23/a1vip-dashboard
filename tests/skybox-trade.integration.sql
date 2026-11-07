@@ -1,0 +1,35 @@
+begin;
+do $$
+declare admin_id uuid:=gen_random_uuid(); other_id uuid:=gen_random_uuid(); staff_id uuid:=gen_random_uuid(); sid uuid:=gen_random_uuid(); osid uuid:=gen_random_uuid(); usid uuid:=gen_random_uuid(); ident jsonb; other_ident jsonb; row jsonb; order_id text; claim jsonb; finished jsonb;
+begin
+ insert into auth.users(id,email) values(admin_id,'trade-admin@example.invalid'),(other_id,'trade-other@example.invalid'),(staff_id,'trade-staff@example.invalid');
+ insert into auth.sessions(id,user_id) values(sid,admin_id),(osid,other_id),(usid,staff_id);
+ insert into public.a1_staff(user_id,is_admin) values(admin_id,true),(other_id,true),(staff_id,false);
+ insert into public.a1_activity_sessions(user_id,auth_session_id,display_name,idle_exempt) values(admin_id,sid,'Trade Test',true),(other_id,osid,'Other Admin',true),(staff_id,usid,'Trade Staff',false);
+ ident:=jsonb_build_object('actor',admin_id,'session',sid);other_ident:=jsonb_build_object('actor',other_id,'session',osid);
+ perform public.a1_skybox_service('configure',ident||'{"accountId":"123","applicationToken":"SYNTHETIC-APP","apiToken":"SYNTHETIC-API"}'::jsonb);
+ if (public.a1_skybox_trade_service('status',ident)->>'enabled')::boolean then raise exception 'Trading enabled by default';end if;
+ begin perform public.a1_skybox_trade_service('status',jsonb_build_object('actor',staff_id,'session',usid));raise exception 'Regular user reached trading';exception when others then if sqlerrm='Regular user reached trading' then raise;end if;end;
+ begin perform public.a1_skybox_trade_service('settings',ident||'{"enabled":true}');raise exception 'Missing enable confirmation accepted';exception when others then if sqlerrm='Missing enable confirmation accepted' then raise;end if;end;
+ row:=public.a1_skybox_trade_service('prepare',ident||jsonb_build_object('inventoryId','987654321','kind','sale','intent','{"customer":{"id":7},"ticketIds":[91,92],"unitPrice":100}'::jsonb,'snapshot','{}'::jsonb,'fingerprint',repeat('a',64)));
+ order_id:=row->>'id';
+ begin perform public.a1_skybox_trade_service('claim',ident||jsonb_build_object('id',order_id,'confirmation','CONFIRM SKYBOX ACTION'));raise exception 'Disabled trading claimed';exception when others then if sqlerrm='Disabled trading claimed' then raise;end if;end;
+ perform public.a1_skybox_trade_service('settings',ident||'{"enabled":true,"confirmation":"ENABLE SKYBOX TRADING"}');
+ begin perform public.a1_skybox_trade_service('claim',ident||jsonb_build_object('id',order_id));raise exception 'Missing sale confirmation accepted';exception when others then if sqlerrm='Missing sale confirmation accepted' then raise;end if;end;
+ begin perform public.a1_skybox_trade_service('claim',other_ident||jsonb_build_object('id',order_id,'confirmation','CONFIRM SKYBOX ACTION'));raise exception 'Other admin stole preview';exception when others then if sqlerrm='Other admin stole preview' then raise;end if;end;
+ begin perform public.a1_skybox_trade_service('prepare',other_ident||jsonb_build_object('inventoryId','987654321','kind','sale','intent','{}'::jsonb,'snapshot','{}'::jsonb,'fingerprint',repeat('b',64)));raise exception 'Concurrent inventory preview accepted';exception when unique_violation then null;end;
+ claim:=public.a1_skybox_trade_service('claim',ident||jsonb_build_object('id',order_id,'confirmation','CONFIRM SKYBOX ACTION'));if not (claim->>'claimed')::boolean then raise exception 'First confirmation did not claim';end if;
+ claim:=public.a1_skybox_trade_service('claim',ident||jsonb_build_object('id',order_id,'confirmation','CONFIRM SKYBOX ACTION'));if (claim->>'claimed')::boolean then raise exception 'Duplicate confirmation claimed again';end if;
+ perform public.a1_skybox_trade_service('settings',ident||'{"enabled":false}');
+ begin perform public.a1_skybox_trade_service('write_gate',ident||jsonb_build_object('id',order_id));raise exception 'Disabled write gate accepted';exception when others then if sqlerrm='Disabled write gate accepted' then raise;end if;end;
+ perform public.a1_skybox_trade_service('state',ident||jsonb_build_object('id',order_id,'state','uncertain','code','UNCONFIRMED'));
+ claim:=public.a1_skybox_trade_service('claim',ident||jsonb_build_object('id',order_id,'confirmation','CONFIRM SKYBOX ACTION'));if (claim->>'claimed')::boolean then raise exception 'Uncertain sale resent';end if;
+ perform public.a1_skybox_trade_service('state',ident||jsonb_build_object('id',order_id,'state','provider_confirmed','providerId','987654322'));
+ finished:=public.a1_skybox_trade_service('finalize',ident||jsonb_build_object('id',order_id,'record','{"Invoice ID":"987654322"}'::jsonb,'document','{"id":"inv-skybox-invoice-987654322","number":"987654322","type":"invoice-ticket","origin":"skybox","status":"Unpaid","credit":0,"lines":[{"qty":2,"unitCost":100}]}'::jsonb));
+ if finished->>'state'<>'complete' or finished->>'invoiceId'<>'inv-skybox-invoice-987654322' then raise exception 'Confirmed sale invoice missing';end if;
+ row:=public.a1_skybox_trade_service('finalize',ident||jsonb_build_object('id',order_id));if row is distinct from finished then raise exception 'Finalization retry not idempotent';end if;
+ if (select count(*) from public.a1_invoices where id='inv-skybox-invoice-987654322')<>1 then raise exception 'Duplicate sale invoice';end if;
+ if has_function_privilege('authenticated','public.a1_skybox_trade_service(text,jsonb)','execute') or has_function_privilege('anon','public.a1_skybox_trade_service(text,jsonb)','execute') or has_table_privilege('authenticated','a1_skybox_private.trade_orders','select') then raise exception 'Trade internals exposed';end if;
+end $$;
+rollback;
+select 'PASS: disabled default, admin and session checks, explicit confirmation, inventory lock, single claim, disabled write gate, uncertain retry protection, one confirmed linked invoice, public-role denial' as result;

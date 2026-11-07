@@ -330,3 +330,5 @@ body .copilot-panel .copilot-header>div{order:-2}
 #seatSniper details { margin:20px 0; }
 #seatSniper summary, #skyboxConnectionPanel summary { cursor:pointer; padding:10px 0; font-weight:600; }
 #skyboxApiProgress { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:12px; }
+.skybox-trade-dialog{width:min(760px,92vw);max-height:88vh;overflow:auto;background:#0b1220;color:#f8fafc;border:1px solid #475569;border-radius:14px;padding:24px;box-sizing:border-box}.skybox-trade-dialog::backdrop{background:#020617bf}.skybox-trade-dialog form{display:grid;gap:14px}.skybox-trade-dialog label{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.skybox-trade-dialog input:not([type=checkbox]),.skybox-trade-dialog select{max-width:100%;box-sizing:border-box;min-height:40px;padding:8px}.skybox-trade-dialog fieldset label{display:flex;padding:8px}.skybox-trade-dialog .btn{margin:6px 8px 6px 0}#skyboxTradeHistory{display:grid;gap:12px}@media(max-width:600px){.skybox-trade-dialog{padding:14px}.skybox-trade-dialog form>label{display:grid}.skybox-trade-dialog .btn{white-space:normal}}
+.skybox-trade-dialog [hidden]{display:none!important}
