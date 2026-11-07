@@ -29,7 +29,7 @@
     if (externalSignal?.aborted) controller.abort();
     else externalSignal?.addEventListener('abort', onAbort, { once:true });
     const requestUrl=String(typeof input==='string'?input:input?.url||input);
-    const timeout=/\/functions\/v1\/(a1-assistant|a1-skybox-sync)/.test(requestUrl)?90000:15000;
+    const timeout=/\/functions\/v1\/(a1-assistant|a1-skybox-sync|a1-skybox-trade)/.test(requestUrl)?90000:15000;
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeout);
     try { return await fetch(input, { ...options, signal:controller.signal }); }
     catch(error) {
@@ -411,6 +411,14 @@
       const result=await c.functions.invoke('a1-skybox-sync',{body});
       if(user?.id!==identity||!ready||recoveryUserId)throw new Error('Session changed. Sign in again.');
       if(result.error){let detail;try{detail=await result.error.context?.json();}catch{}throw new Error(detail?.error||'Skybox connection unavailable.');}
+      if(result.data?.error)throw new Error(result.data.error);
+      return result.data;
+    },
+    skyboxTradeRequest:async body=>{
+      const identity=user?.id,c=requireAdmin();
+      const result=await c.functions.invoke('a1-skybox-trade',{body});
+      if(user?.id!==identity||!ready||recoveryUserId)throw new Error('Session changed. Sign in again.');
+      if(result.error){let detail;try{detail=await result.error.context?.json();}catch{}throw new Error(detail?.error||'Skybox trading is unavailable.');}
       if(result.data?.error)throw new Error(result.data.error);
       return result.data;
     },
