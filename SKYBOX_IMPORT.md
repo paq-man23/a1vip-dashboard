@@ -58,3 +58,17 @@ Inventory projects safe event/seat/quantity/list-price fields only; barcodes, tr
 The new tab is assignable under Manage Accounts; existing regular-user category grants are preserved. Admins control credentials and syncing. Every browser request checks current membership, category access and a live Auth/dashboard session. The worker uses a fenced lease; pausing or reconnecting invalidates in-flight writes.
 
 Official schema: https://skybox.vividseats.com/services/openapi.json (API v1; inspected November 6, 2026).
+
+### API request pacing
+
+Skybox's published rate-limit table lists unfiltered `GET /inventory` at one request per ten seconds and the general default at fifty per second. Shared database reservations space our inventory calls by at least 10.5 seconds and each other list endpoint by 1.1 seconds. Setup pagination probes, manual sync, and the minute scheduler all use the same reservations. HTTP 429 responses defer subsequent calls by at least the provider Retry-After value (seconds or HTTP date); connection validation retries once within its request budget, while scheduled pages retain their cursor and retry later. Manual sync respects error backoff. Credentials are the three current values supplied by an administrator, never API-token entry IDs or legacy export credentials.
+
+Source: https://skybox.zendesk.com/hc/en-us/articles/5999881334427-SkyBox-API-Rate-Limits (verified November 6, 2026). Endpoint paths, header names, pagination parameters and read-only verbs were checked against https://skybox.vividseats.com/services/openapi.json. Per-account/application limits supplied by Skybox can override the general published defaults.
+
+### Safe connection diagnostics
+
+Administrator connection errors include a diagnostic reference that matches structured `a1_skybox_diagnostic` Edge Function log entries. Logs identify the stage, resource, HTTP status, pagination probe, cooldown, response format/counts and recognized error category. Dashboard database failures include an allowlisted SQL/PostgREST error code. Tokens, authorization headers, account IDs, raw response bodies, database messages and source record fields are excluded. Diagnostic details are returned only after administrator membership has been verified. Existing setup messages display the reference without a frontend update.
+
+Connection probes allow up to 45 seconds per provider request within a 75-second overall request budget. Invoice and purchase read-access probes include both lastUpdateFrom and lastUpdateTo for the last 24 hours; contact and document pagination probes target the first returned ID to avoid scanning another complete history. Scheduled invoice reads also allow up to 45 seconds within the worker request budget. Timeouts identify the resource and stage and do not classify an unreturned response as invalid credentials.
+
+PostgREST enables safe-update protection. Connection initialization and Resume explicitly scope updates to the five supported progress kinds; unqualified progress updates are rejected by the API with SQLSTATE 21000 even if direct SQL tests pass. The fix was verified through the deployed Edge Function and PostgREST transport using synthetic credentials in a rolled-back subtransaction. The temporary service-only probe was then disabled and its Edge action removed.
