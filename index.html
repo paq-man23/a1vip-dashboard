@@ -359,7 +359,7 @@
     }
   </style>
 <link rel="stylesheet" href="./contacts.css">
-<link rel="stylesheet" href="./dashboard.css">
+<link rel="stylesheet" href="./dashboard.css?v=74">
 </head>
 <body class="a1-locked">
 
@@ -911,22 +911,8 @@
         <p>Uses the search above. External results are separate from A1 inventory; prices and availability must be verified with each source.</p>
         <div id="seatSniperEvents" aria-live="polite"></div>
       </details>
-      <div id="skyboxConnectionPanel" hidden data-admin-only class="invoice-history-card">
-        <h3>Skybox Connection &amp; Sync</h3>
-        <p id="skyboxConnectionSummary" role="status"></p>
-        <form onsubmit="A1SeatSniper.configure(event)" autocomplete="off">
-          <div class="invoice-toolbar">
-            <label>Skybox Account ID <input id="skyboxAccountId" inputmode="numeric" pattern="[0-9]+" required></label>
-            <label>Application Token <input id="skyboxApplicationToken" type="password" autocomplete="new-password" required></label>
-            <label>Account API Token <input id="skyboxApiToken" type="password" autocomplete="new-password" required></label>
-          </div>
-          <p>Get your account API token in Skybox: Logged In As → External Accounts → API Invitation +. Tokens are stored encrypted and never displayed again.</p>
-          <button class="btn" type="submit">Test Connection &amp; Enable Sync</button>
-        </form>
-        <p>Customers, vendors, invoices, purchase orders, and inventory sync automatically while the dashboard is closed. History imports in pages; completed scans refresh after five minutes. A1 document edits are protected; conflicts appear under Admin → Imports Needing Review.</p>
-        <div class="invoice-toolbar"><button class="btn" onclick="A1SeatSniper.sync()">Sync Next Pages Now</button><button class="btn" onclick="A1SeatSniper.status()">Refresh Status</button><button class="btn" onclick="A1SeatSniper.pause()">Pause Sync</button><button class="btn" onclick="A1SeatSniper.pause('resume')">Resume Sync</button><button class="btn" onclick="showSection('admin')">Review Import Conflicts</button></div>
-        <p id="seatSniperMessage" role="status" aria-live="polite"></p><div id="skyboxApiProgress"></div>
-      </div>
+      <p id="seatSniperMessage" role="status" aria-live="polite"></p>
+
     </div>
 
     <div id="customers" class="section" style="display:none;">
@@ -958,6 +944,25 @@
         <button class="btn" style="display:none;" data-system-btn="1" onclick="showSection('system')">SYSTEM</button>
       </nav>
 
+      <div id="skyboxConnectionPanel" hidden data-admin-only class="upload-card">
+        <h3>Skybox Connection &amp; Sync</h3>
+        <p id="skyboxConnectionSummary" role="status"></p>
+        <p>Your saved connection is used automatically for syncing. Open the credential settings only to connect or replace your keys.</p>
+        <details><summary>Connection credentials</summary>
+        <form onsubmit="A1SeatSniper.configure(event)" autocomplete="off">
+          <div class="invoice-toolbar">
+            <label>Skybox Account ID <input id="skyboxAccountId" inputmode="numeric" pattern="[0-9]+" required></label>
+            <label>Application Token <input id="skyboxApplicationToken" type="password" autocomplete="new-password" required></label>
+            <label>Account API Token <input id="skyboxApiToken" type="password" autocomplete="new-password" required></label>
+          </div>
+          <p>Get your account API token in Skybox: Logged In As → External Accounts → API Invitation +. Tokens are stored encrypted and never displayed again.</p>
+          <button class="btn" type="submit">Test Connection &amp; Enable Sync</button>
+        </form>
+        </details>
+        <p>Customers, vendors, invoices, purchase orders, and inventory sync automatically while the dashboard is closed. History imports in pages; completed scans refresh after five minutes. A1 document edits are protected; conflicts appear under Admin → Imports Needing Review.</p>
+        <div class="invoice-toolbar"><button class="btn" onclick="A1SeatSniper.sync()">Sync Next Pages Now</button><button class="btn" onclick="A1SeatSniper.status()">Refresh Status</button><button class="btn" onclick="A1SeatSniper.pause()">Pause Sync</button><button class="btn" onclick="A1SeatSniper.pause('resume')">Resume Sync</button><button class="btn" onclick="document.getElementById('importConflictList').scrollIntoView({behavior:'smooth'})">Review Import Conflicts</button></div>
+        <p id="skyboxSyncMessage" role="status" aria-live="polite"></p><div id="skyboxApiProgress"></div>
+      </div>
       <div class="upload-card" data-admin-only hidden>
         <h3>User Login History / Punch Card</h3>
         <button class="btn" type="button" onclick="A1Activity.customize(true)">Set User Link Defaults</button>
@@ -1262,7 +1267,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.1/dist/umd/supabase.js"></script>
 <script src="./supabase-config.js"></script>
-<script src="./a1-data.js?v=73"></script>
+<script src="./a1-data.js?v=74"></script>
 <script src="./a1-activity.js"></script>
 <script src="./account-preview.js"></script>
 <script src="./a1-accounts.js"></script>
@@ -1281,7 +1286,7 @@
 <script src="./a1-invoice-fields.js"></script>
 <script src="./a1-contacts.js"></script>
 <script src="./skybox-ui.js"></script>
-<script src="./seat-sniper.js?v=73"></script>
+<script src="./seat-sniper.js?v=74"></script>
 <script>
     /* ===== Config ===== */
     const STORAGE_KEY = 'a1vip-button-manager-v2';
@@ -1851,7 +1856,7 @@
       if (window.matchMedia('(max-width:760px), (orientation:landscape) and (max-height:600px) and (max-width:1100px)').matches) setSectionMenuExpanded(false);
       loadSectionData(id);
       if(id==='invoices')refreshInvoiceNumberPreview();
-      if(id==='admin')window.A1Activity?.history();
+      if(id==='admin'){window.A1Activity?.history();window.A1SeatSniper?.status();}
       if(id==='manageAccounts')window.A1Accounts?.load();
       if(id==='seatSniper')window.A1SeatSniper?.open();
     }

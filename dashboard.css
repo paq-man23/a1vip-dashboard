@@ -323,10 +323,10 @@ body .copilot-panel .copilot-header>div{order:-2}
 .tab-vault{--tab-accent:#fbbf24}
 
 /* Seat Sniper shares the dashboard's forms and cards. */
-#seatSniper .invoice-toolbar { flex-wrap:wrap; gap:12px; align-items:end; }
-#seatSniper label { display:flex; flex-direction:column; gap:6px; min-width:0; }
-#seatSniper input { max-width:100%; box-sizing:border-box; padding:9px; }
+#seatSniper .invoice-toolbar, #skyboxConnectionPanel .invoice-toolbar { flex-wrap:wrap; gap:12px; align-items:end; }
+#seatSniper label, #skyboxConnectionPanel label { display:flex; flex-direction:column; gap:6px; min-width:0; }
+#seatSniper input, #skyboxConnectionPanel input { max-width:100%; box-sizing:border-box; padding:9px; }
 #skyboxConnectionPanel form .invoice-toolbar > label { flex:1 1 200px; }
 #seatSniper details { margin:20px 0; }
-#seatSniper summary { cursor:pointer; padding:10px 0; font-weight:600; }
+#seatSniper summary, #skyboxConnectionPanel summary { cursor:pointer; padding:10px 0; font-weight:600; }
 #skyboxApiProgress { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:12px; }
