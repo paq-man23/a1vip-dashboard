@@ -360,6 +360,7 @@
   </style>
 <link rel="stylesheet" href="./contacts.css">
 <link rel="stylesheet" href="./dashboard.css?v=74">
+<link rel="stylesheet" href="./seat-sniper-workspace.css">
 </head>
 <body class="a1-locked">
 
@@ -895,24 +896,37 @@
 
 
     <div id="seatSniper" class="section" style="display:none;">
-      <h2>Seat Sniper / Skybox</h2>
-      <p>Find your Skybox inventory and discover events through Ticketmaster and SeatGeek.</p>
-      <form class="invoice-toolbar" onsubmit="event.preventDefault();A1SeatSniper.inventory(true)">
-        <label>Artist, team, venue, section, or ID <input id="seatSniperQuery" type="search" maxlength="120" placeholder="Search tickets or events"></label>
-        <button class="btn" type="submit">Search Our Inventory</button>
-      </form>
-      <div id="seatSniperInventory" aria-live="polite"></div>
-      <details><summary>Search Ticketmaster &amp; SeatGeek</summary>
+      <div class="sniper-heading"><div><h2>Seat Sniper <span class="muted">/ Inventory</span></h2><p>Skybox-synced inventory and external event discovery. Inventory is a cached snapshot; confirm availability before selling.</p></div><span class="sniper-source">Skybox inventory · Read only</span></div>
+      <div class="sniper-nav" role="tablist" aria-label="Seat Sniper workspaces">
+        <button type="button" class="sniper-nav-button active" role="tab" aria-selected="true" aria-controls="sniperInventoryPanel" id="sniperInventoryTab" onclick="A1SniperWorkspace.show('inventory')">Inventory</button>
+        <button type="button" class="sniper-nav-button" role="tab" aria-selected="false" aria-controls="sniperMarketPanel" id="sniperMarketTab" onclick="A1SniperWorkspace.show('market')">Market Search</button>
+        <button type="button" class="sniper-nav-button" role="tab" aria-selected="false" aria-controls="sniperTradingPanel" id="sniperTradingTab" onclick="A1SniperWorkspace.show('trading')">Buying &amp; Selling</button>
+      </div>
+      <div id="sniperInventoryPanel" role="tabpanel" aria-labelledby="sniperInventoryTab">
+        <form class="invoice-toolbar sniper-search" onsubmit="event.preventDefault();A1SeatSniper.inventory(true)">
+          <label>Search inventory <input id="seatSniperQuery" type="search" maxlength="120" placeholder="Event, artist, venue, section or listing ID" aria-label="Search Skybox inventory"></label>
+          <button class="btn" type="submit">Search Inventory</button>
+          <button class="btn" type="button" onclick="document.getElementById('seatSniperQuery').value='';A1SeatSniper.inventory(true)">Clear</button>
+        </form>
+        <div class="sniper-note">Inventory is sourced from the existing Skybox sync. No listing changes or orders are sent to Skybox from this screen.</div>
+        <div id="seatSniperInventory" aria-live="polite"></div>
+      </div>
+      <div id="sniperMarketPanel" role="tabpanel" aria-labelledby="sniperMarketTab" hidden>
+        <h3>Ticketmaster &amp; SeatGeek Event Discovery</h3>
         <form class="invoice-toolbar" onsubmit="A1SeatSniper.events(event)">
           <label>State code <input id="seatSniperState" maxlength="2" placeholder="FL" size="4"></label>
           <label>From <input id="seatSniperFrom" type="date"></label><label>Through <input id="seatSniperTo" type="date"></label>
           <button class="btn" type="submit">Find Events</button>
         </form>
-        <p>Uses the search above. External results are separate from A1 inventory; prices and availability must be verified with each source.</p>
+        <p class="muted">Uses the inventory search phrase above. Discovery results are not live offers, verified ticket prices or purchasing access.</p>
         <div id="seatSniperEvents" aria-live="polite"></div>
-      </details>
+      </div>
+      <div id="sniperTradingPanel" role="tabpanel" aria-labelledby="sniperTradingTab" hidden>
+        <h3>Buying &amp; Selling</h3>
+        <p>Skybox marketplace sales and direct A1 customer invoices are planned. Trading actions remain unavailable until provider permissions, live availability checks and order reconciliation are verified.</p>
+        <div class="sniper-note">No ticket will be purchased, reserved, relisted or marked sold from this workspace yet. Use the existing authorized provider workflow for transactions.</div>
+      </div>
       <p id="seatSniperMessage" role="status" aria-live="polite"></p>
-
     </div>
 
     <div id="customers" class="section" style="display:none;">
@@ -5058,6 +5072,19 @@ function createBtn(label, url, isCustom=true){
     }
 
 
+    window.A1SniperWorkspace = {
+      show(name) {
+        const tabs = ['inventory','market','trading'];
+        if (!tabs.includes(name)) return;
+        for (const tab of tabs) {
+          const selected = tab === name;
+          const panel = document.getElementById('sniper' + tab[0].toUpperCase() + tab.slice(1) + 'Panel');
+          const button = document.getElementById('sniper' + tab[0].toUpperCase() + tab.slice(1) + 'Tab');
+          if (panel) panel.hidden = !selected;
+          if (button) { button.setAttribute('aria-selected', String(selected)); button.classList.toggle('active', selected); }
+        }
+      }
+    };
     window.addEventListener('DOMContentLoaded', init);
   </script>
 

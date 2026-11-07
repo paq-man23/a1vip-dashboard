@@ -1,0 +1,16 @@
+/* Seat Sniper inventory workspace: uses existing dashboard palette and controls. */
+.sniper-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.sniper-heading h2{margin-bottom:4px}
+.sniper-heading p{margin-top:0}
+.sniper-source{border:1px solid rgba(148,163,184,.4);border-radius:999px;padding:7px 12px;font-size:12px;white-space:nowrap}
+.sniper-nav{display:flex;flex-wrap:wrap;gap:8px;border-bottom:1px solid rgba(148,163,184,.28);margin:18px 0;padding-bottom:10px}
+.sniper-nav-button{border:1px solid rgba(148,163,184,.32);background:transparent;color:inherit;border-radius:10px;padding:10px 14px;cursor:pointer;font:inherit}
+.sniper-nav-button.active{background:rgba(34,211,238,.14);border-color:rgba(34,211,238,.65);font-weight:700}
+.sniper-nav-button:focus-visible{outline:3px solid #22d3ee;outline-offset:2px}
+#seatSniper [role=tabpanel][hidden]{display:none!important}
+.sniper-search{align-items:end}
+.sniper-search label{flex:1 1 300px}
+.sniper-search input{width:100%;min-width:0}
+.sniper-note{border:1px solid rgba(148,163,184,.25);border-radius:10px;padding:12px;margin:12px 0;color:inherit;font-size:13px}
+#seatSniperInventory{overflow-x:auto;max-width:100%}
+@media(max-width:640px){.sniper-nav-button{flex:1 1 130px}.sniper-search button{flex:1 1 auto}.sniper-heading{display:block}.sniper-source{display:inline-block;margin-bottom:12px}}
