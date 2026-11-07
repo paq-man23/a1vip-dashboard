@@ -36,6 +36,6 @@ export function dashboardFailure(path,status,data){
  if(typeof data?.code==='string'&&/^(?:[0-9A-Z]{5}|PGRST\d{3})$/.test(data.code))error.diagnostic.code=data.code;
  // Recognize a few actionable errors, without copying database text.
  const message=String(data?.message||'');
- error.diagnostic.category=/permission denied/i.test(message)?'permission':/schema cache|could not find.*function/i.test(message)?'schema_cache':/sign in again/i.test(message)?'session':/account change requires/i.test(message)?'account_change':'database';
+ error.diagnostic.category=/UPDATE requires a WHERE clause/i.test(message)?'safe_update':/permission denied/i.test(message)?'permission':/schema cache|could not find.*function/i.test(message)?'schema_cache':/sign in again/i.test(message)?'session':/account change requires/i.test(message)?'account_change':'database';
  return error;
 }
