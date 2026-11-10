@@ -59,7 +59,7 @@ Al can also search SeatGeek alongside Ticketmaster when server-only `SEATGEEK_CL
 
 ### Skybox API connection
 
-Admins can open Seat Sniper / Skybox → Skybox Connection & Sync, enter the Account ID, Application Token and account API Token, then choose Test Connection & Enable Sync. The backend validates access before storing tokens encrypted in Vault. A scheduled worker imports customers, vendors, invoices, purchase orders and inventory in pages while the dashboard is closed. Completed scans refresh after five minutes; initial history takes multiple passes. Pause and Resume control automatic syncing, and conflicts preserve A1 document edits. See [Skybox setup and boundaries](SKYBOX_IMPORT.md#skybox-api--seat-sniper-workspace).
+Admins can open Admin → Skybox Connection & Sync, enter the Account ID, Application Token and account API Token, then choose Test Connection & Enable Sync. The backend validates access before storing tokens encrypted in Vault. A scheduled worker imports customers, vendors, invoices, purchase orders and inventory in pages while the dashboard is closed. Completed scans refresh after five minutes; initial history takes multiple passes. Pause and Resume control automatic syncing, and conflicts preserve A1 document edits. See [Skybox setup and boundaries](SKYBOX_IMPORT.md#skybox-api--ticket-ui-workspace).
 
 ## Ticket UI
 
@@ -103,3 +103,5 @@ and shared request pacing as the existing Skybox sync. Run `npm test`; browser Q
 synthetic data, including the sale review step, without sending any real transaction.
 Regenerate the documented contract with `python scripts/update-ticket-catalog.py`
 only after reviewing upstream API changes.
+
+Seat Sniper is a dedicated outside-ticket search using Ticketmaster and SeatGeek, with event, state and date filters. Skybox inventory and actions live in Ticket UI; connection and sync controls remain in Admin. Opening Seat Sniper does not query Skybox.

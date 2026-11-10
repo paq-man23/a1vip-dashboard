@@ -1,6 +1,6 @@
 /* Read-only user dashboard preview. Does not impersonate users or write preferences. */
 (function(root){
- const sections=[['main','Main Links'],['luxury','Suites'],['accounts','Ticket Accounts'],['travel','Travel'],['social','Social'],['invoices','Invoices & POs'],['seatSniper','Seat Sniper / Skybox'],['customers','Customers'],['vendors','Vendors'],['formLetter','Letters'],['tripItinerary','Trips']];
+ const sections=[['main','Main Links'],['luxury','Suites'],['accounts','Ticket Accounts'],['travel','Travel'],['social','Social'],['invoices','Invoices & POs'],['seatSniper','Seat Sniper'],['customers','Customers'],['vendors','Vendors'],['formLetter','Letters'],['tripItinerary','Trips']];
  const children={privatejet:'Private Jet',luxhomes:'Luxury Homes',yachts:'Yachts'};
  const normalize=url=>{try{return new URL(url).href;}catch{return String(url||'');}};
  function build(choices,shared){

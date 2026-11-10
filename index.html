@@ -466,7 +466,7 @@
       <button class="tab tab-social" data-category="social" onclick="showSection('social')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 11a9 9 0 0 1-9 9 9 9 0 0 1-4-1l-5 2 2-5a9 9 0 0 1-1-4 9 9 0 0 1 17-1Z"/><path d="M8 11h8m-8 4h5"/></svg><span class="tab-label">Social</span></button>
       <button class="tab tab-invoices" data-category="invoices" onclick="showSection('invoices')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H5v20h14V7Z"/><path d="M14 2v5h5M8 11h8m-8 4h8m-8 4h5"/></svg><span class="tab-label">Invoices &amp; POs</span></button>
       <button class="tab tab-invoices" data-category="ticketUI" onclick="showSection('ticketUI')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 4h18v5a3 3 0 0 0 0 6v5H3v-5a3 3 0 0 0 0-6z"/><path d="M15 4v16" stroke-dasharray="2 2"/></svg><span class="tab-label">Ticket UI</span></button>
-      <button class="tab tab-invoices" data-category="seatSniper" onclick="showSection('seatSniper')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5"/></svg><span class="tab-label">Seat Sniper / Skybox</span></button>
+      <button class="tab tab-invoices" data-category="seatSniper" onclick="showSection('seatSniper')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5"/></svg><span class="tab-label">Seat Sniper</span></button>
       <button class="tab tab-invoices" data-category="customers" onclick="showSection('customers')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="7" r="4"/><path d="M2 21v-3a7 7 0 0 1 14 0v3M17 3a4 4 0 0 1 0 8m2 3a6 6 0 0 1 3 5v2"/></svg><span class="tab-label">Customers</span></button>
       <button class="tab tab-invoices" data-category="vendors" onclick="showSection('vendors')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V3h8v4M3 12h18m-9 0v4"/></svg><span class="tab-label">Vendors</span></button>
       <button class="tab tab-letter" data-category="formLetter" onclick="showSection('formLetter')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 5 10 8L22 5"/></svg><span class="tab-label">Letters</span></button>
@@ -899,36 +899,16 @@
 
     <section id="ticketUI" class="section" style="display:none;" aria-label="Ticket UI"></section>
     <div id="seatSniper" class="section" style="display:none;">
-      <div class="sniper-heading"><div><h2>Seat Sniper <span class="muted">/ Inventory</span></h2><p>Skybox-synced inventory and external event discovery. Inventory is a cached snapshot; confirm availability before selling.</p></div><span class="sniper-source">Skybox inventory · Read only</span></div>
-      <div class="sniper-nav" role="tablist" aria-label="Seat Sniper workspaces">
-        <button type="button" class="sniper-nav-button active" role="tab" aria-selected="true" aria-controls="sniperInventoryPanel" id="sniperInventoryTab" onclick="A1SniperWorkspace.show('inventory')">Inventory</button>
-        <button type="button" class="sniper-nav-button" role="tab" aria-selected="false" aria-controls="sniperMarketPanel" id="sniperMarketTab" onclick="A1SniperWorkspace.show('market')">Market Search</button>
-        <button type="button" class="sniper-nav-button" role="tab" aria-selected="false" aria-controls="sniperTradingPanel" id="sniperTradingTab" onclick="A1SniperWorkspace.show('trading')">Buying &amp; Selling</button>
-      </div>
-      <div id="sniperInventoryPanel" role="tabpanel" aria-labelledby="sniperInventoryTab">
-        <form class="invoice-toolbar sniper-search" onsubmit="event.preventDefault();A1SeatSniper.inventory(true)">
-          <label>Search inventory <input id="seatSniperQuery" type="search" maxlength="120" placeholder="Event, artist, venue, section or listing ID" aria-label="Search Skybox inventory"></label>
-          <button class="btn" type="submit">Search Inventory</button>
-          <button class="btn" type="button" onclick="document.getElementById('seatSniperQuery').value='';A1SeatSniper.inventory(true)">Clear</button>
-        </form>
-        <div class="sniper-note">Inventory is sourced from the existing Skybox sync. No listing changes or orders are sent to Skybox from this screen.</div>
-        <div id="seatSniperInventory" aria-live="polite"></div>
-      </div>
-      <div id="sniperMarketPanel" role="tabpanel" aria-labelledby="sniperMarketTab" hidden>
-        <h3>Ticketmaster &amp; SeatGeek Event Discovery</h3>
-        <form class="invoice-toolbar" onsubmit="A1SeatSniper.events(event)">
-          <label>State code <input id="seatSniperState" maxlength="2" placeholder="FL" size="4"></label>
-          <label>From <input id="seatSniperFrom" type="date"></label><label>Through <input id="seatSniperTo" type="date"></label>
-          <button class="btn" type="submit">Find Events</button>
-        </form>
-        <p class="muted">Uses the inventory search phrase above. Discovery results are not live offers, verified ticket prices or purchasing access.</p>
-        <div id="seatSniperEvents" aria-live="polite"></div>
-      </div>
-      <div id="sniperTradingPanel" role="tabpanel" aria-labelledby="sniperTradingTab" hidden>
-        <h3>Buying &amp; Selling</h3>
-        <p>Skybox marketplace sales and direct A1 customer invoices are planned. Trading actions remain unavailable until provider permissions, live availability checks and order reconciliation are verified.</p>
-        <div class="sniper-note">No ticket will be purchased, reserved, relisted or marked sold from this workspace yet. Use the existing authorized provider workflow for transactions.</div>
-      </div>
+      <div class="sniper-heading"><div><h2>Seat Sniper <span class="muted">/ Ticket Search</span></h2><p>Find events and tickets outside your inventory using Ticketmaster and SeatGeek.</p></div><span class="sniper-source">Ticketmaster · SeatGeek</span></div>
+      <form id="seatSniperSearch" class="invoice-toolbar sniper-search" onsubmit="A1SeatSniper.events(event)">
+        <label>Artist, team, or event <input id="seatSniperQuery" type="search" maxlength="120" required placeholder="Artist, team, or event name" aria-label="Search outside tickets"></label>
+        <label>State code <input id="seatSniperState" maxlength="2" placeholder="FL" size="4"></label>
+        <label>From <input id="seatSniperFrom" type="date"></label><label>Through <input id="seatSniperTo" type="date"></label>
+        <button class="btn" type="submit">Search Tickets</button>
+        <button class="btn" type="button" onclick="A1SeatSniper.clearSearch()">Clear</button>
+      </form>
+      <p class="muted">Search results link to the ticket providers. Prices and availability are confirmed on the provider’s site.</p>
+      <div id="seatSniperEvents" aria-live="polite"><p>Enter an artist, team, or event to search Ticketmaster and SeatGeek.</p></div>
       <p id="seatSniperMessage" role="status" aria-live="polite"></p>
     </div>
 
@@ -1303,7 +1283,7 @@
 <script src="./a1-invoice-fields.js"></script>
 <script src="./a1-contacts.js"></script>
 <script src="./skybox-ui.js"></script>
-<script src="./seat-sniper.js?v=74"></script>
+<script src="./seat-sniper.js?v=77"></script>
 <script src="./ticket-ui.js?v=76"></script>
 <script>
     /* ===== Config ===== */
@@ -5077,19 +5057,6 @@ function createBtn(label, url, isCustom=true){
     }
 
 
-    window.A1SniperWorkspace = {
-      show(name) {
-        const tabs = ['inventory','market','trading'];
-        if (!tabs.includes(name)) return;
-        for (const tab of tabs) {
-          const selected = tab === name;
-          const panel = document.getElementById('sniper' + tab[0].toUpperCase() + tab.slice(1) + 'Panel');
-          const button = document.getElementById('sniper' + tab[0].toUpperCase() + tab.slice(1) + 'Tab');
-          if (panel) panel.hidden = !selected;
-          if (button) { button.setAttribute('aria-selected', String(selected)); button.classList.toggle('active', selected); }
-        }
-      }
-    };
     window.addEventListener('DOMContentLoaded', init);
   </script>
 
