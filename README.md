@@ -60,3 +60,46 @@ Al can also search SeatGeek alongside Ticketmaster when server-only `SEATGEEK_CL
 ### Skybox API connection
 
 Admins can open Seat Sniper / Skybox → Skybox Connection & Sync, enter the Account ID, Application Token and account API Token, then choose Test Connection & Enable Sync. The backend validates access before storing tokens encrypted in Vault. A scheduled worker imports customers, vendors, invoices, purchase orders and inventory in pages while the dashboard is closed. Completed scans refresh after five minutes; initial history takes multiple passes. Pause and Resume control automatic syncing, and conflicts preserve A1 document edits. See [Skybox setup and boundaries](SKYBOX_IMPORT.md#skybox-api--seat-sniper-workspace).
+
+## Ticket UI
+
+The separate **Ticket UI** dashboard button opens a native, Skybox-style workspace
+in A1's navy/green colors. It does not embed the Skybox website. Inventory is grouped
+by event in a dense grid with filters, pagination, listing details, and Edit/Sell/Hold
+row actions. Separate workspaces cover invoices, purchases, holds, contacts, events,
+and reports. The action menu exposes typed forms generated from the official
+Skybox OpenAPI contract captured on November 10, 2026 (207 operations). The Sierra
+STS-token endpoint is excluded because it belongs to a separate integration.
+
+- The `a1-ticket-ui` Edge Function sends requests to Skybox using the **existing
+  encrypted connection**. Account ID, Application Token and API Token stay server-side.
+  No credentials need to be entered again. The existing sync function is unchanged.
+- Live records and all Skybox actions are **administrator-only**. Regular users with
+  existing Seat Sniper permissions can browse the synced inventory snapshot in Ticket
+  UI. Ticket UI inherits that category's permissions; this does not expand staff access.
+- Skybox itself enforces account/API permissions. Having a documented action in the
+  catalog does not establish that this account is permitted to perform it.
+- Mutations, including GET-based send-email and resend actions, require an expiring,
+  signed review tied to the current user/session and exact payload. A private operation
+  ledger prevents replay of the same submission. Provider writes are never retried.
+  A timeout or 5xx can leave the result **unknown**: check Skybox before creating a
+  new submission. The ledger stores action/status metadata, not payloads or secrets.
+- Sell refreshes ticket IDs before preparing an invoice. The user chooses customer,
+  ticket IDs and line amounts, then reviews before submitting. Provider validation is
+  authoritative; no sales, purchases, payments, refunds or emails run during QA.
+- Invoice and PO records written to Skybox are imported by the existing automatic
+  inbound sync; they are not also created as separate A1 invoices at submission time.
+- All filters/actions beyond the primary tables use schema-driven forms. This is an
+  API-backed workspace, **not verified feature-for-feature or pixel-for-pixel parity**
+  with the authenticated Skybox website. Unsupported provider responses, large exports
+  over 8 MB, and permission denials surface as errors. The broad catalog has synthetic
+  contract/authorization tests; each write workflow still needs account-level acceptance
+  testing with deliberately chosen records before operational use.
+
+Deploy `20261110232624_ticket_ui_operations.sql` and the new `a1-ticket-ui` Edge
+Function (JWT validation is performed explicitly with Auth plus current-session DB
+checks) before publishing the frontend. The new function uses the same CORS origins
+and shared request pacing as the existing Skybox sync. Run `npm test`; browser QA uses
+synthetic data, including the sale review step, without sending any real transaction.
+Regenerate the documented contract with `python scripts/update-ticket-catalog.py`
+only after reviewing upstream API changes.
