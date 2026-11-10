@@ -29,7 +29,7 @@
     if (externalSignal?.aborted) controller.abort();
     else externalSignal?.addEventListener('abort', onAbort, { once:true });
     const requestUrl=String(typeof input==='string'?input:input?.url||input);
-    const timeout=/\/functions\/v1\/(a1-assistant|a1-skybox-sync)/.test(requestUrl)?90000:15000;
+    const timeout=/\/functions\/v1\/(a1-assistant|a1-skybox-sync|a1-ticket-ui)/.test(requestUrl)?90000:15000;
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeout);
     try { return await fetch(input, { ...options, signal:controller.signal }); }
     catch(error) {
@@ -363,7 +363,7 @@
   function canAccess(section){
     if(!user||!ready||recoveryUserId)return false;
     if(admin||section==='account')return true;
-    const aliases={privatejet:'travel',luxhomes:'travel',yachts:'travel',purchases:'invoices'};
+    const aliases={privatejet:'travel',luxhomes:'travel',yachts:'travel',purchases:'invoices',ticketUI:'seatSniper'};
     const id=aliases[section]||section;
     if(['admin','manageAccounts','system','upload','buttonManager','domains'].includes(id))return false;
     return accountAccess.allowed_sections===null||accountAccess.allowed_sections.includes(id);
@@ -402,6 +402,14 @@
       if(user?.id!==identity||!ready||recoveryUserId)throw new Error('Session changed. Start a new request.');
       if(result.error){let detail;try{detail=await result.error.context?.json();}catch{}throw new Error(detail?.error||'AI connection unavailable. Dashboard commands still work.');}
       if(result.data?.error&&result.data?.configured!==false)throw new Error(result.data.error);
+      return result.data;
+    },
+    ticketRequest:async body=>{
+      const identity=user?.id,c=requireAdmin();
+      const result=await c.functions.invoke('a1-ticket-ui',{body});
+      if(user?.id!==identity||!ready||recoveryUserId)throw new Error('Session changed. Sign in again.');
+      if(result.error){let detail;try{detail=await result.error.context?.json();}catch{}throw new Error(detail?.error||(body.action==='execute'?'Skybox result could not be confirmed. Check the record in Skybox before submitting another action.':'Ticket UI connection unavailable.'));}
+      if(result.data?.error)throw new Error(result.data.error);
       return result.data;
     },
     skyboxRequest:async body=>{
