@@ -66,7 +66,7 @@ Admins can open Seat Sniper / Skybox → Skybox Connection & Sync, enter the Acc
 The separate **Ticket UI** dashboard button opens a native, Skybox-style workspace
 in A1's navy/green colors. It does not embed the Skybox website. Inventory is grouped
 by event in a dense grid with filters, pagination, listing details, and Edit/Sell/Hold
-row actions. Separate workspaces cover invoices, purchases, holds, contacts, events,
+row actions. Broadcast On/Off is shown in its own column, with a dedicated reviewed action that changes only the selected listing’s broadcast flag. Rows-per-page choices, numbered pages, range counts, and direct page jumps support larger inventories. Event headers include an Open seat map viewer using Skybox’s event chartUrl when supplied, with a full-size map link and a clear unavailable state. Separate workspaces cover invoices, purchases, holds, contacts, events,
 and reports. The action menu exposes typed forms generated from the official
 Skybox OpenAPI contract captured on November 10, 2026 (207 operations). The Sierra
 STS-token endpoint is excluded because it belongs to a separate integration.

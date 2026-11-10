@@ -3,3 +3,7 @@
 @media(max-width:850px){.ticket-layout{grid-template-columns:1fr}.ticket-filters{border-right:0;border-bottom:1px solid #2c3c51}.ticket-filters form{grid-template-columns:repeat(2,minmax(0,1fr))}.ticket-filters p{grid-column:1/-1}.ticket-top{padding:14px}.ticket-top small{display:none}.ticket-nav{padding:0}.ticket-nav button{padding:12px}.ticket-form-grid{grid-template-columns:1fr}.ticket-fieldset{grid-column:1}.ticket-grid-wrap{max-height:60vh}.ticket-dialog-body{padding:16px}.ticket-toolbar{padding:12px}}
 
 .ticket-toolbar>select{width:auto;max-width:320px;flex:0 1 320px}.ticket-shell .ticket-status{display:inline-block}.ticket-dialog .ticket-fieldset>.ticket-fieldset{border:0;padding:0}
+
+.ticket-pagination{flex-wrap:wrap;justify-content:flex-end;gap:6px}.ticket-pagination>span:first-child{flex:1 1 240px}.ticket-pagination label{display:flex;align-items:center;gap:6px;white-space:nowrap}.ticket-pagination select{width:72px;padding:6px}.ticket-pagination button[aria-current=page]{background:#166534;color:#f0fdf4;border-color:#4ade80}.ticket-pagination .ticket-page-gap{margin:0 3px}.ticket-page-jump{display:flex;align-items:center;gap:6px}.ticket-page-jump input{width:70px;padding:6px}.ticket-pagination .btn{min-width:32px}
+
+.ticket-event-row .btn{margin-left:14px;padding:3px 8px;min-height:26px}.ticket-seat-map{display:block;max-width:100%;max-height:58vh;width:auto;height:auto;margin:16px auto 0;background:#fff;border-radius:6px;object-fit:contain}

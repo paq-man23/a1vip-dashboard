@@ -27,10 +27,52 @@ test('contract validation rejects arbitrary URLs, query keys, invalid enums, tra
  const [,,{buildRequest}]=await load();assert.throws(()=>buildRequest({operation:'inventorySearch',parameters:{url:'https://evil.invalid'}},'123'),/Unknown filter/);assert.throws(()=>buildRequest({operation:'inventorySearch',parameters:{sortedBy:'wrong'}},'123'),/invalid selection/);assert.throws(()=>buildRequest({operation:'assetsGet',parameters:{filename:'..'}},'123'),/Invalid record/);assert.throws(()=>buildRequest({operation:'invoicesInsertInvoice',body:{accountId:999}},'123'),/mismatch/);
  const r=buildRequest({operation:'invoicesInsertInvoice',body:{customerId:1,lines:[{lineItemType:'INVENTORY',amount:120,itemIds:[1]}]}},'123');assert.equal(r.body.lines[0].accountId,123);
 });
-function browser(catalog,{admin=true}={}){
+function browser(catalog,{admin=true,broadcast=true,currentBroadcast=broadcast,total=1,chartUrl='https://maps.example.invalid/event-1.svg'}={}){
  const dom=new JSDOM('<section id="ticketUI"></section>',{url:'https://a1dash.a1eei.com',runScripts:'outside-only'}),w=dom.window,calls=[];w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
- const row={id:777,eventId:1,eventName:'<img src=x onerror=alert(1)>',eventDate:'2026-12-01',quantity:2,listPrice:100,section:'101',row:'A',status:'AVAILABLE'};
- w.A1Data={isAdmin:()=>admin,canAccess:()=>true,skyboxRequest:async p=>{calls.push(p);return {rows:[row],total:1};},ticketRequest:async p=>{calls.push(p);if(p.action==='catalog')return {catalog};return {data:{rows:[row],rowCount:1}};}};w.eval(fs.readFileSync('ticket-ui.js','utf8'));return {w,calls};
+ const row={id:777,eventId:1,eventName:'<img src=x onerror=alert(1)>',eventDate:'2026-12-01',broadcast,quantity:2,listPrice:100,section:'101',row:'A',status:'AVAILABLE'};
+ w.A1Data={isAdmin:()=>admin,canAccess:()=>true,skyboxRequest:async p=>{calls.push(p);return {rows:[row],total};},ticketRequest:async p=>{calls.push(p);if(p.action==='catalog')return {catalog};if(p.operation==='inventoryGetById')return {data:{...row,broadcast:currentBroadcast}};if(p.operation==='eventsGet')return {data:{id:1,name:'Fixture event',chartUrl}};return {data:{rows:[row],rowCount:total}};}};w.eval(fs.readFileSync('ticket-ui.js','utf8'));return {w,calls};
 }
 test('Ticket UI uses safe dense tables, offers native actions, and clears private records on signout',async()=>{const [,{catalog}]=await load();const {w,calls}=browser(catalog);await w.A1TicketUI.open();assert.equal(w.document.querySelectorAll('.ticket-grid tbody tr').length,2);assert.equal(w.document.querySelectorAll('img').length,0);assert.match(w.document.body.textContent,/<img src=x/);assert.ok([...w.document.querySelectorAll('button')].some(b=>b.textContent==='Sell'));await w.A1TicketUI.openAction('invoicesInsertInvoice',{}, {lines:[{amount:100,lineItemType:'INVENTORY',itemIds:[1]}]});assert.ok(w.document.querySelector('input[aria-label="Customer ID"]'));assert.equal(w.document.querySelector('input[aria-label="Event ID"]'),null,'Optional nested inventory must not block invoice creation');w.dispatchEvent(new w.Event('a1-signed-out'));assert.equal(w.document.getElementById('ticketUI').textContent,'');assert.equal(w.document.getElementById('ticketDialog').textContent,'');assert.ok(calls.some(c=>c.action==='read'));w.close();});
 test('regular staff keep existing inventory permissions without receiving the admin operation catalog',async()=>{const [,{catalog}]=await load();const {w,calls}=browser(catalog,{admin:false});await w.A1TicketUI.open();assert.deepEqual(calls.map(c=>c.action),['inventory']);assert.equal([...w.document.querySelectorAll('button')].some(b=>b.textContent==='Sell'),false);w.close();});
+
+test('broadcast row controls refresh current state and preview a broadcast-only change in both directions',async()=>{
+ const [,{catalog}]=await load();
+ for(const broadcast of [true,false]){
+  const {w,calls}=browser(catalog,{broadcast});await w.A1TicketUI.open();
+  assert.ok([...w.document.querySelectorAll('th')].some(n=>n.textContent==='Broadcast'));
+  const button=[...w.document.querySelectorAll('button')].find(n=>n.textContent===(broadcast?'Turn broadcast off':'Turn broadcast on'));assert.ok(button);
+  await button.onclick();
+  const select=w.document.querySelector('select[aria-label="Broadcast"]');assert.ok(select);assert.equal(select.value,String(!broadcast));
+  w.document.getElementById('ticketActionForm').requestSubmit();await new Promise(resolve=>setImmediate(resolve));
+  const preview=calls.find(c=>c.action==='preview');assert.equal(preview.operation,'inventoryBulkUpdate');assert.equal(preview.body.broadcast,!broadcast);assert.deepEqual(Array.from(preview.body.inventoryIds),[777]);assert.deepEqual(Object.keys(preview.body).sort(),['broadcast','inventoryIds']);assert.equal(calls.some(c=>c.action==='execute'),false);
+  w.close();
+ }
+});
+test('broadcast controls use fresh Skybox state and refuse missing status instead of guessing',async()=>{
+ const [,{catalog}]=await load();
+ const {w}=browser(catalog,{broadcast:true,currentBroadcast:false});await w.A1TicketUI.open();await [...w.document.querySelectorAll('button')].find(n=>n.textContent==='Turn broadcast off').onclick();assert.equal(w.document.querySelector('select[aria-label="Broadcast"]').value,'true');w.close();
+ const missing=browser(catalog,{broadcast:true,currentBroadcast:null});await missing.w.A1TicketUI.open();await [...missing.w.document.querySelectorAll('button')].find(n=>n.textContent==='Turn broadcast off').onclick();assert.match(missing.w.document.getElementById('ticketMessage').textContent,/did not return a broadcast setting/);assert.equal(missing.calls.some(c=>c.action==='preview'||c.action==='execute'),false);missing.w.close();
+});
+
+test('rows per page, numbered pages and direct jumps request the correct live Skybox page',async()=>{
+ const [,{catalog}]=await load();const {w,calls}=browser(catalog,{total:240});await w.A1TicketUI.open();
+ const size=w.document.querySelector('select[aria-label="Rows per page"]');assert.deepEqual([...size.options].map(o=>o.value),['10','25','50','100']);
+ size.value='25';size.dispatchEvent(new w.Event('change'));await new Promise(resolve=>setImmediate(resolve));assert.equal(calls.at(-1).parameters.limit,25);assert.equal(calls.at(-1).parameters.pageNumber,1);assert.match(w.document.getElementById('ticketPages').textContent,/Page 1 of 10/);
+ const page3=w.document.querySelector('button[aria-label="Page 10"]');assert.ok(page3);page3.click();await new Promise(resolve=>setImmediate(resolve));assert.equal(calls.at(-1).parameters.pageNumber,10);assert.equal(w.document.querySelector('button[aria-label="Page 10"]').getAttribute('aria-current'),'page');assert.equal([...w.document.querySelectorAll('button')].find(b=>b.textContent==='Next ›').disabled,true);
+ const jump=w.document.querySelector('input[aria-label="Go to page"]');jump.value='4';jump.form.requestSubmit();await new Promise(resolve=>setImmediate(resolve));assert.equal(calls.at(-1).parameters.pageNumber,4);
+ w.document.getElementById('ticketSearch').requestSubmit();await new Promise(resolve=>setImmediate(resolve));assert.equal(calls.at(-1).parameters.pageNumber,1);w.close();
+});
+test('synced inventory page sizes map to the correct fixed-size backend page',async()=>{
+ const [,{catalog}]=await load();const {w,calls}=browser(catalog,{admin:false,total:240});await w.A1TicketUI.open();
+ const size=w.document.querySelector('select[aria-label="Rows per page"]');assert.deepEqual([...size.options].map(o=>o.value),['10','25','50']);size.value='25';size.dispatchEvent(new w.Event('change'));await new Promise(resolve=>setImmediate(resolve));
+ const jump=w.document.querySelector('input[aria-label="Go to page"]');jump.value='3';jump.form.requestSubmit();await new Promise(resolve=>setImmediate(resolve));assert.equal(calls.at(-1).page,1);w.close();
+});
+
+test('event seat-map action loads the documented chart link and opens a safe native map viewer',async()=>{
+ const [,{catalog}]=await load();const {w,calls}=browser(catalog);await w.A1TicketUI.open();const button=[...w.document.querySelectorAll('button')].find(b=>b.textContent==='Open seat map');assert.ok(button);await button.onclick();
+ assert.equal(calls.at(-1).operation,'eventsGet');assert.equal(calls.at(-1).parameters['event-id'],1);
+ const img=w.document.querySelector('.ticket-seat-map'),link=w.document.querySelector('#ticketDialog a');assert.equal(img.src,'https://maps.example.invalid/event-1.svg');assert.equal(link.target,'_blank');assert.equal(link.rel,'noopener noreferrer');assert.equal(w.document.querySelectorAll('#ticketDialog iframe').length,0);w.dispatchEvent(new w.Event('a1-signed-out'));assert.equal(w.document.querySelector('.ticket-seat-map'),null);w.close();
+});
+test('missing and unsafe seat-map URLs show an explanation instead of opening an invalid map',async()=>{
+ const [,{catalog}]=await load();for(const chartUrl of [null,'javascript:alert(1)','http://maps.example.invalid/chart']){const {w}=browser(catalog,{chartUrl});await w.A1TicketUI.open();await [...w.document.querySelectorAll('button')].find(b=>b.textContent==='Open seat map').onclick();assert.equal(w.document.querySelector('#ticketDialog img'),null);assert.equal(w.document.querySelector('#ticketDialog a'),null);assert.match(w.document.getElementById('ticketDialog').textContent,/has not supplied/);w.close();}
+});
