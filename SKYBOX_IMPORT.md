@@ -43,11 +43,11 @@ Staff changes overlay the latest Skybox contact, preserving imported originals a
 
 Invoice contact search shows clickable matches as you type. Selecting a contact fills the invoice fields. Saving an invoice does not automatically overwrite a contact: choose **Save invoice details to contact** to update the selected contact's changed name, company, email, phone, address, or payment preference. Existing invoices remain historical snapshots.
 
-## Skybox API / Seat Sniper workspace
+## Skybox API / Ticket UI workspace
 
-The Seat Sniper / Skybox tab combines a searchable synced inventory with the existing Ticketmaster/SeatGeek discovery backend. This workspace does not claim to migrate the separate inactive A1VIP SEAT SNIPER project; its source must be supplied before restoring its previous features.
+Ticket UI contains Skybox inventory and reviewed API actions. Seat Sniper is dedicated to Ticketmaster/SeatGeek searches outside Skybox. This workspace does not claim to migrate the separate inactive A1VIP SEAT SNIPER project; its source must be supplied before restoring its previous features.
 
-Admins connect in the tab with the Skybox Account ID, Application Token, and account API Token (External Accounts → API Invitation +). The server checks access to all five list endpoints and detects pagination before enabling the connection. Credentials are encrypted in Supabase Vault; browser responses contain only connection status. The separate worker secret also remains in Vault. The application reads Skybox and never writes to Skybox.
+Admins connect in Admin → Skybox Connection & Sync with the Skybox Account ID, Application Token, and account API Token (External Accounts → API Invitation +). The server checks access to all five list endpoints and detects pagination before enabling the connection. Credentials are encrypted in Supabase Vault; browser responses contain only connection status. The separate worker secret also remains in Vault. The sync worker only reads Skybox. The separate Ticket UI server function supports reviewed Skybox writes for administrators.
 
 Apply the `skybox_api_sync` migration, deploy `supabase/functions/a1-skybox-sync`, then apply the `skybox_api_schedule` migration (`supabase/skybox-api-schedule.sql` is the same schedule for manual setup). The minute worker advances up to one 50-record page per resource per pass; completed scans wait five minutes. Initial historical sync can take multiple passes. Invoices/POs use overlapping last-update windows after backfill. Contacts and inventory use repeated full scans. Status shows completion, next page, counts and errors; manual sync advances the next pages, and Pause stops unattended reads. No credentials are bundled in the repository.
 

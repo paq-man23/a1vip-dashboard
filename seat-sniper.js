@@ -1,8 +1,8 @@
-/* Shared Seat Sniper workspace: A1 inventory and existing event-discovery APIs. */
+/* Seat Sniper searches outside ticket providers; Admin retains Skybox sync controls. */
 (() => {
  const $=id=>document.getElementById(id),node=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
- let page=0,epoch=0,busy=false;
- function request(body){if(typeof A1Data.skyboxRequest!=='function')throw new Error('The dashboard update is incomplete. Click Refresh App, then reopen Seat Sniper / Skybox.');return A1Data.skyboxRequest(body);}
+ let epoch=0,busy=false;
+ function request(body){if(typeof A1Data.skyboxRequest!=='function')throw new Error('The dashboard update is incomplete. Click Refresh App, then reopen Admin.');return A1Data.skyboxRequest(body);}
  function message(value){$('seatSniperMessage').textContent=value;}
  function syncMessage(value){$('skyboxSyncMessage').textContent=value;}
  async function status(){
@@ -18,18 +18,10 @@
   try{await request({action:'configure',accountId:$(fields[0]).value.trim(),applicationToken:$(fields[1]).value.trim(),apiToken:$(fields[2]).value.trim()});syncMessage('Connected. Automatic sync is enabled. Initial history imports continue in pages.');}
   catch(error){syncMessage(error.message);}finally{$(fields[1]).value='';$(fields[2]).value='';busy=false;await status();}
  }
- async function sync(){if(busy)return;busy=true;syncMessage('Syncing the next Skybox pages…');try{const r=await request({action:'sync'});syncMessage(r.results?.some(x=>x.error||x.errors)?'Some records could not sync. See each record type’s status below.':r.message);await inventory();}catch(error){syncMessage(error.message);}finally{busy=false;await status();}}
+ async function sync(){if(busy)return;busy=true;syncMessage('Syncing the next Skybox pages…');try{const r=await request({action:'sync'});syncMessage(r.results?.some(x=>x.error||x.errors)?'Some records could not sync. See each record type’s status below.':r.message);}catch(error){syncMessage(error.message);}finally{busy=false;await status();}}
  async function pause(action='pause'){if(busy)return;try{await request({action});syncMessage(action==='resume'?'Automatic sync resumed.':'Automatic sync paused. Saved dashboard records remain available.');await status();}catch(error){syncMessage(error.message);}}
- async function inventory(reset=false){if(reset)page=0;const current=++epoch,wrap=$('seatSniperInventory');wrap.replaceChildren(node('p','Loading Skybox inventory…'));
-  try{const r=await request({action:'inventory',query:$('seatSniperQuery').value,page});if(current!==epoch)return;wrap.replaceChildren();
-   wrap.append(node('p',`${r.total} matching listings · Last full inventory refresh: ${r.completedAt?new Date(r.completedAt).toLocaleString():'Pending first sync'}. Availability can change; verify before quoting.`));
-   if(!r.rows.length)wrap.append(node('p','No synced inventory matches. Connect Skybox or refine your search.'));
-   for(const i of r.rows){const c=node('div');c.className='invoice-history-card';c.append(node('strong',i.eventName||'Skybox event '+i.eventId),node('p',[i.eventDate,i.venue,i.city,i.state].filter(Boolean).join(' · ')),node('p',`Section ${i.section||'—'} · Row ${i.row||'—'} · ${i.quantity} tickets · ${i.listPrice==null?'Price unavailable':i.listPrice.toLocaleString(undefined,{style:'currency',currency:i.currency||'USD'})+' per ticket'}`),node('p',`Skybox #${i.id} · ${i.status||'Status unavailable'} · Synced ${new Date(i.syncedAt).toLocaleString()}`));if(i.publicNotes)c.append(node('p',i.publicNotes));wrap.append(c);}
-   for(const [label,delta] of [['Previous',-1],['Next',1]]){const b=node('button',label);b.className='btn';b.disabled=delta<0?page===0:(page+1)*50>=r.total;b.onclick=()=>{page+=delta;inventory();};wrap.append(b);}
-  }catch(error){if(current===epoch)wrap.replaceChildren(node('p',error.message));}
- }
- async function events(event){event.preventDefault();const current=epoch,wrap=$('seatSniperEvents');wrap.replaceChildren(node('p','Searching Ticketmaster and SeatGeek…'));
-  try{const response=await A1Data.assistantRequest({action:'events',query:$('seatSniperQuery').value,stateCode:$('seatSniperState').value.trim(),startDate:$('seatSniperFrom').value,endDate:$('seatSniperTo').value,page:0});if(current!==epoch)return;
+ async function events(event){event.preventDefault();const query=$('seatSniperQuery').value.trim();if(!query){message('Enter an artist, team, or event to search.');return;}message('');const current=++epoch,wrap=$('seatSniperEvents');wrap.replaceChildren(node('p','Searching Ticketmaster and SeatGeek…'));
+  try{const response=await A1Data.assistantRequest({action:'events',query,stateCode:$('seatSniperState').value.trim(),startDate:$('seatSniperFrom').value,endDate:$('seatSniperTo').value,page:0});if(current!==epoch)return;
    const r=response.events;wrap.replaceChildren();if(!r?.events?.length)wrap.append(node('p',r?.message||'No external events found. Try an artist/team and location.'));
    for(const provider of r?.providers||[])if(provider.status==='error'||provider.status==='unconfigured')wrap.append(node('p',provider.name+': '+provider.message));
    for(const e of r?.events||[]){const c=node('div');c.className='invoice-history-card';c.append(node('strong',e.name),node('p',[e.date,e.time,e.venue,e.city,e.state].filter(Boolean).join(' · ')));
@@ -38,7 +30,8 @@
    }
   }catch(error){if(current===epoch)wrap.replaceChildren(node('p',error.message));}
  }
- async function open(){await inventory();}
- window.A1SeatSniper={open,status,configure,sync,pause,inventory,events};
- window.addEventListener('a1-signed-out',()=>{epoch++;page=0;for(const id of ['skyboxApplicationToken','skyboxApiToken','skyboxAccountId','seatSniperQuery'])$(id).value='';for(const id of ['seatSniperInventory','seatSniperEvents','skyboxApiProgress'])$(id).replaceChildren();message('');syncMessage('');$('skyboxConnectionSummary').textContent='';});
+ function clearSearch(){epoch++;$('seatSniperSearch').reset();$('seatSniperEvents').replaceChildren(node('p','Enter an artist, team, or event to search Ticketmaster and SeatGeek.'));message('');}
+ async function open(){/* Search only on explicit submission. */}
+ window.A1SeatSniper={open,status,configure,sync,pause,events,clearSearch};
+ window.addEventListener('a1-signed-out',()=>{epoch++;for(const id of ['skyboxApplicationToken','skyboxApiToken','skyboxAccountId','seatSniperQuery'])$(id).value='';for(const id of ['seatSniperEvents','skyboxApiProgress'])$(id).replaceChildren();message('');syncMessage('');$('skyboxConnectionSummary').textContent='';});
 })();
