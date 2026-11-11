@@ -8,7 +8,7 @@
   const common={limit:12,pageNumber:page+1,sortDir:group==='Inventory'?'ASC':'DESC',sortedBy:group==='Inventory'?'EVENT_DATE':group==='Vendors'?'DISPLAY_NAME':'ID'};
   if(group==='Inventory'){
    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-   return [{...common,...(id?{inventoryId:[id]}:{event:query}),eventDateFrom:(request.startDate||today)+'T00:00:00',...(request.endDate?{eventDateTo:request.endDate+'T23:59:59'}:{}),...(request.stateCode?{state:[request.stateCode]}:{})}];
+   return [{...common,...(id?{inventoryId:[id]}:query?{eventKeywords:query.split(/\s+/).filter(Boolean)}:{}),eventDateFrom:(request.startDate||today)+'T00:00:00',...(request.endDate?{eventDateTo:request.endDate+'T23:59:59'}:{}),...(request.stateCode?{state:[request.stateCode]}:{})}];
   }
   if(id)return [{...common,id:[id]}];
   if(group==='Invoices'||group==='Purchases')return [{...common,displayName:query},{...common,[group==='Invoices'?'performer':'eventName']:query}];

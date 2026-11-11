@@ -17,3 +17,10 @@ test('staff use only their permitted snapshot and cannot request live invoices',
  await assert.rejects(api.search({section:'inventory',query:'Dolphins'},{...data,canAccess:()=>false}),/not enabled/);
  assert.throws(()=>api.parameters({section:'arbitrary',query:'x'}),/Choose/);
 });
+
+test('inventory keywords find names containing Dolphins and preserve paging and exact ID lookup',async()=>{
+ const calls=[],data={isAdmin:()=>true,canAccess:()=>true,ticketRequest:async body=>{calls.push(body);return {data:{rows:body.parameters.eventKeywords?.includes('Dolphins')?[{id:777,event:{name:'New York Jets at Miami Dolphins'}}]:[],rowCount:18}};}};
+ const r=await api.search({section:'inventory',query:'Dolphins'},data);assert.equal(r.rows[0].id,777);assert.equal(r.hasMore,true);assert.equal('event' in calls[0].parameters,false);
+ await api.search({section:'inventory',query:'Dolphins',page:1},data);assert.equal(calls[1].parameters.pageNumber,2);assert.deepEqual(calls[1].parameters.eventKeywords,['Dolphins']);
+ const exact=api.parameters({section:'inventory',query:'777'})[0];assert.deepEqual(exact.inventoryId,[777]);assert.equal('eventKeywords' in exact,false);
+});

@@ -62,3 +62,8 @@ test('Skybox commands distinguish own inventory and records from marketplace eve
  assert.deepEqual(intent('open Ticket UI'),{type:'navigate',section:'ticketUI'});
  assert.equal(intent('find events Dolphins').type,'events');assert.equal(intent('find invoice 123').type,'invoice');
 });
+
+test('event-first inventory requests route directly to Skybox without the model',()=>{
+ for(const text of ['Dolphins Inventory','find Dolphins inventory','search Miami Dolphins inventory','show my Dolphins inventory'])assert.deepEqual(intent(text),{type:'skybox',section:'inventory',query:text.includes('Miami')?'Miami Dolphins':'Dolphins'});
+ assert.notEqual(intent('delete Dolphins inventory').type,'skybox');
+});
