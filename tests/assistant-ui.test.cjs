@@ -1,17 +1,19 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-function harness({permissions=['main','customers','invoices'],pause,voice=false,links=[],contactRows,withTab=false,username='',ai,invoiceRows=[],popupAllowed=true}={}){
+function harness({permissions=['main','customers','invoices'],pause,voice=false,links=[],contactRows,withTab=false,username='',ai,invoiceRows=[],popupAllowed=true,admin=false,skyboxRows=[],ticketRead,pauseSkybox}={}){
  const listeners={},events={},loads=[],opened=[];let authenticated=true,aborted=0,recognizer;
  function node(tag='div'){
   return {tag,children:[],hidden:false,value:'',textContent:'',dataset:{},attributes:{},classList:{contains:()=>false,toggle(){},add(){},remove(){}},setAttribute(k,v){this.attributes[k]=v;},append(...nodes){for(const n of nodes){n.parent=this;this.children.push(n);}},replaceChildren(){this.children=[];},get firstElementChild(){return this.children[0];},remove(){this.parent.children=this.parent.children.filter(x=>x!==this);},focus(){},addEventListener(k,v){this[k]=v;}};
  }
- const tab=withTab?node('button'):null;const body=node(),data={linkBlocked:()=>false,authenticated:()=>authenticated,canAccess:id=>authenticated&&permissions.includes(id),isAdmin:()=>false,account:()=>({email:'user@example.invalid',username}),loadSection:async id=>{loads.push(id);if(pause)await pause;},contacts:()=>contactRows||[{kind:'customer',id:'j',displayName:'Jane Smith',email:'jane@example.invalid'}],invoices:()=>invoiceRows,documents:()=>[]};
+ const tab=withTab?node('button'):null;const body=node(),data={linkBlocked:()=>false,authenticated:()=>authenticated,canAccess:id=>authenticated&&permissions.includes(id),isAdmin:()=>admin,account:()=>({email:'user@example.invalid',username}),loadSection:async id=>{loads.push(id);if(pause)await pause;},contacts:()=>contactRows||[{kind:'customer',id:'j',displayName:'Jane Smith',email:'jane@example.invalid'}],invoices:()=>invoiceRows,documents:()=>[]};
+ data.skyboxRequest=async()=>{if(pauseSkybox)await pauseSkybox;return {rows:skyboxRows,total:skyboxRows.length};};
+ data.ticketRequest=async body=>ticketRead?ticketRead(body):{data:{rows:skyboxRows,rowCount:skyboxRows.length}};
  if(ai)data.assistantRequest=ai;
- const root={A1AssistantRecords:require('../assistant-records.js'),A1AssistantActions:require('../assistant-actions.js'),A1AssistantCore:require('../assistant-core.js'),addEventListener:(k,v)=>events[k]=v};
+ const root={A1AssistantSkybox:require('../assistant-skybox.js'),A1AssistantRecords:require('../assistant-records.js'),A1AssistantActions:require('../assistant-actions.js'),A1AssistantCore:require('../assistant-core.js'),addEventListener:(k,v)=>events[k]=v};
  const popups=[];root.open=(url,target,features)=>{const popup=popupAllowed?{opener:'dashboard'}:null;popups.push({url,target,features,popup});return popup;};
  if(voice)root.SpeechRecognition=class{constructor(){recognizer=this;}start(){}abort(){aborted++;}};
  const buttons=links.map(row=>{const classes=new Set(row.hidden?['a1-personally-hidden']:[]);return {...row,isConnected:true,dataset:{label:row.label,url:row.url||'https://example.com'},classList:{contains:k=>classes.has(k),add:k=>classes.add(k),remove:k=>classes.delete(k)},closest:()=>({dataset:{section:row.section}}),scrollIntoView(){},focus(){},getBoundingClientRect:()=>({left:100}),parentElement:null};});
  const document={body,createElement:node,addEventListener:(k,v)=>listeners[k]=v,getElementById:id=>id==='a1AssistantTab'?tab:null,querySelectorAll:selector=>selector.includes('grid[data-section]')?buttons:[]};
- vm.runInNewContext(fs.readFileSync('a1-assistant.js','utf8'),{window:root,A1Data:data,document,console,URL,showSection:id=>opened.push(id)});listeners.DOMContentLoaded();
+ vm.runInNewContext(fs.readFileSync('a1-assistant.js','utf8'),{window:root,A1Data:data,document,console,URL,showSection:(id,options)=>opened.push(options?{id,options}:id),confirm:()=>true,loadInvoiceFromHistory:id=>opened.push({invoice:id})});listeners.DOMContentLoaded();
  const launcher=body.children[0],panel=body.children[1],log=panel.children[2],status=panel.children[3],form=panel.children[4],input=form.children[0],mic=form.children[1].children[0];
  launcher.onclick();
  return {panel,launcher,tab,log,status,input,mic,loads,opened,buttons,popups,get recognizer(){return recognizer;},aborted:()=>aborted,submit:async text=>{input.value=text;await form.onsubmit({preventDefault(){}});},signout:()=>{authenticated=false;events['a1-signed-out']();},text:()=>log.children.map(x=>x.textContent).join(' ')};
@@ -170,4 +172,16 @@ test('plain find artist/location requests reach the planner rather than button/c
 
 test('matched event shows separate Ticketmaster and SeatGeek prices and links without a cheapest-seat claim',async()=>{
  const h=harness({ai:async()=>({events:{configured:true,source:'Ticketmaster Discovery + SeatGeek',checkedAt:'2026-11-04T19:00:00Z',totalIsPageCount:true,providers:[{name:'Ticketmaster Discovery',status:'ok',total:1},{name:'SeatGeek',status:'ok',total:1}],events:[{name:'Knicks matched event',date:'2026-12-01',offers:[{source:'Ticketmaster Discovery',url:'https://www.ticketmaster.com/event/1',priceRanges:[{min:100,max:500,currency:'USD'}]},{source:'SeatGeek',url:'https://seatgeek.com/event/99',priceSummary:{lowest:120,average:200,highest:400,currency:'',listingCount:30}}]}]}})});await h.submit('find events Knicks');assert.match(h.text(),/1 events on this page/);assert.match(h.text(),/Ticketmaster Discovery · Published event price range/);assert.match(h.text(),/SeatGeek · Event-level pricing summary/);assert.match(h.text(),/currency not supplied/);const card=h.log.children.find(n=>n.textContent.includes('Knicks matched event'));assert.ok(card.children.find(n=>n.textContent==='Open Ticketmaster'));assert.equal(card.children.find(n=>n.textContent==='Open SeatGeek').href,'https://seatgeek.com/event/99');assert.doesNotMatch(h.text(),/cheapest seat|best deal/i);
+});
+
+test('Al inventory results open the exact listing in Ticket UI without invoking AI or writes',async()=>{
+ const calls=[],h=harness({permissions:['ticketUI'],admin:true,skyboxRows:[{id:777,quantity:2,section:'110',row:'A',event:{name:'Miami Dolphins'}}],ai:()=>{throw Error('no model call');},ticketRead:async body=>{calls.push(body);return {data:{rows:[{id:777,quantity:2,section:'110',row:'A',event:{name:'Miami Dolphins'}}],rowCount:1}};}});
+ await h.submit('find inventory Dolphins');assert.match(h.text(),/Miami Dolphins/);assert.match(h.text(),/Section 110/);const card=h.log.children.find(n=>n.textContent.includes('listing #777'));await card.children.find(n=>n.textContent==='Open in Ticket UI').onclick();assert.deepEqual(JSON.parse(JSON.stringify(h.opened)),[{id:'ticketUI',options:{resource:'inventory',recordId:'777'}}]);assert.ok(calls.every(c=>c.action==='read'));
+});
+test('Skybox invoices offer both the live record and its matching imported dashboard invoice',async()=>{
+ const h=harness({permissions:['ticketUI','invoices'],admin:true,skyboxRows:[{id:123,displayName:'Acme'}],invoiceRows:[{id:'saved-123',origin:'skybox',skybox:{'Invoice ID':'123'}}]});await h.submit('find Skybox invoice 123');const card=h.log.children.find(n=>n.textContent.includes('invoice #123'));assert.ok(card.children.find(n=>n.textContent==='Open in Ticket UI'));await card.children.find(n=>n.textContent==='Open in Invoices & POs').onclick();assert.deepEqual(h.opened,['invoices',{invoice:'saved-123'}]);
+});
+test('signout discards delayed inventory results and denied users never call Skybox',async()=>{
+ let release;const pauseSkybox=new Promise(r=>release=r),h=harness({permissions:['ticketUI'],pauseSkybox,skyboxRows:[{id:1,eventName:'private'}]});const pending=h.submit('find inventory Dolphins');h.signout();release();await pending;assert.equal(h.log.children.length,0);
+ const denied=harness({permissions:['main'],skyboxRows:[{id:1,eventName:'private'}]});await denied.submit('find inventory Dolphins');assert.match(denied.text(),/not enabled/);assert.doesNotMatch(denied.text(),/private/);
 });

@@ -111,3 +111,10 @@ test('verified venue maps appear alongside comparisons and blocked links are omi
  await w.A1TicketUI.open();await [...w.document.querySelectorAll('button')].find(b=>b.textContent==='Open seat map').onclick();assert.ok(w.document.querySelector('a[href="https://miamidolphins.io-media.com/web/index.html"]'));assert.match(w.document.querySelector('.ticket-event-options').textContent,/Football/);
  w.document.getElementById('ticketDialog').close();w.A1Data.linkBlocked=url=>url.includes('io-media.com');await [...w.document.querySelectorAll('button')].find(b=>b.textContent==='Open seat map').onclick();assert.equal(w.document.querySelector('a[href="https://miamidolphins.io-media.com/web/index.html"]'),null);w.dispatchEvent(new w.Event('a1-signed-out'));w.close();
 });
+
+test('assistant navigation opens the exact live Skybox record and correct workspace',async()=>{
+ const [,{catalog}]=await load();const {w,calls}=browser(catalog);await w.A1TicketUI.open({resource:'invoices',recordId:'123'});assert.equal(w.document.querySelector('.ticket-toolbar h3').textContent,'Invoices');assert.ok(calls.some(c=>c.operation==='invoicesGetInvoiceById'&&c.parameters['invoice-id']===123));assert.equal(calls.some(c=>c.operation==='inventorySearch'),false);assert.equal(w.document.getElementById('ticketDialog').open,true);w.close();
+});
+test('assistant record navigation cannot open staff live records or load records after signout',async()=>{
+ const [,{catalog}]=await load();const {w,calls}=browser(catalog,{admin:false});await w.A1TicketUI.open({resource:'invoices',recordId:'123'});assert.equal(calls.length,0);assert.match(w.document.body.textContent,/administrator/);w.close();
+});

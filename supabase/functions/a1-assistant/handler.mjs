@@ -42,7 +42,7 @@ export function createHandler({env,fetchImpl=fetch}){
    if(!key)return reply({configured:false,mode:'dashboard-guide',error:'Live AI needs an OpenAI API key configured by your administrator. Dashboard search and guidance still work.'});
    if(typeof body.message!=='string'||!body.message.trim()||body.message.length>600)return reply({error:'Enter a message of 600 characters or fewer.'},400);
    const admin=members[0].is_admin===true,profile=profiles?.[0];
-   const canAccess=id=>admin||( !['admin','manageAccounts','domains'].includes(id)&&(!profile?.allowed_sections||profile.allowed_sections.includes(id)) );
+   const canAccess=id=>admin||( !['admin','manageAccounts','domains'].includes(id)&&(!profile?.allowed_sections||profile.allowed_sections.includes(id==='ticketUI'?'seatSniper':id)) );
    // Only user-entered text is accepted as conversation context. No client-provided
    // record snapshots, assistant results, roles, prompts or tool definitions pass through.
    let eventContext=null;try{if(body.eventContext)eventContext=filters(body.eventContext);}catch{}
