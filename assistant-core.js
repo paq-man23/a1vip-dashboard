@@ -44,6 +44,7 @@
   const raw=String(text||'').trim().replace(/[.!?]+$/,'');
   let m;
   const lookup=raw.replace(/^(?:please\s+|(?:can|could|would) you\s+)/i,'');
+  if((m=lookup.match(/^(?:(?:find|search(?: for)?|look\s*up|show(?: me)?|open)\s+)?(.+?)\s+(?:skybox\s+)?inventory$/i))&&!/\b(?:delete|remove|sell|broadcast|edit|update|change)\b/i.test(m[1]))return {type:'skybox',section:'inventory',query:m[1].replace(/^(?:our|my)\s+/i,'').trim()};
   if((m=lookup.match(/^(?:(?:find|search(?: for)?|look\s*up|show(?: me)?|open)\s+)?(?:(?:our|my|skybox)\s+)?(inventory|listings?|skybox invoices?|skybox purchases?|skybox purchase orders?|skybox customers?|skybox vendors?)\s*(?:for\s+|#\s*)?(.*)$/i))){
    const word=m[1].toLowerCase();return {type:'skybox',section:/invoice/.test(word)?'invoices':/purchase/.test(word)?'purchases':/customer/.test(word)?'customers':/vendor/.test(word)?'vendors':'inventory',query:m[2].trim()};
   }

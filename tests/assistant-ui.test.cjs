@@ -185,3 +185,7 @@ test('signout discards delayed inventory results and denied users never call Sky
  let release;const pauseSkybox=new Promise(r=>release=r),h=harness({permissions:['ticketUI'],pauseSkybox,skyboxRows:[{id:1,eventName:'private'}]});const pending=h.submit('find inventory Dolphins');h.signout();release();await pending;assert.equal(h.log.children.length,0);
  const denied=harness({permissions:['main'],skyboxRows:[{id:1,eventName:'private'}]});await denied.submit('find inventory Dolphins');assert.match(denied.text(),/not enabled/);assert.doesNotMatch(denied.text(),/private/);
 });
+
+test('Dolphins Inventory finds Skybox listings without asking the AI to reinterpret it',async()=>{
+ const h=harness({permissions:['ticketUI'],admin:true,ai:()=>{throw Error('should not call AI');},ticketRead:async p=>({data:{rows:p.parameters.eventKeywords?.includes('Dolphins')?[{id:777,quantity:2,event:{name:'Jets at Miami Dolphins'}}]:[],rowCount:1}})});await h.submit('Dolphins Inventory');assert.match(h.text(),/listing #777/);assert.match(h.text(),/Jets at Miami Dolphins/);
+});

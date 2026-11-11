@@ -118,3 +118,17 @@ test('assistant navigation opens the exact live Skybox record and correct worksp
 test('assistant record navigation cannot open staff live records or load records after signout',async()=>{
  const [,{catalog}]=await load();const {w,calls}=browser(catalog,{admin:false});await w.A1TicketUI.open({resource:'invoices',recordId:'123'});assert.equal(calls.length,0);assert.match(w.document.body.textContent,/administrator/);w.close();
 });
+
+test('Ticket UI keyword search finds Dolphins within full event names and retains filters on paging',async()=>{
+ const [,{catalog}]=await load(),{w,calls}=browser(catalog,{total:100}),original=w.A1Data.ticketRequest;
+ w.A1Data.ticketRequest=async input=>{
+  const response=await original(input);if(input.operation==='inventorySearch'){
+   if(input.parameters.event)return {data:{rows:[],rowCount:0}};
+   if(input.parameters.eventKeywords)response.data.rows[0].eventName='New York Jets at Miami Dolphins';
+  }return response;
+ };
+ await w.A1TicketUI.open();const form=w.document.getElementById('ticketSearch');form.elements.namedItem('event').value='Dolphins';form.requestSubmit();await new Promise(r=>setImmediate(r));
+ assert.match(w.document.getElementById('ticketGrid').textContent,/New York Jets at Miami Dolphins/);let p=calls.at(-1).parameters;assert.deepEqual(Array.from(p.eventKeywords),['Dolphins']);assert.equal('event' in p,false);assert.ok(p.eventDateFrom);
+ w.document.querySelector('button[aria-label="Page 2"]').click();await new Promise(r=>setImmediate(r));p=calls.at(-1).parameters;assert.equal(p.pageNumber,2);assert.deepEqual(Array.from(p.eventKeywords),['Dolphins']);
+ form.elements.namedItem('event').value='';form.requestSubmit();await new Promise(r=>setImmediate(r));assert.equal('eventKeywords' in calls.at(-1).parameters,false);w.close();
+});
