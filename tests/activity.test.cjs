@@ -52,3 +52,15 @@ test('full-browser exception matches Trade Desk host exactly, not arbitrary URL 
 test('admin Trade Desk links use a full browser tab rather than popup features',()=>{
  const html=fs.readFileSync('index.html','utf8'),source=html.slice(html.indexOf('    function openPopup(url, label){'),html.indexOf('\n\nfunction copyDescription'));const opened=[];const c={A1Data:{authenticated:()=>true,isAdmin:()=>true},window:{open:(...args)=>opened.push(args)},isVideoUrl:()=>false,isFullBrowserUrl:()=>true};vm.runInNewContext(source+';openPopup("https://tradedesk.ticketmaster.com","Trade Desk")',c);assert.deepEqual(opened,[['https://tradedesk.ticketmaster.com','_blank','noopener,noreferrer']]);
 });
+
+test('interactive-map links use native browser tabs for regular users and blocked maps stay blocked',()=>{
+ const events={},opened=[],frame={src:''},viewer={close(){},addEventListener(){}};
+ const document={head:{append(){}},createElement:()=>({}),getElementById:id=>id==='websiteFrame'?frame:id==='websiteViewer'?viewer:null,addEventListener:(name,fn)=>events[name]=fn};
+ const window={addEventListener(){},open:(...args)=>opened.push(args)};
+ const data={authenticated:()=>true,isAdmin:()=>false,linkBlocked:url=>url.includes('blocked.example')};
+ vm.runInNewContext(fs.readFileSync('a1-activity.js','utf8'),{window,document,A1Data:data,URL,console,clearInterval(){}});events.DOMContentLoaded();
+ function click(href,marked){let prevented=false,stopped=false;const a={href,target:'_blank',dataset:marked?{a1BrowserTab:'1'}:{},hasAttribute:()=>false,textContent:'Map'};events.click({target:{closest:()=>a},preventDefault(){prevented=true;},stopImmediatePropagation(){stopped=true;}});return {prevented,stopped};}
+ assert.deepEqual(click('https://miamidolphins.io-media.com/web/index.html',true),{prevented:false,stopped:false});assert.equal(opened.length,0,'Browser follows the native anchor without popup features');
+ assert.deepEqual(click('https://blocked.example/map',true),{prevented:true,stopped:true});assert.equal(opened.length,0);
+ assert.deepEqual(click('https://ordinary.example/',false),{prevented:true,stopped:true});assert.equal(opened.length,1);assert.match(opened[0][2],/popup=yes/);
+});
