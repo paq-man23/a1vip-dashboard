@@ -17,7 +17,7 @@
   try{await fn(token);}catch(error){if(valid(token))message(error.message);}finally{if(valid(token)){busy=false;send.disabled=false;}}
  };parent.append(b);placement?.fitReply(parent);return b;}
  async function load(section,token,force=false){requireAccess(section);status.textContent='Loading '+(core.sections.find(s=>s[0]===section)?.[1]||section)+'…';await A1Data.loadSection(section,force);if(!valid(token))throw new Error('Session changed.');requireAccess(section);status.textContent='';}
- function go(id){requireAccess(id);showSection(id);}
+ function go(id,options){requireAccess(id);showSection(id,options);}
  function greet(){waiting=null;const account=A1Data.account(),name=account?.username||account?.name;message((name&&name!==account.email?'Hi '+name+', I’m Al!':'Hi, I’m Al!')+' I’m here if you need a hand.');}
  function help(){
   waiting=null;const examples=['“Yankees” — find matching links and related contacts'];
@@ -25,6 +25,7 @@
   if(allowed('vendors'))examples.push('“find vendor Acme”');
   if(allowed('invoices'))examples.push('“find invoice 4100” or “create an invoice for Acme”');
   if(allowed('invoices'))examples.push('“summary 2026 invoices” — totals and balances', '“who bought Olivia Rodrigo tickets?” — search event invoices');
+  if(allowed('ticketUI'))examples.push('“find inventory Dolphins”', '“find Skybox invoice 12345”', '“find Skybox purchases for Yankees”');
   examples.push('“find events Knicks” — upcoming Ticketmaster events', '“When is Olivia Rodrigo playing in New York?”');
   if(allowed('tripItinerary'))examples.push('“find trip Florida”');
   if(allowed('main'))examples.push('“add button for example.com in main”');
@@ -59,11 +60,42 @@
   const found=request.type==='invoice'&&window.A1AssistantRecords?window.A1AssistantRecords.filter(rows,request):core.matches(rows,request.query,fields,{voice:request.voice});message(found.length?found.length+' matching record'+(found.length===1?'':'s')+(found.length>12?' · showing the first 12. Narrow your search for more.':'.'):'No matching saved records. Try a number, name, company, or date.');
   for(const record of found.slice(0,12)){
    const card=message([request.type==='invoice'?'#'+record.number:record.savedName,record.clientCompany||record.eventName||record.subject,record.clientContact,record.status,record.createdDate||record.eventDate||record.date].filter(Boolean).join(' · ')||'Saved record');
+   if(request.type==='invoice'&&record.origin==='skybox'&&allowed('ticketUI')&&A1Data.isAdmin()){
+    const resource=String(record.type).startsWith('po-')?'purchases':'invoices',id=window.A1AssistantSkybox.importedId(record,resource==='purchases'?'Purchases':'Invoices');
+    if(/^[1-9]\d*$/.test(id))action(card,'Open live in Ticket UI',()=>go('ticketUI',{resource,recordId:id}));
+   }
    action(card,'Open '+(request.type==='invoice'?'Invoice / PO':request.type==='trip'?'Trip':'Letter'),()=>{
     requireAccess(section);if(!confirm('Open this saved record? This replaces the current unsaved editor for this section.'))return;
     go(section);({invoice:loadInvoiceFromHistory,trip:loadItineraryFromHistory,letter:loadLetterFromHistory})[request.type](record.id);
    });
   }
+  if(request.type==='invoice'&&allowed('ticketUI')&&A1Data.isAdmin()){const card=message('Also check the latest records in Skybox.');action(card,'Search live Skybox',t=>skybox({...request,type:'skybox',section:request.documentType==='po'?'purchases':'invoices'},t));}
+ }
+ async function skybox(request,token){
+  requireAccess('ticketUI');
+  if(!A1Data.isAdmin()&&request.section!=='inventory'){
+   const type=request.section==='invoices'||request.section==='purchases'?'invoice':'contact';
+   message('Live Skybox '+request.section+' require administrator access. Searching your permitted saved dashboard records instead.');
+   if(type==='invoice')return records({...request,type,documentType:request.section==='purchases'?'po':'invoice'},token);
+   return contacts({...request,type,kind:request.section==='vendors'?'vendor':'customer'},token);
+  }
+  status.textContent='Searching Skybox '+request.section+'…';
+  const result=await window.A1AssistantSkybox.search(request,A1Data);if(!valid(token))return;requireAccess('ticketUI');
+  message((result.snapshot?'Synced Skybox inventory':'Live Skybox '+result.group.toLowerCase())+' · '+result.rows.length+' records on this page'+(result.hasMore?' · more available':'')+'.'+(result.snapshot?' Last full sync: '+(result.checkedAt?new Date(result.checkedAt).toLocaleString():'pending')+'. Verify live availability before quoting.':'')+(!result.rows.length?' Try an exact record ID, event/team/artist, or customer/vendor name.':''));
+  let saved=[];if(['Invoices','Purchases'].includes(result.group)&&allowed('invoices')){await load('invoices',token);saved=A1Data.invoices();}
+  for(const row of result.rows){
+   const event=row.event||{},venue=event.venue||{};
+   const card=message(['Skybox '+(result.group==='Inventory'?'listing':result.group.replace(/s$/,'').toLowerCase())+' #'+row.id,event.name||row.eventName,row.displayName||row.customer?.displayName||row.vendor?.displayName,event.date||row.eventDate,venue.name||row.venue,result.group==='Inventory'?'Qty '+row.quantity+' · Section '+(row.section||'—')+' · Row '+(row.row||'—'):row.paymentStatus].filter(Boolean).join(' · '));
+   action(card,'Open in Ticket UI',()=>go('ticketUI',{resource:request.section,recordId:String(row.id)}));
+   const imported=saved.find(r=>r.origin==='skybox'&&window.A1AssistantSkybox.importedId(r,result.group)===String(row.id));
+   if(imported)action(card,'Open in Invoices & POs',async t=>{
+    await load('invoices',t);if(!confirm('Open this saved Skybox import? This replaces the current unsaved invoice editor.'))return;
+    if(!valid(t))return;go('invoices');loadInvoiceFromHistory(imported.id);
+   });
+  }
+  const card=message('Choose a record above to open it in the dashboard.');if(request.section==='inventory')action(card,'Show in Ticket UI',()=>go('ticketUI',{resource:request.section,query:request.query}));
+  if(result.hasMore)action(card,'Next Skybox results',t=>skybox({...request,page:(request.page||0)+1},t));
+  status.textContent='';waiting={...request,type:'skybox'};
  }
  function linkAvailable(b){
   const section=b.closest('.grid')?.dataset.section;
@@ -237,11 +269,13 @@
   text=String(text||'').trim().slice(0,600);if(!text||!A1Data.authenticated())return;
   const token=epoch;message(text,true);let request=core.intent(text);
   if(request.type==='events'&&/\b(?:in|on|this|next|from|between|tomorrow|tonight)\b/i.test(request.query))request={type:'unknown',query:text};
+  if(request.type==='unknown'&&waiting?.type==='skybox')request={...waiting,query:text,page:0};
   if((request.type==='unknown'||request.type==='help'||request.type==='global')&&waiting?.type!=='buttonWizard'){
    const proposed=await plan(text,token);if(!valid(token))return;
    if(proposed){request=proposed;if(request.type==='answer'){conversation.push(text);conversation=conversation.slice(-6);message(request.reply);return;}}
   }
   conversation.push(text);conversation=conversation.slice(-6);
+  if(request.type==='skybox'&&request.query){await skybox(request,token);return;}
   if(request.type==='events'){await events(request,token);return;}
   if(request.type==='summary'){await summarize(request,token);return;}
 
@@ -260,7 +294,8 @@
   if(request.type==='navigate'){go(request.section);message('Opened '+core.sections.find(s=>s[0]===request.section)[1]+'.');return;}
   if(!request.query){waiting=request;message(request.type==='draft'?'Which customer or company should I use? Enter a name, or choose a blank draft.':'What name, number, company, or keyword should I search for?');if(request.type==='draft'){const card=message('You can also fill in the customer yourself.');action(card,'Start Blank Draft',t=>draft(null,request.purchase,t));}return;}
   waiting=request;
-  if(request.type==='draft'){requireAccess('invoices');await contacts({...request,kind:request.purchase?'vendor':'customer'},token);}
+  if(request.type==='skybox')await skybox(request,token);
+  else if(request.type==='draft'){requireAccess('invoices');await contacts({...request,kind:request.purchase?'vendor':'customer'},token);}
   else if(request.type==='contact')await contacts(request,token);
   else if(['link','global'].includes(request.type))await globalSearch(request.query,token,voice);
   else await records(request,token);

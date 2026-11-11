@@ -75,3 +75,10 @@ test('SeatGeek-only accounts can use public event search after the same staff/se
 test('one provider failing does not discard valid results from the other',async()=>{
  const h=await harness({ticketKey:'ticket-secret',ticketStatus:401,seatgeekId:'sg-id'}),r=await h.run({action:'events',query:'Knicks'});assert.equal(r.status,200);assert.equal(r.body.events.events[0].offers[0].source,'SeatGeek');assert.equal(r.body.events.providers.find(p=>p.name==='Ticketmaster Discovery').status,'error');
 });
+
+test('Skybox planning recognizes the Ticket UI permission alias and rejects arbitrary resources',async()=>{
+ const plan={...sample(),type:'skybox',section:'inventory',query:'Miami Dolphins',kind:''};
+ const h=await harness({sections:['seatSniper'],plan}),r=await h.run({message:'Do we have Dolphins tickets?'});assert.equal(r.status,200);assert.equal(r.body.plan.type,'skybox');assert.equal(h.calls.some(c=>c.url.includes('skybox.vividseats.com')),false);
+ const denied=await harness({sections:['main'],plan});assert.equal((await denied.run()).status,422);
+ const invalid=await harness({sections:['seatSniper'],plan:{...plan,section:'delete'}});assert.equal((await invalid.run()).status,422);
+});

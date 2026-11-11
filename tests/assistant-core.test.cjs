@@ -55,3 +55,10 @@ test("polite complete button commands retain website and category",()=>{const r=
 test('external event questions route to live discovery without confusing saved invoice searches',()=>{
  assert.deepEqual(intent('find events Knicks'),{type:'events',query:'Knicks'});assert.equal(intent('find events').query,'');assert.equal(intent('What Knicks games are in New York?').type,'unknown');assert.equal(intent('find invoice Knicks').type,'invoice');assert.equal(intent('how do I add event items to an invoice?').type,'guide');
 });
+
+test('Skybox commands distinguish own inventory and records from marketplace events',()=>{
+ for(const query of ['find inventory Dolphins','show my inventory for Dolphins','search Skybox inventory Dolphins','open listing 777'])assert.equal(intent(query).type,'skybox',query);
+ for(const [query,section] of [['find Skybox invoice 123','invoices'],['show Skybox purchases for Yankees','purchases'],['find Skybox customer Acme','customers'],['find Skybox vendor Bob','vendors']]){assert.equal(intent(query).section,section,query);assert.ok(intent(query).query);}
+ assert.deepEqual(intent('open Ticket UI'),{type:'navigate',section:'ticketUI'});
+ assert.equal(intent('find events Dolphins').type,'events');assert.equal(intent('find invoice 123').type,'invoice');
+});

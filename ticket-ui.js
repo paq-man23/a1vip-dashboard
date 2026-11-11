@@ -49,7 +49,29 @@
   if(!$('ticketDialog')){const dialog=el('dialog',undefined,'ticket-dialog');dialog.id='ticketDialog';dialog.setAttribute('aria-labelledby','ticketDialogTitle');dialog.addEventListener('close',()=>{modalEpoch++;pending=null;dialog.replaceChildren();});document.body.append(dialog);}
  }
  function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
- async function open(){const current=++epoch;if(!A1Data.canAccess('ticketUI'))return;try{mode=A1Data.isAdmin()?'live':'cached';group='Inventory';page=1;if(A1Data.isAdmin()){const r=await request({action:'catalog'});if(current!==epoch)return;catalog=r.catalog;}build();await load();}catch(e){if(current!==epoch)return;build();message(e.message,true);}}
+ async function open(options={}){
+  const current=++epoch;if(!A1Data.canAccess('ticketUI'))return;
+  try{
+   const resource=options.resource||'inventory',name={inventory:'Inventory',invoices:'Invoices',purchases:'Purchases',customers:'Customers',vendors:'Vendors'}[resource];
+   if(!name)throw Error('Unknown Ticket UI workspace.');
+   if(!A1Data.isAdmin()&&name!=='Inventory')throw Error('Live Skybox records require administrator access.');
+   if(options.recordId&&!/^[1-9]\d*$/.test(String(options.recordId)))throw Error('Invalid Skybox record ID.');
+   mode=A1Data.isAdmin()?'live':'cached';group=name;page=1;
+   if(A1Data.isAdmin()){const r=await request({action:'catalog'});if(current!==epoch)return;catalog=r.catalog;}
+   build();
+   if(options.recordId){
+    // Open the exact record without searching a different page or relying on model-supplied data.
+    if(mode==='live'){await detail({id:Number(options.recordId)});return;}
+    const r=await A1Data.skyboxRequest({action:'inventory',query:String(options.recordId),page:0});if(current!==epoch)return;
+    const row=(r.rows||[]).find(r=>String(r.id)===String(options.recordId));if(!row)throw Error('This listing is no longer in the synced inventory. Search again.');await detail(row);return;
+   }
+   if(options.query&&A1Data.isAdmin()){
+    const field=$('ticketSearch').elements.namedItem(group==='Inventory'?'event':'displayName');if(field)field.value=String(options.query).slice(0,120);
+    if(group==='Invoices'||group==='Purchases')for(const name of ['createdDateFrom','createdDateTo'])$('ticketSearch').elements.namedItem(name).value='';
+   }else if(options.query){const field=$('ticketSearch').elements.namedItem('event');if(field)field.value=String(options.query).slice(0,120);}
+   await load();
+  }catch(e){if(current!==epoch)return;if(!$('ticketMessage'))build();message(e.message,true);}
+ }
  async function select(name){epoch++;group=name;page=1;if(group!=='Inventory')mode='live';build();await load();}
  function getFilters(){const values=Object.fromEntries(new FormData($('ticketSearch')));return Object.fromEntries(Object.entries(values).filter(([,v])=>v!==''));}
  async function load(){

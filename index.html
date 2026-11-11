@@ -1275,17 +1275,18 @@
 <script src="./private-links.js"></script>
 <script src="./button-moves.js"></script>
 <script src="./vision-layout.js"></script>
-<script src="./assistant-core.js"></script>
+<script src="./assistant-core.js?v=81"></script>
 <script src="./assistant-position.js"></script>
 <script src="./assistant-actions.js"></script>
 <script src="./assistant-records.js"></script>
-<script src="./a1-assistant.js"></script>
+<script src="./assistant-skybox.js?v=81"></script>
+<script src="./a1-assistant.js?v=81"></script>
 <script src="./a1-invoice-fields.js"></script>
 <script src="./a1-contacts.js"></script>
 <script src="./skybox-ui.js"></script>
 <script src="./venue-links.js?v=79"></script>
 <script src="./seat-sniper.js?v=80"></script>
-<script src="./ticket-ui.js?v=80"></script>
+<script src="./ticket-ui.js?v=81"></script>
 <script>
     /* ===== Config ===== */
     const STORAGE_KEY = 'a1vip-button-manager-v2';
@@ -1841,7 +1842,7 @@
     function toggleSectionMenu(){
       setSectionMenuExpanded(!document.querySelector('.top-tabs').classList.contains('is-open'));
     }
-    function showSection(id){
+    function showSection(id,options){
       if(A1Data.canAccess&& !A1Data.canAccess(id)){alert('Your administrator has not enabled this category for your account.');return;}
       if(['admin','manageAccounts','system','buttonManager','upload','domains'].includes(id)&&A1Data.isAdmin?.()!==true){alert('Administrator access required.');return;}
       if(id==='purchases'){id='invoices';setInvoiceHistoryKind('purchase');openInvoiceMode('history');}
@@ -1858,7 +1859,7 @@
       if(id==='admin'){window.A1Activity?.history();window.A1SeatSniper?.status();}
       if(id==='manageAccounts')window.A1Accounts?.load();
       if(id==='seatSniper')window.A1SeatSniper?.open();
-      if(id==='ticketUI')window.A1TicketUI?.open();
+      if(id==='ticketUI')window.A1TicketUI?.open(options);
     }
 
     async function loadSectionData(id,force=false){
