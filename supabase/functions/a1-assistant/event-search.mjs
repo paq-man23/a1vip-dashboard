@@ -13,9 +13,9 @@ function sameEvent(a,b){
 export function mergeEvents(results){
  const merged=[];
  for(const result of results)for(const event of result.events){
-  const offer={source:result.source,eventId:event.id,url:event.url||'',priceRanges:event.priceRanges||[],priceSummary:event.priceSummary||null,status:event.status||'',checkedAt:result.checkedAt};
+  const offer={source:result.source,eventId:event.id,url:event.url||'',seatMapUrl:event.seatMapUrl||'',seatMapSource:event.seatMapSource||'',priceRanges:event.priceRanges||[],priceSummary:event.priceSummary||null,status:event.status||'',checkedAt:result.checkedAt};
   const match=merged.find(other=>!other.offers.some(o=>o.source===offer.source)&&sameEvent(other,event));
-  if(match)match.offers.push(offer);else merged.push({...event,offers:[offer]});
+  if(match){match.offers.push(offer);if(!match.seatMapUrl&&offer.seatMapUrl){match.seatMapUrl=offer.seatMapUrl;match.seatMapSource=offer.seatMapSource;}}else merged.push({...event,offers:[offer]});
  }
  return merged.sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||(a.time||'99').localeCompare(b.time||'99')||a.name.localeCompare(b.name));
 }

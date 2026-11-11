@@ -13,3 +13,8 @@ test('uncertain dates, different times, different games, VIP packages and same-p
 test('unconfigured SeatGeek is skipped and Ticketmaster remains usable; totals are explicitly per-page',async()=>{
  const {searchEvents}=await import('../supabase/functions/a1-assistant/event-search.mjs');let calls=0;const r=await searchEvents({query:'Knicks'},{env:k=>k==='TICKETMASTER_API_KEY'?'tm-key':'',fetchImpl:async()=>{calls++;return new Response(JSON.stringify({_embedded:{events:[]},page:{totalElements:0,totalPages:0}}));}});assert.equal(calls,1);assert.equal(r.configured,true);assert.equal(r.providers[1].status,'not-configured');assert.equal(r.totalIsPageCount,true);
 });
+
+test('a Ticketmaster chart survives merging with a SeatGeek event in either provider order',async()=>{
+ const {mergeEvents}=await import('../supabase/functions/a1-assistant/event-search.mjs');const tm={...base,seatMapUrl:'https://maps.ticketmaster.com/fixture',seatMapSource:'Ticketmaster'},sg={...base,id:'99'};
+ for(const sources of [[result('Ticketmaster Discovery',[tm]),result('SeatGeek',[sg])],[result('SeatGeek',[sg]),result('Ticketmaster Discovery',[tm])]]){const events=mergeEvents(sources);assert.equal(events.length,1);assert.equal(events[0].seatMapUrl,tm.seatMapUrl);assert.equal(events[0].seatMapSource,'Ticketmaster');assert.equal(events[0].offers.find(o=>o.source==='Ticketmaster Discovery').seatMapUrl,tm.seatMapUrl);}
+});

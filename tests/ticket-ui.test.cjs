@@ -76,3 +76,28 @@ test('event seat-map action loads the documented chart link and opens a safe nat
 test('missing and unsafe seat-map URLs show an explanation instead of opening an invalid map',async()=>{
  const [,{catalog}]=await load();for(const chartUrl of [null,'javascript:alert(1)','http://maps.example.invalid/chart']){const {w}=browser(catalog,{chartUrl});await w.A1TicketUI.open();await [...w.document.querySelectorAll('button')].find(b=>b.textContent==='Open seat map').onclick();assert.equal(w.document.querySelector('#ticketDialog img'),null);assert.equal(w.document.querySelector('#ticketDialog a'),null);assert.match(w.document.getElementById('ticketDialog').textContent,/has not supplied/);w.close();}
 });
+
+test('missing Skybox charts search external providers by event date and venue city, then show user-selected charts',async()=>{
+ const [,{catalog}]=await load();const {w}=browser(catalog,{chartUrl:null});let input;
+ w.A1Data.assistantRequest=async p=>{input=p;return {events:{events:[{name:'Fixture event',date:'2026-12-01',time:'19:00',venue:'Fixture Arena',city:'Miami',seatMapUrl:'https://maps.ticketmaster.com/fixture',seatMapSource:'Ticketmaster',offers:[{source:'SeatGeek',url:'https://seatgeek.com/fixture'}]}]}};};
+ await w.A1TicketUI.open();await [...w.document.querySelectorAll('button')].find(b=>b.textContent==='Open seat map').onclick();await new Promise(resolve=>setImmediate(resolve));assert.equal(input.action,'events');assert.equal(input.startDate,'2026-12-01');assert.equal(input.endDate,'2026-12-01');assert.equal(w.document.querySelector('.ticket-seat-map'),null,'Do not automatically substitute a candidate event');
+ const link=w.document.querySelector('.ticket-map-result a');assert.equal(link.href,'https://seatgeek.com/fixture');assert.match(link.textContent,/SeatGeek/);
+ const choose=[...w.document.querySelectorAll('button')].find(b=>b.textContent==='View Ticketmaster seat map');assert.ok(choose);choose.click();assert.equal(w.document.querySelector('.ticket-seat-map').src,'https://maps.ticketmaster.com/fixture');w.close();
+});
+
+test('broadcast lights distinguish on, off, and unknown without relying on color alone',async()=>{
+ const [,{catalog}]=await load();for(const [broadcast,cls,text] of [[true,'is-on','On'],[false,'is-off','Off'],[null,'is-unknown','Unknown']]){const {w}=browser(catalog,{broadcast});await w.A1TicketUI.open();const status=w.document.querySelector('.ticket-broadcast');assert.ok(status.classList.contains(cls));assert.equal(status.textContent,text);assert.equal(status.querySelector('.ticket-broadcast-light').getAttribute('aria-hidden'),'true');w.close();}
+});
+test('sale views send documented Skybox filters and clear back to all inventory',async()=>{
+ const [,{catalog}]=await load();const {w,calls}=browser(catalog);await w.A1TicketUI.open();let view=w.document.querySelector('select[aria-label="Inventory view"]');view.value='forSale';view.dispatchEvent(new w.Event('change'));await new Promise(resolve=>setImmediate(resolve));assert.equal(calls.at(-1).parameters.listed,true);assert.deepEqual(Array.from(calls.at(-1).parameters.ticketStatus),['AVAILABLE']);assert.equal(calls.at(-1).parameters.minQuantity,1);assert.equal(calls.at(-1).parameters.pageNumber,1);
+ view.value='unlisted';view.dispatchEvent(new w.Event('change'));await new Promise(resolve=>setImmediate(resolve));assert.equal(calls.at(-1).parameters.listed,false);assert.equal(calls.at(-1).parameters.ticketStatus,undefined);
+ view.value='all';view.dispatchEvent(new w.Event('change'));await new Promise(resolve=>setImmediate(resolve));assert.equal(calls.at(-1).parameters.listed,undefined);w.close();
+ const snapshot=browser(catalog,{admin:false});await snapshot.w.A1TicketUI.open();assert.equal(snapshot.w.document.querySelector('select[aria-label="Inventory view"]').disabled,true);assert.equal(snapshot.calls[0].query,'');snapshot.w.close();
+});
+test('listing selection persists across pages and prepares only selected IDs for reviewed bulk broadcast',async()=>{
+ const [,{catalog}]=await load();const {w,calls}=browser(catalog,{total:100});const original=w.A1Data.ticketRequest;w.A1Data.ticketRequest=async p=>{if(p.operation==='inventorySearch'){calls.push(p);return {data:{rowCount:100,rows:[{id:p.parameters.pageNumber===2?778:777,eventId:1,eventName:'Fixture',quantity:2,broadcast:true}]}};}return original(p);};await w.A1TicketUI.open();
+ w.document.querySelector('.ticket-select-listing').click();assert.match(w.document.getElementById('ticketSelectedCount').textContent,/1 listings selected/);
+ w.document.querySelector('button[aria-label="Page 2"]').click();await new Promise(resolve=>setImmediate(resolve));w.document.getElementById('ticketSelectPage').click();assert.match(w.document.getElementById('ticketSelectedCount').textContent,/2 listings selected.*4 tickets/);
+ const bulk=[...w.document.querySelectorAll('button')].find(b=>b.textContent==='Broadcast selected off');bulk.click();w.document.getElementById('ticketActionForm').requestSubmit();await new Promise(resolve=>setImmediate(resolve));const preview=calls.find(c=>c.action==='preview');assert.deepEqual(Array.from(preview.body.inventoryIds),[777,778]);assert.equal(preview.body.broadcast,false);assert.equal(calls.some(c=>c.action==='execute'),false);
+ w.document.getElementById('ticketDialog').close();const view=w.document.querySelector('select[aria-label="Inventory view"]');view.value='forSale';view.dispatchEvent(new w.Event('change'));await new Promise(resolve=>setImmediate(resolve));assert.equal(w.document.getElementById('ticketSelectedCount').textContent,'No listings selected');assert.equal(w.document.querySelector('.ticket-select-listing').checked,false);w.close();
+});
