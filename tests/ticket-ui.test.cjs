@@ -104,7 +104,7 @@ test('listing selection persists across pages and prepares only selected IDs for
 
 test('map viewer always offers Ticketmaster and SeatGeek comparisons even when Skybox has a chart',async()=>{
  const [,{catalog}]=await load();const {w}=browser(catalog);await w.A1TicketUI.open();await [...w.document.querySelectorAll('button')].find(b=>b.textContent==='Open seat map').onclick();
- const options=w.document.querySelector('.ticket-event-options');assert.ok(options);const links=[...options.querySelectorAll('a')];assert.equal(links.length,2);assert.ok(links.some(a=>a.textContent==='Ticketmaster tickets & map'));assert.ok(links.some(a=>a.textContent==='SeatGeek tickets & map'));for(const a of links){assert.equal(a.target,'_blank');assert.equal(a.rel,'noopener noreferrer');}assert.ok(w.document.querySelector('.ticket-seat-map'));w.close();
+ const options=w.document.querySelector('.ticket-event-options');assert.ok(options);const links=[...options.querySelectorAll('a')];assert.equal(links.length,2);assert.ok(links.some(a=>a.textContent==='Ticketmaster tickets & map'));assert.ok(links.some(a=>a.textContent==='SeatGeek tickets & map'));for(const a of links){assert.equal(a.target,'_blank');assert.equal(a.rel,'noopener noreferrer');assert.equal(a.dataset.a1BrowserTab,'1');}assert.ok(w.document.querySelector('.ticket-seat-map'));w.close();
 });
 test('verified venue maps appear alongside comparisons and blocked links are omitted',async()=>{
  const [,{catalog}]=await load();const {w}=browser(catalog,{chartUrl:null});const original=w.A1Data.ticketRequest;w.A1Data.assistantRequest=async()=>({events:{events:[]}});w.A1Data.ticketRequest=async p=>p.operation==='eventsGet'?{data:{id:1,name:'Dolphins fixture',venue:{name:'Hard Rock Stadium',state:'FL'}}}:original(p);

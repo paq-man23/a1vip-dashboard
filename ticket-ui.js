@@ -133,7 +133,8 @@
  function eventOptions(event,view){
   view.body.querySelector('.ticket-event-options')?.remove();const options=el('section',undefined,'ticket-event-options');options.append(el('h4','Interactive maps & comparable tickets'));
   const maps=window.A1VenueLinks?.mapsFor(event)||[],comparisons=window.A1VenueLinks?.comparisonsFor(event)||[];
-  for(const item of [...maps,...comparisons]){const url=mapURL(item.url);if(!url)continue;const link=el('a',item.label,'btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.title=item.scope==='search'?'Search results: choose the matching date and venue':item.source?item.source+' · '+item.layout+' layout':'Compare tickets and use the provider’s event map';options.append(link);}
+  for(const item of [...maps,...comparisons]){const url=mapURL(item.url);if(!url)continue;const link=el('a',item.label,'btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.dataset.a1BrowserTab='1';link.title=item.scope==='search'?'Search results: choose the matching date and venue':item.source?item.source+' · '+item.layout+' layout':'Compare tickets and use the provider’s event map';options.append(link);}
+  if(maps.some(m=>m.url.includes('.io-media.com/')))options.append(el('p','Virtual Venue opens with a tour screen. Let it load, then choose Exit to view the map directly or Start for the guided tour.','ticket-help'));
   if(maps.length)options.append(el('p','Venue maps show the labeled layout; concert stage setups may differ. Ticket sites confirm current prices and availability.','ticket-help'));
   else options.append(el('p','Use the ticket-provider links for interactive event maps. A verified venue-map link has not been added for this venue yet.','ticket-help'));
   options.append(button('Find matching event listings',()=>externalMaps(event,view)));view.body.prepend(options);
@@ -157,9 +158,9 @@
      if(chart)card.append(button('View '+(match.seatMapSource||'Ticketmaster')+' seat map',()=>{
       if(view.current!==modalEpoch)return;
       const preview=showDialog('Seat map · '+match.name,[match.date,match.time,match.venue,match.city].filter(Boolean).join(' · '));eventOptions(match,preview);
-      const link=el('a','Open full-size seat map','btn');link.href=chart;link.target='_blank';link.rel='noopener noreferrer';const img=el('img',undefined,'ticket-seat-map');img.alt=match.name+' seating chart';img.src=chart;img.onerror=()=>{img.remove();preview.body.append(el('p','The preview could not load. Try the full-size map link.','ticket-help'));};preview.body.append(el('p','Source: '+(match.seatMapSource||'Ticketmaster')+' · Static seating chart','ticket-help'),link,img);preview.foot.append(button('Close',()=>preview.dialog.close()));
+      const link=el('a','Open full-size seat map','btn');link.href=chart;link.target='_blank';link.rel='noopener noreferrer';link.dataset.a1BrowserTab='1';const img=el('img',undefined,'ticket-seat-map');img.alt=match.name+' seating chart';img.src=chart;img.onerror=()=>{img.remove();preview.body.append(el('p','The preview could not load. Try the full-size map link.','ticket-help'));};preview.body.append(el('p','Source: '+(match.seatMapSource||'Ticketmaster')+' · Static seating chart','ticket-help'),link,img);preview.foot.append(button('Close',()=>preview.dialog.close()));
      }));
-     for(const offer of match.offers||[]){const url=mapURL(offer.url);if(!url)continue;const link=el('a',offer.source==='SeatGeek'?'Compare SeatGeek tickets & map':/Ticketmaster/i.test(offer.source)?'Compare Ticketmaster tickets & map':'Open '+offer.source+' event','btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);}
+     for(const offer of match.offers||[]){const url=mapURL(offer.url);if(!url)continue;const link=el('a',offer.source==='SeatGeek'?'Compare SeatGeek tickets & map':/Ticketmaster/i.test(offer.source)?'Compare Ticketmaster tickets & map':'Open '+offer.source+' event','btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.dataset.a1BrowserTab='1';card.append(link);}
      if(!chart)card.append(el('p','No embeddable chart was returned. The provider event page may offer an interactive map.','ticket-help'));results.append(card);
     }
    }catch(e){if(view.current===modalEpoch&&current===generation)results.replaceChildren(el('p',e.message,'ticket-error'));}
@@ -178,12 +179,12 @@
    if(view.current!==modalEpoch)return;view.body.replaceChildren();eventOptions({...event,...details,venue:details.venue||event.venue},view);
    const url=mapURL(details.chartUrl);
    if(url){
-    const link=el('a','Open full-size seat map','btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';view.body.append(link);
+    const link=el('a','Open full-size seat map','btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.dataset.a1BrowserTab='1';view.body.append(link);
     const img=el('img',undefined,'ticket-seat-map');img.alt=(details.name||event.name||'Event')+' seating map';img.src=url;img.onerror=()=>{img.remove();view.body.append(el('p','The map preview could not load. Try the full-size map link above.','ticket-help'));};view.body.append(img,button('Find another map',()=>externalMaps({...event,...details,venue:details.venue||event.venue},view)));
    }else{
     view.body.append(el('p','Skybox has not supplied an available seating-map link for this event.','ticket-help'));
     externalMaps({...event,...details,venue:details.venue||event.venue},view);
-    const eventURL=mapURL(details.vividSeatsEventUrl);if(eventURL){const link=el('a','View event on Vivid Seats','btn');link.href=eventURL;link.target='_blank';link.rel='noopener noreferrer';view.body.append(link);}
+    const eventURL=mapURL(details.vividSeatsEventUrl);if(eventURL){const link=el('a','View event on Vivid Seats','btn');link.href=eventURL;link.target='_blank';link.rel='noopener noreferrer';link.dataset.a1BrowserTab='1';view.body.append(link);}
    }
   }catch(e){if(view.current===modalEpoch){view.body.replaceChildren(el('p',e.message,'ticket-error'));eventOptions(event,view);externalMaps(event,view);}}
  }

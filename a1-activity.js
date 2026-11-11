@@ -247,7 +247,7 @@
     document.addEventListener('visibilitychange',()=>{accountViewTime();void flushSite();if(!document.hidden)void tick();});
     window.addEventListener('blur',()=>{accountViewTime();void flushSite();});
     document.getElementById('websiteViewer')?.addEventListener('cancel',event=>{event.preventDefault();closeSite();});
-    document.addEventListener('click',event=>{const a=event.target.closest?.('a[href]');if(!a||a.hasAttribute('download')||!A1Data.authenticated()||A1Data.isAdmin()||!validUrl(a.href))return;event.preventDefault();event.stopImmediatePropagation();openSite(a.href,a.textContent.trim());},true);
+    document.addEventListener('click',event=>{const a=event.target.closest?.('a[href]');if(!a||a.hasAttribute('download')||!A1Data.authenticated()||A1Data.isAdmin()||!validUrl(a.href))return;if(a.dataset?.a1BrowserTab==='1'&&a.target==='_blank'){if(A1Data.linkBlocked?.(a.href)){event.preventDefault();event.stopImmediatePropagation();}return;}event.preventDefault();event.stopImmediatePropagation();openSite(a.href,a.textContent.trim());},true);
     window.addEventListener('focus',()=>{accountViewTime();void tick();});
   });
   window.addEventListener('a1-signed-out',()=>{
