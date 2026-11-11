@@ -44,3 +44,9 @@ test('Discovery sends an actual Florida state filter and explicit widening clear
  const wide=filters({query:'Olivia Rodrigo',stateCode:'FL',countryCode:'US',anyLocation:true,startDate:'2027-03-01',endDate:'2027-03-31'});assert.equal(wide.stateCode,'');assert.equal(wide.startDate,'2027-03-01');
  const dates=filters({query:'Olivia Rodrigo',stateCode:'FL',startDate:'2027-03-01',anyDate:true});assert.equal(dates.stateCode,'FL');assert.equal(dates.startDate,'');
 });
+
+test('Discovery exposes documented seating charts without accepting unsafe hosts or credential URLs',async()=>{
+ const {normalizeEvent}=await load();const url='https://maps.ticketmaster.com/maps/geometry/3/event/fixture/image?systemId=HOST';assert.equal(normalizeEvent({...fixture,seatmap:{staticUrl:url}}).seatMapUrl,url);
+ for(const staticUrl of ['javascript:alert(1)','https://evil.invalid/map.png','https://maps.ticketmaster.com/image?apikey=secret','https://maps.ticketmaster.com@evil.invalid/image'])assert.equal(normalizeEvent({...fixture,seatmap:{staticUrl}}).seatMapUrl,'');
+ assert.equal(normalizeEvent(fixture).seatMapUrl,'');
+});

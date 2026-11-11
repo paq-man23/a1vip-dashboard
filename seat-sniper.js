@@ -25,6 +25,7 @@
    const r=response.events;wrap.replaceChildren();if(!r?.events?.length)wrap.append(node('p',r?.message||'No external events found. Try an artist/team and location.'));
    for(const provider of r?.providers||[])if(provider.status==='error'||provider.status==='unconfigured')wrap.append(node('p',provider.name+': '+provider.message));
    for(const e of r?.events||[]){const c=node('div');c.className='invoice-history-card';c.append(node('strong',e.name),node('p',[e.date,e.time,e.venue,e.city,e.state].filter(Boolean).join(' · ')));
+    if(/^https:\/\//.test(e.seatMapUrl||'')){const map=node('a','Open seat map · '+(e.seatMapSource||'Ticketmaster'));map.className='btn';map.href=e.seatMapUrl;map.target='_blank';map.rel='noopener noreferrer';map.onclick=ev=>{if(A1Data.linkBlocked(e.seatMapUrl)){ev.preventDefault();message('This link is restricted by your administrator.');}};c.append(map);}
     for(const o of e.offers||[]){if(!/^https:\/\//.test(o.url||''))continue;const link=node('a','Open '+o.source);link.className='btn';link.href=o.url;link.target='_blank';link.rel='noopener noreferrer';link.onclick=ev=>{if(A1Data.linkBlocked(o.url)){ev.preventDefault();message('This link is restricted by your administrator.');}};if(/ticketmaster\./i.test(new URL(o.url).hostname))link.onclick=ev=>{ev.preventDefault();if(A1Data.linkBlocked(o.url)){message('This link is restricted by your administrator.');return;}window.open(o.url,'_blank','popup=yes,width=1120,height=820,noopener,noreferrer');};c.append(link);}
     wrap.append(c);
    }

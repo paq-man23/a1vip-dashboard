@@ -7,13 +7,15 @@
  const createOps={Invoices:'invoicesInsertInvoice',Purchases:'purchasesInsertPurchase',Holds:'holdsInsert',Customers:'customersInsert',Vendors:'vendorsInsert'};
  const preferred={Invoice:['customerId','lines','paymentMethod','deliveryMethod','salesTerm','publicNotes','externalRef'],Purchase:['vendorId','lines','paymentMethod','purchaseTerm','publicNotes','externalRef'],Inventory:['id','eventId','quantity','section','row','seatType','stockType','splitType','listPrice','publicNotes','broadcast','version'],Line:['quantity','amount','lineItemType','itemIds','inventory'],Customer:['displayName','firstName','lastName','company','email','address','customerType','defaultDeliveryMethod','paymentMethod','salesTerm'],Vendor:['displayName','firstName','lastName','company','email','address'],HoldRequest:['inventoryId','customerId','quantity','expiryDate','notes']};
  let catalog=null,group='Inventory',page=1,pageSize=50,epoch=0,modalEpoch=0,rows=[],total=0,mode='live',busy=false,pending=null,downloadUrls=[];
+ const selectedListings=new Map();
  const request=body=>A1Data.ticketRequest(body);
  const schema=s=>s?.$ref?catalog.schemas[s.$ref.split('/').pop()]||{}:s||{};
  const title=op=>({inventorySearch:'Search inventory',invoicesSearch:'Search invoices',purchasesSearch:'Search purchases',customersSearch:'Search customers',vendorsSearch:'Search vendors',invoicesInsertInvoice:'Create invoice / Sell tickets',purchasesInsertPurchase:'Create purchase order',inventoryUpdate:'Edit listing',holdsInsert:'Hold tickets'}[op.id]||label(op.id.replace(/^[a-z]+?(?=[A-Z])/,'').replace(/ById$/,'')));
  function message(text,error=false){const n=$('ticketMessage');n.textContent=text;n.classList.toggle('ticket-error',error);}
  function button(text,fn,primary=false){const b=el('button',text,'btn'+(primary?' ticket-primary':''));b.type='button';b.onclick=fn;return b;}
- function clear(){epoch++;modalEpoch++;catalog=null;rows=[];pending=null;busy=false;for(const u of downloadUrls)URL.revokeObjectURL(u);downloadUrls=[];if($('ticketDialog')?.open)$('ticketDialog').close();$('ticketUI')?.replaceChildren();}
+ function clear(){selectedListings.clear();epoch++;modalEpoch++;catalog=null;rows=[];pending=null;busy=false;for(const u of downloadUrls)URL.revokeObjectURL(u);downloadUrls=[];if($('ticketDialog')?.open)$('ticketDialog').close();$('ticketUI')?.replaceChildren();}
  function build(){
+  selectedListings.clear();
   if(mode==='cached'&&pageSize>50)pageSize=50;
   const root=$('ticketUI');root.replaceChildren();const shell=el('div',undefined,'ticket-shell');
   const top=el('div',undefined,'ticket-top'),brand=el('h2',undefined,'ticket-brand');brand.append(el('span','A1 '),document.createTextNode('Ticket UI'));top.append(brand,el('small','Inventory · Sales · Purchasing'),el('span',mode==='cached'?'Synced inventory':'Skybox connection','ticket-badge'));shell.append(top);
@@ -27,10 +29,20 @@
    if(createOps[group])toolbar.append(button(group==='Invoices'?'New invoice':group==='Purchases'?'New purchase':'Add '+group.replace(/s$/,''),()=>openAction(createOps[group]),true));
   }
   toolbar.append(button('Refresh',()=>load()));if(group==='Inventory'&&A1Data.isAdmin())toolbar.append(button(mode==='live'?'View synced inventory':'View live inventory',()=>{mode=mode==='live'?'cached':'live';page=1;build();load();}));shell.append(toolbar);
+  if(group==='Inventory'){
+   const selection=el('div',undefined,'ticket-selection');selection.id='ticketSelection';
+   const count=el('span','No listings selected');count.id='ticketSelectedCount';count.setAttribute('aria-live','polite');selection.append(count,button('Clear selection',()=>{selectedListings.clear();updateSelectionControls();}));
+   if(A1Data.isAdmin()&&mode==='live')selection.append(button('Broadcast selected on',()=>bulkBroadcast(true)),button('Broadcast selected off',()=>bulkBroadcast(false)));
+   shell.append(selection);
+  }
   const layout=el('div',undefined,'ticket-layout'),filters=el('details',undefined,'ticket-filters');filters.open=window.innerWidth>850;filters.append(el('summary','Filters'));
   const form=el('form');form.id='ticketSearch';const names=group==='Inventory'?[['event','Event / artist / team'],['venue','Venue'],['state','State'],['section','Section'],['row','Row'],['eventDateFrom','Event date from'],['eventDateTo','Event date through']]:group==='Customers'||group==='Vendors'?[['displayName','Name / company']]:group==='Invoices'||group==='Purchases'?[['displayName',group==='Invoices'?'Customer':'Vendor'],['createdDateFrom','Created from'],['createdDateTo','Created through'],['eventDateFrom','Event date from'],['eventDateTo','Event date through']]:[];
+  if(group==='Inventory'){
+   const label=el('label','Inventory view'),view=el('select');view.name='inventoryView';view.setAttribute('aria-label','Inventory view');view.append(new Option('All my inventory','all'),new Option('Available for sale','forSale'),new Option('Not listed for sale','unlisted'));view.disabled=mode==='cached';view.onchange=()=>{selectedListings.clear();page=1;load();};label.append(view);form.append(label);
+   if(mode==='cached')form.append(el('p','Sale-status filters require live inventory.'));
+  }
   for(const [name,text] of names){const wrap=el('label',text),input=el('input');input.name=name;input.type=name.includes('Date')?'date':'search';if(name==='eventDateFrom'&&group==='Inventory')input.value=today();if(name==='createdDateFrom')input.value=new Date(Date.now()-30*86400000).toISOString().slice(0,10);if(name==='createdDateTo')input.value=today();wrap.append(input);form.append(wrap);}
-  form.append(button('Apply filters',()=>{page=1;load();},true),button('Clear',()=>{form.reset();page=1;load();}));form.onsubmit=e=>{e.preventDefault();page=1;load();};
+  form.append(button('Apply filters',()=>{selectedListings.clear();page=1;load();},true),button('Clear',()=>{selectedListings.clear();form.reset();page=1;load();}));form.onsubmit=e=>{e.preventDefault();selectedListings.clear();page=1;load();};
   if(A1Data.isAdmin())form.append(button('All filters',()=>openAction(groups.find(g=>g[0]===group)?.[1]||'accountGet')));
   form.append(el('p',mode==='cached'?'Synced snapshot. Refresh live availability before quoting or selling.':'Records load through the saved Skybox connection. Account permissions apply to every action.'));filters.append(form);
   const content=el('div',undefined,'ticket-content');content.append(Object.assign(el('div',undefined,'ticket-summary'),{id:'ticketSummary'}),Object.assign(el('p','','ticket-message'),{id:'ticketMessage'}),Object.assign(el('div',undefined,'ticket-grid-wrap'),{id:'ticketGrid'}),Object.assign(el('div',undefined,'ticket-pagination'),{id:'ticketPages'}));layout.append(filters,content);shell.append(layout);root.append(shell);
@@ -41,10 +53,11 @@
  async function select(name){epoch++;group=name;page=1;if(group!=='Inventory')mode='live';build();await load();}
  function getFilters(){const values=Object.fromEntries(new FormData($('ticketSearch')));return Object.fromEntries(Object.entries(values).filter(([,v])=>v!==''));}
  async function load(){
-  const current=++epoch;message('Loading '+group.toLowerCase()+'…');$('ticketGrid').replaceChildren();$('ticketSummary').replaceChildren();$('ticketPages').replaceChildren();
-  try{const filters=getFilters();let r,localPaging=false;
+  const current=++epoch;message('Loading '+group.toLowerCase()+'…');$('ticketGrid').replaceChildren();$('ticketSummary').replaceChildren();$('ticketPages').replaceChildren();updateSelectionControls();
+  try{const {inventoryView,...filters}=getFilters();let r,localPaging=false;
    if(mode==='cached'&&group==='Inventory'){const query=Object.values(filters).filter(v=>!/^\d{4}-\d{2}-\d{2}$/.test(v)).join(' ');r=await A1Data.skyboxRequest({action:'inventory',query,page:Math.floor(((page-1)*pageSize)/50)});const offset=((page-1)*pageSize)%50;r={data:{rows:r.rows.slice(offset,offset+pageSize),rowCount:r.total},snapshot:r.completedAt};}
    else{const operation=groups.find(g=>g[0]===group)[1],op=catalog.operations[operation],parameters={};const pmap=new Map(op.parameters.map(p=>[p.name,p]));for(const [name,value]of Object.entries(filters)){if(!pmap.has(name))continue;const s=schema(pmap.get(name).schema);parameters[name]=s.type==='array'?value.split(',').map(v=>v.trim()):name.includes('Date')?value+'T'+(name.endsWith('To')?'23:59:59':'00:00:00'):value;}
+    if(group==='Inventory'&&inventoryView==='forSale'){parameters.listed=true;parameters.ticketStatus=['AVAILABLE'];parameters.minQuantity=1;}else if(group==='Inventory'&&inventoryView==='unlisted')parameters.listed=false;
     localPaging=!pmap.has('pageNumber');if(pmap.has('limit')&&!localPaging)parameters.limit=pageSize;if(pmap.has('pageNumber'))parameters.pageNumber=page;
     if(pmap.has('sortedBy')){const options=schema(pmap.get('sortedBy').schema).enum||[];const desired=group==='Inventory'?'EVENT_DATE':group==='Vendors'?'DISPLAY_NAME':'ID';if(options.includes(desired))parameters.sortedBy=desired;}if(pmap.has('sortDir'))parameters.sortDir=group==='Inventory'?'ASC':'DESC';
     r=await request({action:'read',operation,parameters});
@@ -58,11 +71,14 @@
   const wrap=$('ticketGrid');wrap.replaceChildren();let count=rows.length,qty=rows.reduce((s,r)=>s+(Number(r.quantity)||0),0);$('ticketSummary').replaceChildren(el('span',`${total.toLocaleString()} results`),el('span',`${count} on this page`));if(group==='Inventory')$('ticketSummary').append(el('span',`${qty} tickets on this page`));
   if(!rows.length)wrap.append(el('div','No records match these filters.','ticket-empty'));
   else{const table=el('table',undefined,'ticket-grid'),head=el('thead'),tr=el('tr');
-   const columns=group==='Inventory'?['Listing','Qty','Section','Row','Seats','Cost / ticket','List / ticket','Status','Broadcast','Actions']:group==='Invoices'||group==='Purchases'?['ID','Name','Created','Total','Balance','Payment','Fulfillment','Actions']:group==='Customers'||group==='Vendors'?['ID','Name','Company','Email','Phone','Balance','Actions']:['Record','Details','Actions'];
-   columns.forEach(c=>tr.append(el('th',c)));head.append(tr);table.append(head);const body=el('tbody');let previous='';
+   const columns=group==='Inventory'?['Select','Listing','Qty','Section','Row','Seats','Cost / ticket','List / ticket','Status','Broadcast','Actions']:group==='Invoices'||group==='Purchases'?['ID','Name','Created','Total','Balance','Payment','Fulfillment','Actions']:group==='Customers'||group==='Vendors'?['ID','Name','Company','Email','Phone','Balance','Actions']:['Record','Details','Actions'];
+   columns.forEach((c,i)=>{const th=el('th');if(group==='Inventory'&&i===0){const check=el('input');check.type='checkbox';check.id='ticketSelectPage';check.setAttribute('aria-label','Select this page');check.onchange=()=>{for(const row of rows){const id=String(row.id);if(check.checked)selectedListings.set(id,{id:Number(row.id),quantity:Number(row.quantity)||0});else selectedListings.delete(id);}updateSelectionControls();};th.append(check);}else th.textContent=c;tr.append(th);});head.append(tr);table.append(head);const body=el('tbody');let previous='';
    for(const r of rows){const e=eventOf(r);if(group==='Inventory'){const key=String(e.id||r.eventId||e.name);if(key!==previous){const g=el('tr',undefined,'ticket-event-row'),td=el('td');td.colSpan=columns.length;td.append(document.createTextNode(e.name||'Event '+(r.eventId||'—')),el('small',[e.date,e.venue?.name,e.venue?.city,e.venue?.state].filter(Boolean).join(' · ')));if(A1Data.isAdmin()||e.chartUrl)td.append(button('Open seat map',()=>seatMap(r)));g.append(td);body.append(g);previous=key;}}
     const row=el('tr'),values=group==='Inventory'?[r.id,r.quantity,r.section,r.row,r.seatNumbers||r.seats||[r.lowSeat,r.highSeat].filter(v=>v!=null).join('–'),currency(r.unitCostAverage??r.costAverage,r.currencyCode),currency(r.listPrice,r.listPriceCurrencyCode||r.currency),r.status,typeof r.broadcast==='boolean'?(r.broadcast?'On':'Off'):'Unavailable']:group==='Invoices'||group==='Purchases'?[r.id,r.displayName||r.customer?.displayName||r.vendor?.displayName,r.createdDate,currency(r.total,r.currencyCode),currency(r.outstandingBalance,r.currencyCode),r.paymentStatus,r.fulfillmentStatus||r.status]:group==='Customers'||group==='Vendors'?[r.id,r.displayName,r.company,r.email,r.address?.phone1,currency(r.outstandingBalance)]:[r.name||r.displayName||r.id||'Record',r.description||r.status||'View record'];
-    values.forEach((v,i)=>{const td=el('td');if(i===0){const b=button(String(v??'—'),()=>detail(r));b.className='ticket-link';td.append(b);}else td.textContent=v==null||v===''?'—':String(v);row.append(td);});
+    if(group==='Inventory'){
+     const td=el('td'),check=el('input');check.type='checkbox';check.className='ticket-select-listing';check.dataset.listingId=String(r.id);check.checked=selectedListings.has(String(r.id));check.setAttribute('aria-label','Select listing #'+r.id);check.onchange=()=>{if(check.checked)selectedListings.set(String(r.id),{id:Number(r.id),quantity:Number(r.quantity)||0});else selectedListings.delete(String(r.id));updateSelectionControls();};td.append(check);row.append(td);
+    }
+    values.forEach((v,i)=>{const td=el('td');if(i===0){const b=button(String(v??'—'),()=>detail(r));b.className='ticket-link';td.append(b);}else if(group==='Inventory'&&i===8){const status=el('span',undefined,'ticket-broadcast '+(typeof r.broadcast==='boolean'?(r.broadcast?'is-on':'is-off'):'is-unknown')),dot=el('span',undefined,'ticket-broadcast-light');dot.setAttribute('aria-hidden','true');status.append(dot,document.createTextNode(typeof r.broadcast==='boolean'?(r.broadcast?'On':'Off'):'Unknown'));status.title=typeof r.broadcast==='boolean'?'Broadcasting '+(r.broadcast?'on':'off'):'Broadcast status unavailable';td.append(status);}else td.textContent=v==null||v===''?'—':String(v);row.append(td);});
     const actions=el('td'),buttons=el('div',undefined,'ticket-row-actions');buttons.append(button('View',()=>detail(r)));
     if(group==='Events')buttons.append(button('Seat map',()=>seatMap(r)));
     if(A1Data.isAdmin()&&mode==='live'){
@@ -73,7 +89,18 @@
     actions.append(buttons);row.append(actions);body.append(row);
    }table.append(body);wrap.append(table);
   }
-  renderPagination();
+  renderPagination();updateSelectionControls();
+ }
+ function updateSelectionControls(){
+  const count=$('ticketSelectedCount');if(!count)return;
+  const qty=[...selectedListings.values()].reduce((sum,r)=>sum+r.quantity,0);count.textContent=selectedListings.size?`${selectedListings.size} listings selected · ${qty} tickets · across pages`:'No listings selected';
+  for(const b of $('ticketSelection').querySelectorAll('button'))b.disabled=selectedListings.size===0;
+  for(const check of document.querySelectorAll('.ticket-select-listing'))check.checked=selectedListings.has(check.dataset.listingId);
+  const header=$('ticketSelectPage');if(header){const chosen=rows.filter(r=>selectedListings.has(String(r.id))).length;header.checked=rows.length>0&&chosen===rows.length;header.indeterminate=chosen>0&&chosen<rows.length;header.disabled=rows.length===0;}
+ }
+ function bulkBroadcast(enabled){
+  const ids=[...selectedListings.values()].map(r=>r.id).filter(id=>Number.isSafeInteger(id)&&id>0);if(!ids.length)return;
+  openAction('inventoryBulkUpdate',{}, {inventoryIds:ids,broadcast:enabled});$('ticketDialogTitle').textContent='Turn broadcasting '+(enabled?'on':'off')+' · '+ids.length+' selected listings';
  }
  function renderPagination(){
   const pager=$('ticketPages'),pages=Math.max(1,Math.ceil(total/pageSize));
@@ -103,6 +130,34 @@
   }
  }
  function mapURL(value){try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password&&!A1Data.linkBlocked?.(url.href)?url.href:null;}catch{return null;}}
+ function externalMaps(event,view){
+  if(view.mapSearchMounted)return;view.mapSearchMounted=true;
+  const section=el('section'),form=el('form',undefined,'ticket-map-search'),label=el('label','Find a matching event map'),query=el('input'),results=el('div');
+  query.type='search';query.maxLength=120;query.required=true;query.value=String(event.name||'').slice(0,120);query.setAttribute('aria-label','Search event maps');label.append(query);form.append(label,button('Search maps',()=>form.requestSubmit()));section.append(el('p','Look up the same event on Ticketmaster or SeatGeek. Check the date, time, and venue before choosing a map. Charts do not show live seat availability.','ticket-help'),form,results);view.body.append(section);
+  let generation=0;
+  form.onsubmit=async e=>{
+   e.preventDefault();const current=++generation,name=query.value.trim();if(!name)return;results.replaceChildren(el('p','Checking Ticketmaster and SeatGeek…','ticket-help'));
+   const date=String(event.date||'').slice(0,10),venue=event.venue||{};
+   try{
+    const r=await A1Data.assistantRequest({action:'events',query:name,city:venue.city||'',stateCode:venue.state||'',...(/^\d{4}-\d{2}-\d{2}$/.test(date)?{startDate:date,endDate:date}:{}),page:0});
+    if(view.current!==modalEpoch||current!==generation)return;results.replaceChildren();const matches=r.events?.events||[];
+    if(!matches.length)results.append(el('p','No matching event was returned. Try a shorter artist or team name.','ticket-help'));
+    for(const provider of r.events?.providers||[])if(provider.status!=='ok')results.append(el('p',provider.name+': '+(provider.message||'Unavailable'),'ticket-help'));
+    for(const match of matches){
+     const card=el('div',undefined,'ticket-map-result');card.append(el('strong',match.name),el('p',[match.date,match.time,match.venue,match.city,match.state].filter(Boolean).join(' · '),'ticket-help'));
+     const chart=mapURL(match.seatMapUrl);
+     if(chart)card.append(button('View '+(match.seatMapSource||'Ticketmaster')+' seat map',()=>{
+      if(view.current!==modalEpoch)return;
+      const preview=showDialog('Seat map · '+match.name,[match.date,match.time,match.venue,match.city].filter(Boolean).join(' · '));
+      const link=el('a','Open full-size seat map','btn');link.href=chart;link.target='_blank';link.rel='noopener noreferrer';const img=el('img',undefined,'ticket-seat-map');img.alt=match.name+' seating chart';img.src=chart;img.onerror=()=>{img.remove();preview.body.append(el('p','The preview could not load. Try the full-size map link.','ticket-help'));};preview.body.append(el('p','Source: '+(match.seatMapSource||'Ticketmaster')+' · Static seating chart','ticket-help'),link,img);preview.foot.append(button('Close',()=>preview.dialog.close()));
+     }));
+     for(const offer of match.offers||[]){const url=mapURL(offer.url);if(!url)continue;const link=el('a',offer.source==='SeatGeek'?'Open SeatGeek event / map':'Open '+offer.source+' event','btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);}
+     if(!chart)card.append(el('p','No embeddable chart was returned. The provider event page may offer an interactive map.','ticket-help'));results.append(card);
+    }
+   }catch(e){if(view.current===modalEpoch&&current===generation)results.replaceChildren(el('p',e.message,'ticket-error'));}
+  };
+  if(query.value)form.requestSubmit();
+ }
  async function seatMap(row){
   const event=group==='Events'?row:eventOf(row),view=showDialog('Seat map · '+(event.name||'Event '+(event.id||row.eventId||'')));
   view.body.append(el('p','Loading the event seating map…','ticket-help'));view.foot.append(button('Close',()=>view.dialog.close()));
@@ -116,12 +171,13 @@
    const url=mapURL(details.chartUrl);
    if(url){
     const link=el('a','Open full-size seat map','btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';view.body.append(link);
-    const img=el('img',undefined,'ticket-seat-map');img.alt=(details.name||event.name||'Event')+' seating map';img.src=url;img.onerror=()=>{img.remove();view.body.append(el('p','The map preview could not load. Try the full-size map link above.','ticket-help'));};view.body.append(img);
+    const img=el('img',undefined,'ticket-seat-map');img.alt=(details.name||event.name||'Event')+' seating map';img.src=url;img.onerror=()=>{img.remove();view.body.append(el('p','The map preview could not load. Try the full-size map link above.','ticket-help'));};view.body.append(img,button('Find another map',()=>externalMaps({...event,...details,venue:details.venue||event.venue},view)));
    }else{
     view.body.append(el('p','Skybox has not supplied an available seating-map link for this event.','ticket-help'));
+    externalMaps({...event,...details,venue:details.venue||event.venue},view);
     const eventURL=mapURL(details.vividSeatsEventUrl);if(eventURL){const link=el('a','View event on Vivid Seats','btn');link.href=eventURL;link.target='_blank';link.rel='noopener noreferrer';view.body.append(link);}
    }
-  }catch(e){if(view.current===modalEpoch)view.body.replaceChildren(el('p',e.message,'ticket-error'));}
+  }catch(e){if(view.current===modalEpoch){view.body.replaceChildren(el('p',e.message,'ticket-error'));externalMaps(event,view);}}
  }
  async function broadcastListing(row){
   const current=epoch;
@@ -174,7 +230,7 @@
    busy=true;submit.disabled=true;status.textContent=op.changes?'Preparing review…':'Loading…';try{const r=await request({action:op.changes?'preview':'read',...payload});if(view.current!==modalEpoch)return;status.textContent='';result.replaceChildren();
     if(op.changes){pending={payload,confirmation:r.confirmation};form.hidden=true;submit.hidden=true;result.className='ticket-review';result.append(el('h4','Review before submitting'),el('p','This action will be sent to your Skybox account. Review the record IDs, quantities, and amounts below.'),describe({action:title(op),parameters:payload.parameters,details:payload.body},0,true));const confirm=button('Confirm and submit to Skybox',async()=>{
       if(busy||!pending)return;busy=true;confirm.disabled=true;status.textContent='Submitting once…';const submission=pending;pending=null;
-      try{const outcome=await request({action:'execute',...submission.payload,confirmation:submission.confirmation});if(view.current!==modalEpoch)return;result.replaceChildren(el('h4','Skybox confirmed the action'),describe(outcome.data));status.textContent='Refresh the workspace to see the latest record. Automatic sync will reconcile dashboard records.';confirm.remove();handleDownload(outcome,result);}
+      try{const outcome=await request({action:'execute',...submission.payload,confirmation:submission.confirmation});if(view.current!==modalEpoch)return;selectedListings.clear();updateSelectionControls();result.replaceChildren(el('h4','Skybox confirmed the action'),describe(outcome.data));status.textContent='Refresh the workspace to see the latest record. Automatic sync will reconcile dashboard records.';confirm.remove();handleDownload(outcome,result);}
       catch(e){if(view.current===modalEpoch){status.textContent=e.message;confirm.remove();}}finally{busy=false;}
      },true);view.foot.append(confirm);
     }else{result.append(describe(r.data));handleDownload(r,result);}
