@@ -130,6 +130,14 @@
   }
  }
  function mapURL(value){try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password&&!A1Data.linkBlocked?.(url.href)?url.href:null;}catch{return null;}}
+ function eventOptions(event,view){
+  view.body.querySelector('.ticket-event-options')?.remove();const options=el('section',undefined,'ticket-event-options');options.append(el('h4','Interactive maps & comparable tickets'));
+  const maps=window.A1VenueLinks?.mapsFor(event)||[],comparisons=window.A1VenueLinks?.comparisonsFor(event)||[];
+  for(const item of [...maps,...comparisons]){const url=mapURL(item.url);if(!url)continue;const link=el('a',item.label,'btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.title=item.scope==='search'?'Search results: choose the matching date and venue':item.source?item.source+' · '+item.layout+' layout':'Compare tickets and use the provider’s event map';options.append(link);}
+  if(maps.length)options.append(el('p','Venue maps show the labeled layout; concert stage setups may differ. Ticket sites confirm current prices and availability.','ticket-help'));
+  else options.append(el('p','Use the ticket-provider links for interactive event maps. A verified venue-map link has not been added for this venue yet.','ticket-help'));
+  options.append(button('Find matching event listings',()=>externalMaps(event,view)));view.body.prepend(options);
+ }
  function externalMaps(event,view){
   if(view.mapSearchMounted)return;view.mapSearchMounted=true;
   const section=el('section'),form=el('form',undefined,'ticket-map-search'),label=el('label','Find a matching event map'),query=el('input'),results=el('div');
@@ -148,10 +156,10 @@
      const chart=mapURL(match.seatMapUrl);
      if(chart)card.append(button('View '+(match.seatMapSource||'Ticketmaster')+' seat map',()=>{
       if(view.current!==modalEpoch)return;
-      const preview=showDialog('Seat map · '+match.name,[match.date,match.time,match.venue,match.city].filter(Boolean).join(' · '));
+      const preview=showDialog('Seat map · '+match.name,[match.date,match.time,match.venue,match.city].filter(Boolean).join(' · '));eventOptions(match,preview);
       const link=el('a','Open full-size seat map','btn');link.href=chart;link.target='_blank';link.rel='noopener noreferrer';const img=el('img',undefined,'ticket-seat-map');img.alt=match.name+' seating chart';img.src=chart;img.onerror=()=>{img.remove();preview.body.append(el('p','The preview could not load. Try the full-size map link.','ticket-help'));};preview.body.append(el('p','Source: '+(match.seatMapSource||'Ticketmaster')+' · Static seating chart','ticket-help'),link,img);preview.foot.append(button('Close',()=>preview.dialog.close()));
      }));
-     for(const offer of match.offers||[]){const url=mapURL(offer.url);if(!url)continue;const link=el('a',offer.source==='SeatGeek'?'Open SeatGeek event / map':'Open '+offer.source+' event','btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);}
+     for(const offer of match.offers||[]){const url=mapURL(offer.url);if(!url)continue;const link=el('a',offer.source==='SeatGeek'?'Compare SeatGeek tickets & map':/Ticketmaster/i.test(offer.source)?'Compare Ticketmaster tickets & map':'Open '+offer.source+' event','btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);}
      if(!chart)card.append(el('p','No embeddable chart was returned. The provider event page may offer an interactive map.','ticket-help'));results.append(card);
     }
    }catch(e){if(view.current===modalEpoch&&current===generation)results.replaceChildren(el('p',e.message,'ticket-error'));}
@@ -160,14 +168,14 @@
  }
  async function seatMap(row){
   const event=group==='Events'?row:eventOf(row),view=showDialog('Seat map · '+(event.name||'Event '+(event.id||row.eventId||'')));
-  view.body.append(el('p','Loading the event seating map…','ticket-help'));view.foot.append(button('Close',()=>view.dialog.close()));
+  view.body.append(el('p','Loading the event seating map…','ticket-help'));eventOptions(event,view);view.foot.append(button('Close',()=>view.dialog.close()));
   try{
    let details=event;
    if(!details.chartUrl&&A1Data.isAdmin()){
     const id=Number(event.id||row.eventId);if(!Number.isSafeInteger(id)||id<1)throw Error('This listing has no event ID for a seating map.');
     const response=await request({action:'read',operation:'eventsGet',parameters:{'event-id':id}});if(view.current!==modalEpoch)return;details=response.data||{};
    }
-   if(view.current!==modalEpoch)return;view.body.replaceChildren();
+   if(view.current!==modalEpoch)return;view.body.replaceChildren();eventOptions({...event,...details,venue:details.venue||event.venue},view);
    const url=mapURL(details.chartUrl);
    if(url){
     const link=el('a','Open full-size seat map','btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';view.body.append(link);
@@ -177,7 +185,7 @@
     externalMaps({...event,...details,venue:details.venue||event.venue},view);
     const eventURL=mapURL(details.vividSeatsEventUrl);if(eventURL){const link=el('a','View event on Vivid Seats','btn');link.href=eventURL;link.target='_blank';link.rel='noopener noreferrer';view.body.append(link);}
    }
-  }catch(e){if(view.current===modalEpoch){view.body.replaceChildren(el('p',e.message,'ticket-error'));externalMaps(event,view);}}
+  }catch(e){if(view.current===modalEpoch){view.body.replaceChildren(el('p',e.message,'ticket-error'));eventOptions(event,view);externalMaps(event,view);}}
  }
  async function broadcastListing(row){
   const current=epoch;
