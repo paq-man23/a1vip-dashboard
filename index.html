@@ -1267,7 +1267,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.1/dist/umd/supabase.js"></script>
 <script src="./supabase-config.js"></script>
 <script src="./a1-data.js?v=83"></script>
-<script src="./a1-activity.js?v=80"></script>
+<script src="./a1-activity.js?v=85"></script>
 <script src="./account-preview.js?v=83"></script>
 <script src="./a1-accounts.js?v=84"></script>
 <script src="./vault-entry.js"></script>
@@ -1885,7 +1885,11 @@
 
 // URLs that should open in a full browser tab (not the popup window)
 const FULL_BROWSER_MATCH = [
-  'tradedesk.ticketmaster.com'
+  'tradedesk.ticketmaster.com',
+  'outlook.office.com',
+  'outlook.office365.com',
+  'outlook.live.com',
+  'outlook.cloud.microsoft'
 ];
 
 function isFullBrowserUrl(url){

@@ -188,7 +188,8 @@
     closeSite();
     const target=new URL(url);
     // Restore the original top-level app-style window, without embedding the provider.
-    const features=target.hostname.toLowerCase()==='tradedesk.ticketmaster.com'?'noopener,noreferrer':
+    const fullBrowser=window.isFullBrowserUrl?window.isFullBrowserUrl(target.href):['tradedesk.ticketmaster.com','outlook.office.com','outlook.office365.com','outlook.live.com','outlook.cloud.microsoft'].includes(target.hostname.toLowerCase());
+    const features=fullBrowser?'noopener,noreferrer':
       (window.separateWindowFeatures?.()||'popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=1200,height=800')+',noopener,noreferrer';
     window.open(target.href,'_blank',features);
   }
