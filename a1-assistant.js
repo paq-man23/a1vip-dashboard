@@ -27,6 +27,7 @@
   if(allowed('invoices'))examples.push('“summary 2026 invoices” — totals and balances', '“who bought Olivia Rodrigo tickets?” — search event invoices');
   if(allowed('ticketUI'))examples.push('“find inventory Dolphins”', '“find Skybox invoice 12345”', '“find Skybox purchases for Yankees”');
   examples.push('“find events Knicks” — upcoming Ticketmaster events', '“When is Olivia Rodrigo playing in New York?”');
+  if(allowed('seatSniper'))examples.push('“find inventory Yankees” — search A1 Skybox listings');
   if(allowed('tripItinerary'))examples.push('“find trip Florida”');
   if(allowed('main'))examples.push('“add button for example.com in main”');
   message('Here are a few things you can ask me:\n'+examples.join('\n'));
@@ -265,9 +266,36 @@
   if(modeNote)modeNote.textContent='AI connected · Chat, search, summaries and reviewed actions';
   return {...result.plan,eventResults:result.events};
  }
+ async function skyboxInventory(query,token,page=0){
+  requireAccess('seatSniper');
+  if(typeof A1Data.skyboxRequest!=='function')throw new Error('Skybox inventory lookup is unavailable in this dashboard version.');
+  status.textContent='Searching A1 Skybox inventory…';
+  const result=await A1Data.skyboxRequest({action:'inventory',query:query.slice(0,120),page});
+  if(!valid(token))return;
+  requireAccess('seatSniper');
+  status.textContent='';
+  const rows=Array.isArray(result.rows)?result.rows:[];
+  const total=Number(result.total)||0;
+  const card=message('A1 Skybox inventory · '+total+' matching listings'+(result.completedAt?' · Last full refresh: '+new Date(result.completedAt).toLocaleString():' · Full refresh pending')+'. This is synced inventory, not a live availability guarantee.');
+  if(!rows.length){message('No matching A1 inventory found. Try an event, artist, team, venue or listing ID.');return;}
+  for(const item of rows.slice(0,12)){
+   const price=Number.isFinite(Number(item.listPrice))&&item.listPrice!=null?new Intl.NumberFormat(undefined,{style:'currency',currency:/^[A-Z]{3}$/.test(item.currency||'USD')?item.currency:'USD'}).format(Number(item.listPrice))+' per ticket':'Price unavailable';
+   const label=[item.eventName||'Event '+(item.eventId||''),item.eventDate,item.venue,'Section '+(item.section||'—'),'Row '+(item.row||'—'),String(item.quantity??'—')+' tickets',price,'Skybox #'+item.id].filter(Boolean).join(' · ');
+   message(label);
+  }
+  if(rows.length>12)message('Showing the first 12 of '+rows.length+' listings on this page. Narrow your search for more detail.');
+  if((page+1)*50<total)action(card,'Next inventory page',t=>skyboxInventory(query,t,page+1));
+ }
+ function inventoryQuestion(text){
+  const q=String(text||'').trim();
+  if(/^(?:find|search|show|look up|check|list)\s+(?:(?:our|a1|skybox|available)\s+)?(?:ticket\s+)?inventory\b/i.test(q))return q.replace(/^(?:find|search|show|look up|check|list)\s+(?:(?:our|a1|skybox|available)\s+)?(?:ticket\s+)?inventory\s*(?:for|of|on|:)?\s*/i,'').trim();
+  if(/\b(?:our|a1|skybox)\s+(?:ticket\s+)?inventory\b/i.test(q))return q.replace(/.*?\b(?:our|a1|skybox)\s+(?:ticket\s+)?inventory\b\s*(?:for|of|on|:)?\s*/i,'').trim();
+  if(/^(?:do we have|have we got|what do we have|are there any)\b/i.test(q)&&/\b(?:tickets?|seats?|inventory)\b/i.test(q))return q.replace(/^(?:do we have|have we got|what do we have|are there any)\s*/i,'').trim();
+  return null;
+ }
  async function ask(text,voice=false){
   text=String(text||'').trim().slice(0,600);if(!text||!A1Data.authenticated())return;
-  const token=epoch;message(text,true);let request=core.intent(text);
+  const token=epoch;message(text,true);const inventoryQuery=inventoryQuestion(text);if(inventoryQuery!==null){conversation.push(text);conversation=conversation.slice(-6);await skyboxInventory(inventoryQuery,token);return;}let request=core.intent(text);
   if(request.type==='events'&&/\b(?:in|on|this|next|from|between|tomorrow|tonight)\b/i.test(request.query))request={type:'unknown',query:text};
   if(request.type==='unknown'&&waiting?.type==='skybox')request={...waiting,query:text,page:0};
   if((request.type==='unknown'||request.type==='help'||request.type==='global')&&waiting?.type!=='buttonWizard'){
