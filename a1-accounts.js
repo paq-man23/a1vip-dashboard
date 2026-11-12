@@ -1,6 +1,6 @@
 /* Admin account controls and category visibility; authority is checked again in Supabase. */
 (() => {
- const sections=[['main','Main Links'],['luxury','Suites'],['accounts','Ticket Accounts'],['travel','Travel'],['social','Social'],['invoices','Invoices & POs'],['seatSniper','Seat Sniper + Ticket UI'],['customers','Customers'],['vendors','Vendors'],['formLetter','Letters'],['tripItinerary','Trips']];
+ const sections=[['main','Main Links'],['seasonTickets','Season Tickets'],['luxury','Suites (under Ticket Accounts)'],['accounts','Ticket Accounts'],['travel','Travel'],['social','Social'],['invoices','Invoices & POs'],['seatSniper','Seat Sniper + Ticket UI'],['customers','Customers'],['vendors','Vendors'],['formLetter','Letters'],['tripItinerary','Trips']];
  let rows=[],selected=null,mode='edit',busy=false;
  const node=id=>document.getElementById(id);
  function button(label,action){const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=label;b.addEventListener('click',action);return b;}
@@ -35,7 +35,8 @@
   node('managedPasswordLabel').hidden=kind==='edit'||kind==='email';node('managedCategories').hidden=kind==='password'||kind==='email'||!!row?.is_admin;
   node('managedRole').textContent=row?.is_admin?'Administrator — full access. Only JAW and JV have this role.':'Regular user — choose allowed categories below.';
   const list=node('managedCategoryList');list.replaceChildren();
-  for(const [id,label] of sections){const l=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=id;input.checked=!row||row.allowed_sections===null||row.allowed_sections===undefined||row.allowed_sections.includes(id);l.append(input,document.createTextNode(' '+label));list.append(l);}
+  for(const [id,label] of sections){if(kind==='create'&&id==='seasonTickets')continue;const l=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=id;input.checked=id==='seasonTickets'?!!row?.allowed_sections?.includes(id):!row||row.allowed_sections===null||row.allowed_sections===undefined||row.allowed_sections.includes(id);l.append(input,document.createTextNode(' '+label));list.append(l);}
+  if(kind==='create'){const note=document.createElement('p');note.textContent='After creating the account, enable Season Tickets under Profile & Categories if needed.';list.append(note);}
   node('managedSave').disabled=false;node('accountEditor').showModal();
  }
  function create(){showEditor('create');}function edit(row){showEditor('edit',row);}function password(row){showEditor('password',row);}
@@ -70,9 +71,9 @@
  }
  function applyAccess(){
   if(!A1Data.authenticated())return;
-  for(const button of document.querySelectorAll('[data-category]'))button.classList.toggle('a1-category-denied',!A1Data.canAccess(button.dataset.category));
+  for(const button of document.querySelectorAll('[data-category]'))button.classList.toggle('a1-category-denied',!(A1Data.canAccess(button.dataset.category)||(button.dataset.category==='accounts'&&A1Data.canAccess('luxury'))));
   for(const section of document.querySelectorAll('.section')){
-   const allowed=A1Data.canAccess(section.id);section.classList.toggle('a1-category-denied',!allowed);
+   const allowed=A1Data.canAccess(section.id)||(section.id==='accounts'&&A1Data.canAccess('luxury'));section.classList.toggle('a1-category-denied',!allowed);
    if(!allowed&&section.style.display==='block'){
     section.style.display='none';const first=sections.find(([id])=>A1Data.canAccess(id));if(first)window.showSection(first[0]);
    }
