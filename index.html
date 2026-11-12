@@ -362,7 +362,7 @@
 <link rel="stylesheet" href="./dashboard.css?v=74">
 <link rel="stylesheet" href="./seat-sniper-workspace.css">
 <link rel="stylesheet" href="./ticket-ui.css?v=79">
-<link rel="stylesheet" href="./season-tickets.css?v=83">
+<link rel="stylesheet" href="./season-tickets.css?v=84">
 </head>
 <body class="a1-locked">
 
@@ -486,16 +486,13 @@
       <div class="grid" data-section="main"></div>
     </div>
 
-    <div id="luxury" class="section" style="display:none;">
-      <nav class="ticket-account-subnav" aria-label="Ticket account categories"><button class="btn" type="button" onclick="showSection('accounts')">← Ticket Accounts</button><span>Suites</span></nav>
-      <h3>Luxury Suites</h3>
-      <div class="grid" data-section="luxury"></div>
-    </div>
-
     <div id="accounts" class="section" style="display:none;">
       <h3>Ticket Accounts</h3>
-      <nav class="ticket-account-subnav" aria-label="Ticket account categories"><button class="btn" type="button" data-category="luxury" onclick="showSection('luxury')">Suites →</button></nav>
-      <div class="grid" data-section="accounts"></div>
+      <div class="grid" data-section="accounts" data-section-permission="accounts"></div>
+      <div id="luxury" class="ticket-account-subsection" data-section-permission="luxury" aria-labelledby="suitesHeading">
+        <h3 id="suitesHeading">Suites</h3>
+        <div class="grid" data-section="luxury"></div>
+      </div>
     </div>
 
     <section id="seasonTickets" class="section" style="display:none;" aria-label="Season Tickets"></section>
@@ -1272,7 +1269,7 @@
 <script src="./a1-data.js?v=83"></script>
 <script src="./a1-activity.js?v=80"></script>
 <script src="./account-preview.js?v=83"></script>
-<script src="./a1-accounts.js?v=83"></script>
+<script src="./a1-accounts.js?v=84"></script>
 <script src="./vault-entry.js"></script>
 <script src="./vendor/fflate-0.8.3.js"></script>
 <script src="./skybox-import.js"></script>
@@ -1280,7 +1277,7 @@
 <script src="./private-links.js"></script>
 <script src="./button-moves.js"></script>
 <script src="./vision-layout.js"></script>
-<script src="./assistant-core.js?v=83"></script>
+<script src="./assistant-core.js?v=84"></script>
 <script src="./assistant-position.js"></script>
 <script src="./assistant-actions.js"></script>
 <script src="./assistant-records.js"></script>
@@ -1851,11 +1848,12 @@
     function showSection(id,options){
       if(A1Data.canAccess&& !A1Data.canAccess(id)&&!(id==='accounts'&&A1Data.canAccess('luxury'))){alert('Your administrator has not enabled this category for your account.');return;}
       if(['admin','manageAccounts','system','buttonManager','upload','domains'].includes(id)&&A1Data.isAdmin?.()!==true){alert('Administrator access required.');return;}
+      const openSuites=id==='luxury';if(openSuites)id='accounts';
       if(id==='purchases'){id='invoices';setInvoiceHistoryKind('purchase');openInvoiceMode('history');}
       document.querySelectorAll('.section').forEach(s=>s.style.display='none');
       const el = document.getElementById(id);
       if(el) el.style.display='block';
-      document.querySelectorAll('[data-category]').forEach(button=>{const active=button.dataset.category===id||(id==='luxury'&&button.dataset.category==='accounts');button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
+      document.querySelectorAll('[data-category]').forEach(button=>{const active=button.dataset.category===id;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
       const activeCategory=document.querySelector('[data-category="'+id+'"] .tab-label');
       document.getElementById('mobileSectionTitle').textContent=activeCategory?.textContent||({luxury:'Suites',manageAccounts:'Manage Accounts',account:'Account Settings',system:'System',upload:'Uploads',buttonManager:'Button Manager',domains:'Domains'})[id]||'Main Links';
       if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
@@ -1867,6 +1865,7 @@
       if(id==='seatSniper')window.A1SeatSniper?.open();
       if(id==='ticketUI')window.A1TicketUI?.open(options);
       if(id==='seasonTickets')window.A1SeasonTickets?.open();
+      if(openSuites)document.getElementById('luxury')?.scrollIntoView({block:'start',behavior:'smooth'});
     }
 
     async function loadSectionData(id,force=false){
