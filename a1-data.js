@@ -396,6 +396,16 @@
     return result.data;
   }
   window.A1Data = {
+    fetchSeasonHolders:async()=>{
+      const c=requireReady(),identity=user.id,epoch=dataEpoch;if(!canAccess('seasonTickets'))throw new Error('Season Tickets is not enabled for your account.');
+      const rows=await readPages('a1_season_ticket_holders','id,document,version,created_at,updated_at',null,['id']);
+      if(identity!==user?.id||epoch!==dataEpoch||!canAccess('seasonTickets'))throw new Error('Your session or access changed.');return copy(rows);
+    },
+    saveSeasonHolder:async(id,document,version)=>{
+      const c=requireReady(),identity=user.id,epoch=dataEpoch;if(!canAccess('seasonTickets'))throw new Error('Season Tickets is not enabled for your account.');
+      const row=check(await c.rpc('a1_save_season_holder',{p_id:id,p_document:document,p_expected_version:version}));
+      if(identity!==user?.id||epoch!==dataEpoch||!canAccess('seasonTickets'))throw new Error('Your session or access changed.');return copy(row);
+    },
     assistantRequest:async body=>{
       const identity=user?.id,c=requireReady();
       const result=await c.functions.invoke('a1-assistant',{body});

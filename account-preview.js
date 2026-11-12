@@ -1,6 +1,6 @@
 /* Read-only user dashboard preview. Does not impersonate users or write preferences. */
 (function(root){
- const sections=[['main','Main Links'],['luxury','Suites'],['accounts','Ticket Accounts'],['travel','Travel'],['social','Social'],['invoices','Invoices & POs'],['seatSniper','Seat Sniper'],['customers','Customers'],['vendors','Vendors'],['formLetter','Letters'],['tripItinerary','Trips']];
+ const sections=[['main','Main Links'],['seasonTickets','Season Tickets'],['luxury','Suites (under Ticket Accounts)'],['accounts','Ticket Accounts'],['travel','Travel'],['social','Social'],['invoices','Invoices & POs'],['seatSniper','Seat Sniper'],['customers','Customers'],['vendors','Vendors'],['formLetter','Letters'],['tripItinerary','Trips']];
  const children={privatejet:'Private Jet',luxhomes:'Luxury Homes',yachts:'Yachts'};
  const normalize=url=>{try{return new URL(url).href;}catch{return String(url||'');}};
  function build(choices,shared){
@@ -41,12 +41,13 @@
    const nav=el('nav',undefined,'account-preview-tabs');nav.setAttribute('aria-label','User preview categories');const view=el('div',undefined,'account-preview-content');content.append(nav,view);
    function show(id,label){
     view.replaceChildren();view.append(el('h3',label));for(const n of nav.children)n.setAttribute('aria-pressed',String(n.dataset.previewCategory===id));
-    const groups=id==='travel'?[[id,label],...Object.entries(children)]:[[id,label]];let count=0;
+    const groups=id==='travel'?[[id,label],...Object.entries(children)]:id==='accounts'?[[id,label],['luxury','Suites']]:[[id,label]];let count=0;
     for(const [section,name] of groups){const links=model.links.filter(link=>link.section===section);if(!links.length)continue;count+=links.length;if(section!==id)view.append(el('h4',name));const grid=el('div',undefined,'account-preview-grid');for(const link of links){const b=el('button',link.label,'btn');b.type='button';b.tabIndex=-1;b.setAttribute('aria-disabled','true');grid.append(b);}view.append(grid);}
-    if(!count)view.append(el('p',['invoices','customers','vendors','formLetter','tripItinerary','seatSniper'].includes(id)?'This category is available to the user. Saved records are not loaded in this layout preview.':'No visible buttons in this category.'));
+    if(!count)view.append(el('p',['invoices','customers','vendors','formLetter','tripItinerary','seatSniper','seasonTickets'].includes(id)?'This category is available to the user. Saved records are not loaded in this layout preview.':'No visible buttons in this category.'));
    }
-   for(const [id,label] of model.sections){const style={customers:'invoices',vendors:'invoices',formLetter:'letter',tripItinerary:'itinerary'};const tab=el('button',label,'tab tab-'+(style[id]||id));tab.type='button';tab.dataset.previewCategory=id;tab.onclick=()=>show(id,label);nav.append(tab);}
-   if(model.sections.length)show(...model.sections[0]);else view.append(el('p','No dashboard categories are assigned to this user.'));
+   const navigation=model.sections.filter(([id])=>id!=='luxury');if(model.sections.some(([id])=>id==='luxury')&&!navigation.some(([id])=>id==='accounts'))navigation.push(['accounts','Ticket Accounts']);
+   for(const [id,label] of navigation){const style={customers:'invoices',vendors:'invoices',formLetter:'letter',tripItinerary:'itinerary'};const tab=el('button',label,'tab tab-'+(style[id]||id));tab.type='button';tab.dataset.previewCategory=id;tab.onclick=()=>show(id,label);nav.append(tab);}
+   if(navigation.length)show(...navigation[0]);else view.append(el('p','No dashboard categories are assigned to this user.'));
   }catch(error){if(token===serial&&dialog)content.textContent='Could not load preview: '+error.message;}
  }
  root.addEventListener('a1-signed-out',close);root.addEventListener('a1-access-changed',close);

@@ -362,6 +362,7 @@
 <link rel="stylesheet" href="./dashboard.css?v=74">
 <link rel="stylesheet" href="./seat-sniper-workspace.css">
 <link rel="stylesheet" href="./ticket-ui.css?v=79">
+<link rel="stylesheet" href="./season-tickets.css?v=83">
 </head>
 <body class="a1-locked">
 
@@ -460,7 +461,7 @@
     <div class="mobile-section-bar"><span id="mobileSectionTitle">Main Links</span><button id="mobileSectionToggle" type="button" aria-expanded="false" aria-controls="categoryNavigation" onclick="toggleSectionMenu()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span id="mobileSectionToggleLabel">Sections</span></button></div>
     <div id="categoryNavigation" class="tabs-scroller">
       <button class="tab tab-main is-active" data-category="main" onclick="showSection('main')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/></svg><span class="tab-label">Main Links</span></button>
-      <button class="tab tab-luxury" data-category="luxury" onclick="showSection('luxury')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 6 4 4 5-7 5 7 4-4-2 13H5Z"/><path d="M6 15h12"/></svg><span class="tab-label">Suites</span></button>
+      <button class="tab tab-luxury" data-category="seasonTickets" onclick="showSection('seasonTickets')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18m-13 5h2m4 0h2"/></svg><span class="tab-label">Season Tickets</span></button>
       <button class="tab tab-accounts" data-category="accounts" onclick="showSection('accounts')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 6h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4Z"/><path d="M15 6v3m0 3v2m0 3v1"/></svg><span class="tab-label">Ticket Accounts</span></button>
       <button class="tab tab-travel" data-category="travel" onclick="showSection('travel')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6Z"/></svg><span class="tab-label">Travel</span></button>
       <button class="tab tab-social" data-category="social" onclick="showSection('social')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 11a9 9 0 0 1-9 9 9 9 0 0 1-4-1l-5 2 2-5a9 9 0 0 1-1-4 9 9 0 0 1 17-1Z"/><path d="M8 11h8m-8 4h5"/></svg><span class="tab-label">Social</span></button>
@@ -486,14 +487,18 @@
     </div>
 
     <div id="luxury" class="section" style="display:none;">
+      <nav class="ticket-account-subnav" aria-label="Ticket account categories"><button class="btn" type="button" onclick="showSection('accounts')">← Ticket Accounts</button><span>Suites</span></nav>
       <h3>Luxury Suites</h3>
       <div class="grid" data-section="luxury"></div>
     </div>
 
     <div id="accounts" class="section" style="display:none;">
       <h3>Ticket Accounts</h3>
+      <nav class="ticket-account-subnav" aria-label="Ticket account categories"><button class="btn" type="button" data-category="luxury" onclick="showSection('luxury')">Suites →</button></nav>
       <div class="grid" data-section="accounts"></div>
     </div>
+
+    <section id="seasonTickets" class="section" style="display:none;" aria-label="Season Tickets"></section>
 
     <div id="travel" class="section" style="display:none;">
       <h3>Travel</h3>
@@ -1264,10 +1269,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.1/dist/umd/supabase.js"></script>
 <script src="./supabase-config.js"></script>
-<script src="./a1-data.js?v=75"></script>
+<script src="./a1-data.js?v=83"></script>
 <script src="./a1-activity.js?v=80"></script>
-<script src="./account-preview.js"></script>
-<script src="./a1-accounts.js"></script>
+<script src="./account-preview.js?v=83"></script>
+<script src="./a1-accounts.js?v=83"></script>
 <script src="./vault-entry.js"></script>
 <script src="./vendor/fflate-0.8.3.js"></script>
 <script src="./skybox-import.js"></script>
@@ -1275,7 +1280,7 @@
 <script src="./private-links.js"></script>
 <script src="./button-moves.js"></script>
 <script src="./vision-layout.js"></script>
-<script src="./assistant-core.js?v=82"></script>
+<script src="./assistant-core.js?v=83"></script>
 <script src="./assistant-position.js"></script>
 <script src="./assistant-actions.js"></script>
 <script src="./assistant-records.js"></script>
@@ -1283,6 +1288,7 @@
 <script src="./a1-assistant.js?v=82"></script>
 <script src="./a1-invoice-fields.js"></script>
 <script src="./a1-contacts.js"></script>
+<script src="./season-tickets.js?v=83"></script>
 <script src="./skybox-ui.js"></script>
 <script src="./venue-links.js?v=79"></script>
 <script src="./seat-sniper.js?v=80"></script>
@@ -1843,15 +1849,15 @@
       setSectionMenuExpanded(!document.querySelector('.top-tabs').classList.contains('is-open'));
     }
     function showSection(id,options){
-      if(A1Data.canAccess&& !A1Data.canAccess(id)){alert('Your administrator has not enabled this category for your account.');return;}
+      if(A1Data.canAccess&& !A1Data.canAccess(id)&&!(id==='accounts'&&A1Data.canAccess('luxury'))){alert('Your administrator has not enabled this category for your account.');return;}
       if(['admin','manageAccounts','system','buttonManager','upload','domains'].includes(id)&&A1Data.isAdmin?.()!==true){alert('Administrator access required.');return;}
       if(id==='purchases'){id='invoices';setInvoiceHistoryKind('purchase');openInvoiceMode('history');}
       document.querySelectorAll('.section').forEach(s=>s.style.display='none');
       const el = document.getElementById(id);
       if(el) el.style.display='block';
-      document.querySelectorAll('[data-category]').forEach(button=>{const active=button.dataset.category===id;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
+      document.querySelectorAll('[data-category]').forEach(button=>{const active=button.dataset.category===id||(id==='luxury'&&button.dataset.category==='accounts');button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
       const activeCategory=document.querySelector('[data-category="'+id+'"] .tab-label');
-      document.getElementById('mobileSectionTitle').textContent=activeCategory?.textContent||({manageAccounts:'Manage Accounts',account:'Account Settings',system:'System',upload:'Uploads',buttonManager:'Button Manager',domains:'Domains'})[id]||'Main Links';
+      document.getElementById('mobileSectionTitle').textContent=activeCategory?.textContent||({luxury:'Suites',manageAccounts:'Manage Accounts',account:'Account Settings',system:'System',upload:'Uploads',buttonManager:'Button Manager',domains:'Domains'})[id]||'Main Links';
       if (typeof updateSystemButtonVisibility === 'function') updateSystemButtonVisibility(id);
       if (window.matchMedia('(max-width:760px), (orientation:landscape) and (max-height:600px) and (max-width:1100px)').matches) setSectionMenuExpanded(false);
       loadSectionData(id);
@@ -1860,6 +1866,7 @@
       if(id==='manageAccounts')window.A1Accounts?.load();
       if(id==='seatSniper')window.A1SeatSniper?.open();
       if(id==='ticketUI')window.A1TicketUI?.open(options);
+      if(id==='seasonTickets')window.A1SeasonTickets?.open();
     }
 
     async function loadSectionData(id,force=false){

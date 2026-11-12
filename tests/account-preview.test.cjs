@@ -6,7 +6,7 @@ test('preview combines saved personal buttons and shared buttons while honoring 
  assert.deepEqual(model.sections.map(s=>s[0]),['main','travel']);assert.deepEqual(model.links.map(l=>l.label),['Visible','Jet','Personal']);assert.equal(JSON.stringify(choices),before);assert.equal(shared.length,6);
 });
 test('default category access excludes admin-only categories; empty selections stay empty',()=>{
- const shared=[link('domains','Admin domain','https://domain.example'),link('main','Default','https://default.example')];assert.deepEqual(build({allowed_sections:[],added_links:[]},shared),{sections:[],links:[]});assert.equal(build({allowed_sections:null},shared).links.length,1);assert.equal(build({allowed_sections:null},shared).sections.length,11);
+ const shared=[link('domains','Admin domain','https://domain.example'),link('main','Default','https://default.example')];assert.deepEqual(build({allowed_sections:[],added_links:[]},shared),{sections:[],links:[]});assert.equal(build({allowed_sections:null},shared).links.length,1);assert.equal(build({allowed_sections:null},shared).sections.length,12);
 });
 test('personal moves hide originals and show the relocated button in the saved destination',()=>{
  const original=link('main','Moved','https://moved.example');const model=build({allowed_sections:['main','accounts'],hidden_buttons:[original.key],added_links:[{section:'accounts',label:'Moved',url:original.url}]},[original]);assert.deepEqual(model.links.map(l=>[l.section,l.label]),[['accounts','Moved']]);

@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-function harness({ locationPending, usernameEmail, invoiceRows, member = true, admin = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [], beforeRead = async()=>{}, allowedSections = null } = {}) {
+function harness({ locationPending, usernameEmail, invoiceRows, member = true, admin = true, failSave = false, recoverySession = false, initialMarker = null, documentRows = [], contactRows = [], conflictRows = [], importResults = [], beforeRead = async()=>{}, allowedSections = null, seasonRows = [] } = {}) {
   let callback, savedArgs, loginArgs, resetArgs, updateArgs;
   const calls = [], filters = [], reads = [], pages=[],functionCalls=[];
   const rows = invoiceRows || [{ id: 'inv-one', version: 3, document: { id: 'inv-one', number: '4100', clientCompany: 'A1' } }];
@@ -22,7 +22,7 @@ function harness({ locationPending, usernameEmail, invoiceRows, member = true, a
       reads.push(table); const where={};let after=null;
       const query = { select() { if (this.deleting) return Promise.resolve({ data: [{id:'deleted'}] }); return this; }, delete() { this.deleting = true; return this; }, eq(key, value) { filters.push([key,value]); where[key]=value; return this; }, order() { return this; }, gt(key,value){after={key,value};return this;},
         maybeSingle: async () => ({ data: table==='a1_account_profiles' ? {allowed_sections:allowedSections} : member ? { user_id: 'staff',is_admin:admin } : null }),
-        range: async (start,end) => { pages.push({table,start,end,after});await beforeRead(table);let data=['a1_invoices','a1_invoice_history'].includes(table) ? rows : table === 'a1_contacts' ? contactRows.filter(row=>!where.kind||row.document.kind===where.kind) : table === 'a1_documents' ? documentRows.filter(row=>!where.kind||row.kind===where.kind) : table === 'a1_import_conflicts' ? conflictRows : [];if(after)data=data.filter(row=>(row[after.key]||row.document?.[after.key])>after.value);return {data:data.slice(start,end+1)}; } };
+        range: async (start,end) => { pages.push({table,start,end,after});await beforeRead(table);let data=['a1_invoices','a1_invoice_history'].includes(table) ? rows : table === 'a1_season_ticket_holders' ? seasonRows : table === 'a1_contacts' ? contactRows.filter(row=>!where.kind||row.document.kind===where.kind) : table === 'a1_documents' ? documentRows.filter(row=>!where.kind||row.kind===where.kind) : table === 'a1_import_conflicts' ? conflictRows : [];if(after)data=data.filter(row=>(row[after.key]||row.document?.[after.key])>after.value);return {data:data.slice(start,end+1)}; } };
       return query;
     },
     rpc: async (name, args) => {
@@ -334,4 +334,12 @@ test('a later invoice-page failure preserves an empty cache and a retry starts f
 
 test('login location enrichment runs in the background without blocking restoration or passing client IP data',async()=>{
  let finish;const locationPending=new Promise(r=>finish=r);const h=harness({locationPending});await h.data.restore();assert.equal(h.data.authenticated(),true);const request=h.functionCalls.find(c=>c.name==='a1-login-location');assert.deepEqual(JSON.parse(JSON.stringify(request.args.body)),{});finish({data:{ok:true}});
+});
+
+test('season-holder data access is lazy, permission-checked, and cannot mutate fetched records',async()=>{
+ const row={id:'season-fixture',document:{holderName:'Fixture'},version:1},h=harness({admin:false,allowedSections:['seasonTickets'],seasonRows:[row]});await h.data.restore();assert.equal(h.reads.includes('a1_season_ticket_holders'),false);const rows=await h.data.fetchSeasonHolders();assert.equal(rows[0].document.holderName,'Fixture');rows[0].document.holderName='changed';assert.equal(row.document.holderName,'Fixture');
+ const denied=harness({admin:false,allowedSections:['invoices']});await denied.data.restore();await assert.rejects(denied.data.fetchSeasonHolders(),/not enabled/);await assert.rejects(denied.data.saveSeasonHolder('x',{},0),/not enabled/);assert.equal(denied.reads.includes('a1_season_ticket_holders'),false);
+});
+test('season-holder writes send the exact saved version through the guarded RPC',async()=>{
+ const h=harness();await h.data.restore();await h.data.saveSeasonHolder('holder-1',{holderName:'Fixture'},3);const c=h.calls.find(c=>c.name==='a1_save_season_holder');assert.equal(c.args.p_id,'holder-1');assert.equal(c.args.p_expected_version,3);assert.equal(c.args.p_document.holderName,'Fixture');
 });
