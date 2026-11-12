@@ -78,6 +78,7 @@
     section.style.display='none';const first=sections.find(([id])=>A1Data.canAccess(id));if(first)window.showSection(first[0]);
    }
   }
+  for(const group of document.querySelectorAll('[data-section-permission]'))group.classList.toggle('a1-category-denied',!A1Data.canAccess(group.dataset.sectionPermission));
   const empty=node('noCategoriesAssigned');if(empty)empty.hidden=sections.some(([id])=>A1Data.canAccess(id));
   const denied=new Set(A1Data.isAdmin()?[]:A1Data.blockedLinks());
   for(const b of document.querySelectorAll('.grid[data-section]>.btn'))b.classList.toggle('a1-admin-link-denied',denied.has(A1Activity.buttonKey(b))||A1Data.linkBlocked?.(b.dataset.url)||!A1Data.canAccess(b.closest('.grid').dataset.section));
