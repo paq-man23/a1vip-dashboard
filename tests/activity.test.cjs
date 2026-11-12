@@ -64,3 +64,13 @@ test('interactive-map links use native browser tabs for regular users and blocke
  assert.deepEqual(click('https://blocked.example/map',true),{prevented:true,stopped:true});assert.equal(opened.length,0);
  assert.deepEqual(click('https://ordinary.example/',false),{prevented:true,stopped:true});assert.equal(opened.length,1);assert.match(opened[0][2],/popup=yes/);
 });
+
+test('Outlook email buttons open full browser tabs for admins and staff while unrelated hosts keep popup behavior',()=>{
+ const hosts=['outlook.office.com','outlook.office365.com','outlook.live.com','outlook.cloud.microsoft'],html=fs.readFileSync('index.html','utf8'),definition=html.slice(html.indexOf('const FULL_BROWSER_MATCH ='),html.indexOf('// Video links (local/hosted MP4)'));
+ const c={URL};vm.runInNewContext(definition+';check=isFullBrowserUrl;',c);for(const host of hosts)assert.equal(c.check('https://'+host+'/mail/'),true);assert.equal(c.check('https://outlook.office.com.other.example/'),false);assert.equal(c.check('https://example.com/?next=outlook.office.com'),false);
+ const opened=[],window={addEventListener(){},isFullBrowserUrl:c.check,open:(...args)=>opened.push(args)},document={getElementById:()=>null,addEventListener(){}};
+ vm.runInNewContext(fs.readFileSync('a1-activity.js','utf8'),{window,document,A1Data:{authenticated:()=>true,linkBlocked:url=>url.includes('blocked')},URL,clearInterval(){},console});
+ for(const host of hosts)window.A1Activity.openSite('https://'+host+'/mail/','Email');assert.ok(opened.every(args=>args[1]==='_blank'&&args[2]==='noopener,noreferrer'));
+ window.A1Activity.openSite('https://ordinary.example/','Other');assert.match(opened.at(-1)[2],/popup=yes/);const count=opened.length;window.A1Activity.openSite('https://outlook.office.com/blocked','Blocked');assert.equal(opened.length,count);
+ const opener=html.slice(html.indexOf('    function openPopup(url, label){'),html.indexOf('\n\nfunction copyDescription'));vm.runInNewContext(opener+';openPopup("https://outlook.office.com/","Email")',{A1Data:{authenticated:()=>true,isAdmin:()=>true},window,isVideoUrl:()=>false,isFullBrowserUrl:c.check});assert.equal(opened.at(-1)[2],'noopener,noreferrer');
+});
